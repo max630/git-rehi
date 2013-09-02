@@ -1,0 +1,41 @@
+#!/usr/bin/env perl
+
+use strict;
+
+use Data::Dumper;
+use Carp;
+
+sub main ($$) { my ($dest, $source_to) = @_;
+    my $target_ref = $source_to;
+    my $source_from = git_merge_base($dest, $source_to);
+}
+
+sub git_merge_base($$) { my ($b1, $b2) = @_;
+    verify_cmdarg($b1);
+    verify_cmdarg($b2);
+    my $result = "";
+    my $hit = 0;
+    open(my $in, "-|", "git merge-base -a $b1 $b2") or confess "Cannot run: $!";
+    while (<$in>) {
+        s/^\s+|\s+$//g;
+        if (!$hit) {
+            $result = $_;
+            $hit = 1;
+        } else {
+            confess "Multiple merge-bases for $b1 and $b2";
+        }
+    }
+    close ($in) or confess "Command failed";
+    if (!$hit) {
+        confess "Merge-base not found for $b1 and $b2"
+    }
+    return $result;
+}
+
+sub verify_cmdarg($) { my ($str) = @_;
+    if ($str =~ /["'\\\(\)#]|[\x00- ]/) {
+        confess "Invalid cmdarg: $str";
+    }
+}
+
+main($ARGV[0], $ARGV[1]);
