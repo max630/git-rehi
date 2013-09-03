@@ -8,8 +8,27 @@ use Carp;
 sub main ($$) { my ($dest, $source_to) = @_;
     my $target_ref = $source_to;
     my $source_from = git_merge_base($dest, $source_to);
-    print Dumper($dest, $source_from, $source_to, $target_ref);
-    print Dumper(git_fetch_commits($source_from, $source_to));
+    #print Dumper($dest, $source_from, $source_to, $target_ref);
+    #TODO: resolve all arguments
+    my ($commits, $top_hash) = git_fetch_commits($source_from, $source_to);
+    print Dumper(build_rebase_sequence($commits, $top_hash));
+    # combine sequence
+    # edit
+    # perform sequence
+}
+
+sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
+    confess("Invalid top hash: $top_hash") unless (exists $commits->{$top_hash});
+    my @result = ();
+    my $hash = $top_hash;
+    do {
+        push @result, {type => 'pick', hash => $hash};
+        my $parents = $commits->{$hash}->{parents};
+        confess("Multiple parents for $hash") unless ($#{$parents} == 0);
+        $hash = $parents->[0];
+    } while (exists $commits->{$hash}); # TODO: use bottom_hash instead
+    @result = reverse @result;
+    return \@result;
 }
 
 sub git_fetch_commits($$) { my ($from, $to) = @_;
@@ -17,6 +36,7 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($to);
     my $commits = {};
     my $buffer = "";
+    my $top_hash = "";
     iterate_popen("git log --ancestry-path --pretty=format:%H%x00%P%x00%B%x00 $from..$to",
                   sub {
         $buffer = $buffer . $_;
@@ -27,6 +47,9 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
             $buffer = $4;
             verify_hash($hash);
             foreach my $p (@parents) { verify_hash($p); }
+            if ($top_hash eq "") {
+                $top_hash = $hash;
+            }
             if (exists $commits->{$hash}) {
                 confess "Duplicated commit: $hash";
             }
@@ -36,7 +59,7 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
     if ($buffer ne "") {
         confess "Leftover buffer: $buffer";
     }
-    return $commits;
+    return ($commits, $top_hash);
 }
 
 sub git_merge_base($$) { my ($b1, $b2) = @_;
