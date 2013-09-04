@@ -11,12 +11,14 @@ sub main ($$) { my ($dest, $source_to) = @_;
     my $source_from = git_merge_base($dest, $source_to);
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
-    my ($commits, $top_hash) = git_fetch_commits($source_from, $source_to);
-    my $rebase_sequence = build_rebase_sequence($commits, $top_hash);
+    my ($dest_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_to]);
+    my $commits = git_fetch_commits($source_from, $source_to);
+    my $rebase_sequence = build_rebase_sequence($commits, $source_to_hash);
     # TODO: edit if interactive
     # TODO: checkout!!!
-    run_command("git reset --hard $dest");
+    run_command("git checkout --detach $dest_hash");
     run_rebase($rebase_sequence, $commits);
+    run_command("git branch -f $target_ref");
 }
 
 sub run_rebase($) { my ($rebase_sequence, $commits) = @_;
@@ -56,12 +58,23 @@ sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
     return \@result;
 }
 
+sub git_resolve_hashes($) { my ($refs) = @_;
+    foreach (@{$refs}) { verify_cmdarg($_); }
+    my $refs_str = join " ", @{$refs};
+    my @result = ();
+    iterate_popen("git rev-parse $refs_str", sub {
+        s/^\s+|\s+$//g;
+        push @result, $_;
+    });
+    confess("Hash number does not match") unless ($#result == $#{$refs});
+    return @result;
+}
+
 sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {};
     my $buffer = "";
-    my $top_hash = "";
     iterate_popen("git log --ancestry-path --pretty=format:%H%x00%P%x00%B%x00 $from..$to",
                   sub {
         $buffer = $buffer . $_;
@@ -72,9 +85,6 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
             $buffer = $4;
             verify_hash($hash);
             foreach my $p (@parents) { verify_hash($p); }
-            if ($top_hash eq "") {
-                $top_hash = $hash;
-            }
             if (exists $commits->{$hash}) {
                 confess "Duplicated commit: $hash";
             }
@@ -84,7 +94,7 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
     if ($buffer ne "") {
         confess "Leftover buffer: $buffer";
     }
-    return ($commits, $top_hash);
+    return $commits;
 }
 
 sub git_merge_base($$) { my ($b1, $b2) = @_;
