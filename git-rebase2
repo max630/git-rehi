@@ -14,18 +14,21 @@ sub main ($$) { my ($dest, $source_to) = @_;
     my ($commits, $top_hash) = git_fetch_commits($source_from, $source_to);
     my $rebase_sequence = build_rebase_sequence($commits, $top_hash);
     # TODO: edit if interactive
-    # TODO: reset target
-    run_rebase($rebase_sequence);
+    # TODO: checkout!!!
+    run_command("git reset --hard $dest");
+    run_rebase($rebase_sequence, $commits);
 }
 
-sub run_rebase($) { my ($rebase_sequence) = @_;
+sub run_rebase($) { my ($rebase_sequence, $commits) = @_;
     # TODO: handle errors
-    foreach (@{$rebase_sequence}) { run_step($_); }
+    foreach (@{$rebase_sequence}) { run_step($_, $commits); }
 }
 
-sub run_step($) { my ($rebase_step) = @_;
+sub run_step($) { my ($rebase_step, $commits) = @_;
     given($rebase_step->{type}) {
         when ("pick") {
+            my $subject = (split /\n/, $commits->{$rebase_step->{hash}}->{comment})[0];
+            print "Apply: $subject\n";
             pick($rebase_step->{hash});
         }
         default {
@@ -36,7 +39,7 @@ sub run_step($) { my ($rebase_step) = @_;
 
 sub pick($) { my ($hash) = @_;
     # TODO: clear out all details
-    run_command("git cherry-pick --allow-empty --allow-empty-message $hash");
+    run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash");
 }
 
 sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
