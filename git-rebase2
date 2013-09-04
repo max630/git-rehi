@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 
 use strict;
+use feature 'switch';
 
 use Data::Dumper;
 use Carp;
@@ -11,10 +12,31 @@ sub main ($$) { my ($dest, $source_to) = @_;
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
     my ($commits, $top_hash) = git_fetch_commits($source_from, $source_to);
-    print Dumper(build_rebase_sequence($commits, $top_hash));
-    # combine sequence
-    # edit
-    # perform sequence
+    my $rebase_sequence = build_rebase_sequence($commits, $top_hash);
+    # TODO: edit if interactive
+    # TODO: reset target
+    run_rebase($rebase_sequence);
+}
+
+sub run_rebase($) { my ($rebase_sequence) = @_;
+    # TODO: handle errors
+    foreach (@{$rebase_sequence}) { run_step($_); }
+}
+
+sub run_step($) { my ($rebase_step) = @_;
+    given($rebase_step->{type}) {
+        when ("pick") {
+            pick($rebase_step->{hash});
+        }
+        default {
+            confess "Type $rebase_step->{type} is unknown or not implemented";
+        }
+    }
+}
+
+sub pick($) { my ($hash) = @_;
+    # TODO: clear out all details
+    run_command("git cherry-pick --allow-empty --allow-empty-message $hash");
 }
 
 sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
@@ -82,6 +104,11 @@ sub git_merge_base($$) { my ($b1, $b2) = @_;
     return $result;
 }
 
+sub run_command($) { my ($command) = @_;
+    my $ret = system($command);
+    confess("Command failed: $ret") unless ($ret == 0);
+}
+
 sub iterate_popen($$) { my ($command, $code) = @_;
     open(my $in, "-|", $command) or confess "Cannot start a program: $!";
     while (<$in>) {
@@ -102,4 +129,7 @@ sub verify_cmdarg($) { my ($str) = @_;
     }
 }
 
+# TODO: options parser
+# * interactive
+# * continue, abort
 main($ARGV[0], $ARGV[1]);
