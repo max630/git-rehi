@@ -29,7 +29,8 @@ sub main ($$) { my ($dest, $source_to) = @_;
     # TODO: edit if interactive
     run_command("git checkout --quiet --detach $dest_hash");
     run_rebase($todo, $commits);
-    run_command("git branch -f $target_ref");
+    # TODO: make proper reflog
+    run_command("git checkout -B $target_ref");
 }
 
 sub run_rebase($) { my ($todo, $commits) = @_;
