@@ -38,6 +38,19 @@ sub main ($$) { my ($dest, $source_to) = @_;
 sub run_rebase($) { my ($todo, $commits) = @_;
     # TODO: handle errors
     while (defined (my $current = shift @{$todo})) {
+        with_output_file(".git/rebase2-todo", sub { my ($out) = @_;
+            foreach my $step (@{$todo}) {
+                given ($step->{type}) {
+                    when ("pick") {
+                        my $subject = (split /\n/, $commits->{$step->{hash}}->{comment})[0];
+                        print $out "pick $step->{hash} $subject\n";
+                    }
+                    default {
+                        confess "Type $step->{type} is unknown or not implemented";
+                    }
+                }
+            }
+        });
         run_step($current, $commits);
     }
 }
@@ -156,6 +169,19 @@ sub verify_cmdarg($) { my ($str) = @_;
     if ($str =~ /["'\\\(\)#]|[\x00- ]/) {
         confess "Invalid cmdarg: $str";
     }
+}
+
+sub with_output_file($$) { my ($filename, $proc) = @_;
+    open(my $out, ">", $filename + ".new") or confess "Cannot open file $filename.new: $!";
+    $proc->($out);
+    close($out) or confess "Cannot close output file $filename.new: $!";
+    rename($filename + ".new", $filename) or "Cannot replace output file $filename: $!";
+}
+
+sub save_string($$) { my ($filename, $str) = @_;
+    with_output_file($filename, sub { my ($out) = @_;
+        print $out $str;
+    });
 }
 
 # TODO: options parser
