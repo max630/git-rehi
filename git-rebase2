@@ -6,6 +6,18 @@ use feature 'switch';
 use Data::Dumper;
 use Carp;
 
+# TODO:
+# * Implement --continue, --abort, --skip
+#  * Maintanting of todo and current
+#  * Serialization
+#  * Option parsing
+#  * ensuring that there is no rebase in progress
+#  * Prototype ready here
+#  * Learn exactly how it works in current rebase:
+#   * detection of unresolved changes
+#   * detection of uncommited changes
+#   * detection of commited pick
+
 sub main ($$) { my ($dest, $source_to) = @_;
     my $target_ref = $source_to;
     my $source_from = git_merge_base($dest, $source_to);
