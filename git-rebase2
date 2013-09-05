@@ -15,7 +15,6 @@ sub main ($$) { my ($dest, $source_to) = @_;
     my $commits = git_fetch_commits($source_from, $source_to);
     my $rebase_sequence = build_rebase_sequence($commits, $source_to_hash);
     # TODO: edit if interactive
-    # TODO: checkout!!!
     run_command("git checkout --detach $dest_hash");
     run_rebase($rebase_sequence, $commits);
     run_command("git branch -f $target_ref");
