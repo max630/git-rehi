@@ -8,8 +8,10 @@ use Carp;
 
 # TODO:
 # * Implement --continue, --abort, --skip
-#  * Maintanting of todo and current
-#  * Serialization
+#  * Maintanting of todo and current (+)
+#  * Preparation of working directory
+#  * Serialization and read back
+#  * Short hashes
 #  * Option parsing
 #  * ensuring that there is no rebase in progress
 #  * Prototype ready here
