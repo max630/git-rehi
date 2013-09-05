@@ -25,16 +25,18 @@ sub main ($$) { my ($dest, $source_to) = @_;
     #TODO: resolve all arguments
     my ($dest_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_to]);
     my $commits = git_fetch_commits($source_from, $source_to);
-    my $rebase_sequence = build_rebase_sequence($commits, $source_to_hash);
+    my $todo = build_rebase_sequence($commits, $source_to_hash);
     # TODO: edit if interactive
-    run_command("git checkout --detach $dest_hash");
-    run_rebase($rebase_sequence, $commits);
+    run_command("git checkout --quiet --detach $dest_hash");
+    run_rebase($todo, $commits);
     run_command("git branch -f $target_ref");
 }
 
-sub run_rebase($) { my ($rebase_sequence, $commits) = @_;
+sub run_rebase($) { my ($todo, $commits) = @_;
     # TODO: handle errors
-    foreach (@{$rebase_sequence}) { run_step($_, $commits); }
+    while (defined (my $current = shift @{$todo})) {
+        run_step($current, $commits);
+    }
 }
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
