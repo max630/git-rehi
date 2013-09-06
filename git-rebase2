@@ -27,26 +27,22 @@ sub main ($$) { my ($dest, $source_to) = @_;
     my ($dest_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_to]);
     my $commits = git_fetch_commits($source_from, $source_to);
     my $todo = build_rebase_sequence($commits, $source_to_hash);
+    init_save();
     # TODO: edit if interactive
     run_command("git checkout --quiet --detach $dest_hash");
     run_rebase($todo, $commits);
     # TODO: make proper reflog
     run_command("git checkout -B $target_ref");
+    cleanup_save();
 }
 
 sub run_rebase($) { my ($todo, $commits) = @_;
     # TODO: handle errors
     while (defined (my $current = shift @{$todo})) {
-        with_output_file(".git/rebase2-todo", sub { my ($out) = @_;
-            foreach my $step (@{$todo}) {
-                if ($step->{type} eq "pick") {
-                    print $out "pick $step->{hash} $commits->{$step->{hash}}->{subject}\n";
-                } else {
-                    confess "Type $step->{type} is unknown or not implemented";
-                }
-            }
-        });
+        save_todo($todo);
+        save_current($current);
         run_step($current, $commits);
+        remove_current();
     }
 }
 
@@ -164,6 +160,26 @@ sub verify_cmdarg($) { my ($str) = @_;
     }
 }
 
+sub init_save() {
+    if (-e ".git/rebase2") {
+        confess "already in progress?";
+    }
+
+    mkdir(".git/rebase2") or confess "Mkdir .git/rebase2 failed: $!";
+}
+
+sub save_todo($) { my ($todo) = @_;
+    with_output_file(".git/rebase2/todo", sub { my ($out) = @_;
+        foreach my $step (@{$todo}) {
+            if ($step->{type} eq "pick") {
+                print $out "pick $step->{hash} $commits->{$step->{hash}}->{subject}\n";
+            } else {
+                confess "Type $step->{type} is unknown or not implemented";
+            }
+        }
+    });
+}
+
 sub with_output_file($$) { my ($filename, $proc) = @_;
     open(my $out, ">", $filename + ".new") or confess "Cannot open file $filename.new: $!";
     $proc->($out);
@@ -171,7 +187,7 @@ sub with_output_file($$) { my ($filename, $proc) = @_;
     rename($filename + ".new", $filename) or "Cannot replace output file $filename: $!";
 }
 
-sub save_string($$) { my ($filename, $str) = @_;
+sub write_file($$) { my ($filename, $str) = @_;
     with_output_file($filename, sub { my ($out) = @_;
         print $out $str;
     });
