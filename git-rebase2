@@ -40,8 +40,7 @@ sub run_rebase($) { my ($todo, $commits) = @_;
         with_output_file(".git/rebase2-todo", sub { my ($out) = @_;
             foreach my $step (@{$todo}) {
                 if ($step->{type} eq "pick") {
-                    my $subject = (split /\n/, $commits->{$step->{hash}}->{comment})[0];
-                    print $out "pick $step->{hash} $subject\n";
+                    print $out "pick $step->{hash} $commits->{$step->{hash}}->{subject}\n";
                 } else {
                     confess "Type $step->{type} is unknown or not implemented";
                 }
@@ -53,8 +52,7 @@ sub run_rebase($) { my ($todo, $commits) = @_;
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
     if ($rebase_step->{type} eq "pick") {
-        my $subject = (split /\n/, $commits->{$rebase_step->{hash}}->{comment})[0];
-        print "Apply: $subject\n";
+        print "Apply: $commits->{$rebase_step->{hash}}->{subject}\n";
         pick($rebase_step->{hash});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
@@ -96,26 +94,22 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {};
-    my $buffer = "";
-    iterate_popen("git log --ancestry-path --pretty=format:%H%x00%P%x00%B%x00 $from..$to",
+    iterate_popen("git log --ancestry-path --pretty=format:%H:%P:%s $from..$to",
                   sub {
-        $buffer = $buffer . $_;
-        if ($buffer =~ /^([^\x00]*)\x00([^\x00]*)\x00([^\x00]*)\x00\x{a}?(.*)$/s) {
+        if (/^([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
             my $hash = $1;
             my @parents = split(/ /, $2);
-            my $comment = $3;
-            $buffer = $4;
+            my $subject = $3;
             verify_hash($hash);
             foreach my $p (@parents) { verify_hash($p); }
             if (exists $commits->{$hash}) {
                 confess "Duplicated commit: $hash";
             }
-            $commits->{$hash} = {parents => \@parents, comment => $comment};
+            $commits->{$hash} = {parents => \@parents, subject => $subject};
+        } else {
+            confess("Could not parse line: $_");
         }
     });
-    if ($buffer ne "") {
-        confess "Leftover buffer: $buffer";
-    }
     return $commits;
 }
 
@@ -153,6 +147,7 @@ sub iterate_popen($$) { my ($command, $code) = @_;
 }
 
 sub verify_hash($) { my ($str) = @_;
+    # allow abbreviated
     if ($str !~ /^[0-9a-f]{40}$/) {
         confess "Invalid hash: $str";
     }
