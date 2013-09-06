@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 
 use strict;
-use feature 'switch';
 
 use Data::Dumper;
 use Carp;
@@ -40,14 +39,11 @@ sub run_rebase($) { my ($todo, $commits) = @_;
     while (defined (my $current = shift @{$todo})) {
         with_output_file(".git/rebase2-todo", sub { my ($out) = @_;
             foreach my $step (@{$todo}) {
-                given ($step->{type}) {
-                    when ("pick") {
-                        my $subject = (split /\n/, $commits->{$step->{hash}}->{comment})[0];
-                        print $out "pick $step->{hash} $subject\n";
-                    }
-                    default {
-                        confess "Type $step->{type} is unknown or not implemented";
-                    }
+                if ($step->{type} eq "pick") {
+                    my $subject = (split /\n/, $commits->{$step->{hash}}->{comment})[0];
+                    print $out "pick $step->{hash} $subject\n";
+                } else {
+                    confess "Type $step->{type} is unknown or not implemented";
                 }
             }
         });
@@ -56,15 +52,12 @@ sub run_rebase($) { my ($todo, $commits) = @_;
 }
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
-    given($rebase_step->{type}) {
-        when ("pick") {
-            my $subject = (split /\n/, $commits->{$rebase_step->{hash}}->{comment})[0];
-            print "Apply: $subject\n";
-            pick($rebase_step->{hash});
-        }
-        default {
-            confess "Type $rebase_step->{type} is unknown or not implemented";
-        }
+    if ($rebase_step->{type} eq "pick") {
+        my $subject = (split /\n/, $commits->{$rebase_step->{hash}}->{comment})[0];
+        print "Apply: $subject\n";
+        pick($rebase_step->{hash});
+    } else {
+        confess "Type $rebase_step->{type} is unknown or not implemented";
     }
 }
 
