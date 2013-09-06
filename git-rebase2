@@ -94,6 +94,11 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {};
+    # TODO: abbreviated hashes should really be used some day,
+    # but this needs care
+    # looks like git dynamically decides length for each hash,
+    # so probably need indexing rather than just substring.
+    # Or do it other way around? Don't know...
     iterate_popen("git log --ancestry-path --pretty=format:%H:%P:%s $from..$to",
                   sub {
         if (/^([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
