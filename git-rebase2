@@ -4,6 +4,7 @@ use strict;
 
 use Data::Dumper;
 use Carp;
+use File::Path qw(remove_tree);
 
 # TODO:
 # * Implement --continue, --abort, --skip
@@ -39,10 +40,10 @@ sub main ($$) { my ($dest, $source_to) = @_;
 sub run_rebase($) { my ($todo, $commits) = @_;
     # TODO: handle errors
     while (defined (my $current = shift @{$todo})) {
-        save_todo($todo);
-        save_current($current);
+        save_todo($todo, ".git/rebase2/todo", $commits);
+        save_todo([$current], ".git/rebase2/current", $commits);
         run_step($current, $commits);
-        remove_current();
+        unlink(".git/rebase2/current");
     }
 }
 
@@ -168,7 +169,12 @@ sub init_save() {
     mkdir(".git/rebase2") or confess "Mkdir .git/rebase2 failed: $!";
 }
 
-sub save_todo($) { my ($todo) = @_;
+sub cleanup_save() {
+    # will throw itself
+    remove_tree(".git/rebase2");
+}
+
+sub save_todo($$$) { my ($todo, $file, $commits) = @_;
     with_output_file(".git/rebase2/todo", sub { my ($out) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
