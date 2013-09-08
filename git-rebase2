@@ -4,7 +4,7 @@ use strict;
 
 use Data::Dumper;
 use Carp;
-use File::Path qw(remove_tree);
+use File::Path qw(rmtree);
 
 # TODO:
 # * Implement --continue, --abort, --skip
@@ -171,7 +171,7 @@ sub init_save() {
 
 sub cleanup_save() {
     # will throw itself
-    remove_tree(".git/rebase2");
+    rmtree(".git/rebase2");
 }
 
 sub save_todo($$$) { my ($todo, $file, $commits) = @_;
