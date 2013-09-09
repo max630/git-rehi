@@ -22,6 +22,11 @@ use File::Path qw(rmtree);
 #   * detection of commited pick
 
 sub main ($$) { my ($dest, $source_to) = @_;
+    my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
+    run_rebase($todo, $commits, $target_ref);
+}
+
+sub init_rebase($$) { my ($dest, $source_to) = @_;
     my $target_ref = $source_to;
     my $source_from = git_merge_base($dest, $source_to);
     #print Dumper($dest, $source_from, $source_to, $target_ref);
@@ -32,13 +37,10 @@ sub main ($$) { my ($dest, $source_to) = @_;
     init_save($target_ref);
     # TODO: edit if interactive
     run_command("git checkout --quiet --detach $dest_hash");
-    run_rebase($todo, $commits);
-    # TODO: make proper reflog
-    run_command("git checkout -B $target_ref");
-    cleanup_save();
+    return ($todo, $commits, $target_ref);
 }
 
-sub run_rebase($) { my ($todo, $commits) = @_;
+sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
     # TODO: handle errors
     while (defined (my $current = shift @{$todo})) {
         save_todo($todo, ".git/rebase2/todo", $commits);
@@ -46,6 +48,9 @@ sub run_rebase($) { my ($todo, $commits) = @_;
         run_step($current, $commits);
         unlink(".git/rebase2/current");
     }
+    # TODO: make proper reflog
+    run_command("git checkout -B $target_ref");
+    cleanup_save();
 }
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
