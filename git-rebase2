@@ -21,9 +21,25 @@ use File::Path qw(rmtree);
 #   * detection of uncommited changes
 #   * detection of commited pick
 
-sub main ($$) { my ($dest, $source_to) = @_;
-    my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
-    run_rebase($todo, $commits, $target_ref);
+sub main ($) { my @argv = @{$_[0]};
+    if (0) {
+    } elsif ($argv[0] eq "--abort") {
+        confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+        abort_rebase();
+    } elsif ($argv[0] eq "--skip") {
+        confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+        confess ("Skip not implemented");
+    } elsif ($argv[0] eq "--continue") {
+        confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+        confess ("Continue not implemented");
+    # } elsif (scalar @argv == 1) { TODO: find HEAD?
+    } elsif (scalar @argv == 2) {
+        my ($dest, $source_to) = @argv;
+        my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
+        run_rebase($todo, $commits, $target_ref);
+    } else {
+        confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
+    }
 }
 
 sub init_rebase($$) { my ($dest, $source_to) = @_;
@@ -51,6 +67,12 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
     # TODO: make proper reflog
     run_command("git checkout -B $target_ref");
     cleanup_save();
+}
+
+sub abort_rebase() {
+    my $target_ref = read_file(".git/rebase2/target_ref");
+    run_command("git reset --hard $target_ref");
+    run_command("git checkout -f $target_ref");
 }
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
@@ -205,7 +227,12 @@ sub write_file($$) { my ($filename, $str) = @_;
     });
 }
 
+sub read_file($) { my ($filename) = @_;
+    open(my $out, "<", $filename) or confess "Cannot open file $filename: $!";
+    close($out) or confess "Cannot close file $filename: $!";
+}
+
 # TODO: options parser
 # * interactive
 # * continue, abort
-main($ARGV[0], $ARGV[1]);
+main(\@ARGV);
