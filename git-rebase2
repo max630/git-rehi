@@ -229,7 +229,12 @@ sub write_file($$) { my ($filename, $str) = @_;
 
 sub read_file($) { my ($filename) = @_;
     open(my $out, "<", $filename) or confess "Cannot open file $filename: $!";
+    my $data = "";
+    if (read($out, $data, 1024) <= 0) {
+        confess "Read failed: $!";
+    }
     close($out) or confess "Cannot close file $filename: $!";
+    return $data;
 }
 
 # TODO: options parser
