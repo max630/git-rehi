@@ -29,7 +29,7 @@ sub main ($$) { my ($dest, $source_to) = @_;
     my ($dest_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_to]);
     my $commits = git_fetch_commits($source_from, $source_to);
     my $todo = build_rebase_sequence($commits, $source_to_hash);
-    init_save();
+    init_save($target_ref);
     # TODO: edit if interactive
     run_command("git checkout --quiet --detach $dest_hash");
     run_rebase($todo, $commits);
@@ -162,12 +162,12 @@ sub verify_cmdarg($) { my ($str) = @_;
     }
 }
 
-sub init_save() {
+sub init_save($) { my ($target_ref) = @_;
     if (-e ".git/rebase2") {
         confess "already in progress?";
     }
-
     mkdir(".git/rebase2") or confess "Mkdir .git/rebase2 failed: $!";
+    write_file(".git/rebase2/target_ref", $target_ref);
 }
 
 sub cleanup_save() {
