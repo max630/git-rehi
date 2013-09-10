@@ -45,11 +45,13 @@ sub main ($) { my @argv = @{$_[0]};
 
 sub restore_rebase() {
     my $target_ref = read_file(".git/rebase2/target_ref");
-    my $todo = read_todo(".git/rebase2/todo");
+    my ($todo, $commits) = read_todo(".git/rebase2/todo");
     my $current = 0;
     if (-e ".git/rebase2/current") {
-        $current = \read_todo(".git/rebase2/current");
+        my @current_todo = read_todo(".git/rebase2/current");
+        $current = $current_todo[0];
     }
+    return ($todo, $current, $commits, $target_ref);
 }
 
 sub init_rebase($$) { my ($dest, $source_to) = @_;
@@ -223,6 +225,26 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
             }
         }
     });
+}
+
+sub read_todo($) { my ($filename) = @_;
+    my $todo = [];
+    my $commits = {};
+    open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
+    while (<$in>) {
+        if (/^#.*$/) {
+        } elsif (/^pick ([0-9a-f]+) (.*)$/) {
+            push @{$todo}, {type => "pick", hash => $1};
+            if (!exists $commits->{$1}) {
+                # duplicates are in principle acceptable
+                $commits->{$1} = {subject => $2};
+            }
+        } elsif (/^[[:space:]]*$/) {
+        } else {
+            confess "Unrecognised todo line: \"$_\"";
+        }
+    }
+    return ($todo, $commits);
 }
 
 sub with_output_file($$) { my ($filename, $proc) = @_;
