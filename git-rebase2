@@ -6,21 +6,6 @@ use Data::Dumper;
 use Carp;
 use File::Path qw(rmtree);
 
-# TODO:
-# * Implement --continue, --abort, --skip
-#  * Maintanting of todo and current (+)
-#  * Preparation of working directory (+)
-#  * --abort
-#  * --continue
-#  * Short hashes
-#  * Option parsing
-#  * ensuring that there is no rebase in progress
-#  * Prototype ready here
-#  * Learn exactly how it works in current rebase:
-#   * detection of unresolved changes
-#   * detection of uncommited changes
-#   * detection of commited pick
-
 sub main ($) { my @argv = @{$_[0]};
     if (0) {
     } elsif ($argv[0] eq "--abort") {
