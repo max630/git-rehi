@@ -119,7 +119,7 @@ sub abort_rebase() {
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
     if ($rebase_step->{type} eq "pick") {
-        print "Apply: $commits->{$rebase_step->{hash}}->{subject}\n";
+        print "Apply: $commits->{by_hash}->{$rebase_step->{hash}}->{subject}\n";
         pick($rebase_step->{hash});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
@@ -132,15 +132,15 @@ sub pick($) { my ($hash) = @_;
 }
 
 sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
-    confess("Invalid top hash: $top_hash") unless (exists $commits->{$top_hash});
+    confess("Invalid top hash: $top_hash") unless (exists $commits->{by_hash}->{$top_hash});
     my @result = ();
     my $hash = $top_hash;
     do {
         push @result, {type => 'pick', hash => $hash};
-        my $parents = $commits->{$hash}->{parents};
+        my $parents = $commits->{by_hash}->{$hash}->{parents};
         confess("Multiple parents for $hash") unless ($#{$parents} == 0);
         $hash = $parents->[0];
-    } while (exists $commits->{$hash}); # TODO: use bottom_hash instead
+    } while (exists $commits->{by_hash}->{$hash}); # TODO: use bottom_hash instead
     @result = reverse @result;
     return \@result;
 }
@@ -160,7 +160,7 @@ sub git_resolve_hashes($) { my ($refs) = @_;
 sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
-    my $commits = {};
+    my $commits = {by_hash => {}};
     # TODO: abbreviated hashes should really be used some day,
     # but this needs care
     # looks like git dynamically decides length for each hash,
@@ -174,10 +174,10 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
             my $subject = $3;
             verify_hash($hash);
             foreach my $p (@parents) { verify_hash($p); }
-            if (exists $commits->{$hash}) {
+            if (exists $commits->{by_hash}->{$hash}) {
                 confess "Duplicated commit: $hash";
             }
-            $commits->{$hash} = {parents => \@parents, subject => $subject};
+            $commits->{by_hash}->{$hash} = {parents => \@parents, subject => $subject};
         } else {
             confess("Could not parse line: $_");
         }
@@ -248,7 +248,7 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
     with_output_file($file, sub { my ($out) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
-                print $out "pick $step->{hash} $commits->{$step->{hash}}->{subject}\n";
+                print $out "pick $step->{hash} $commits->{by_hash}->{$step->{hash}}->{subject}\n";
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -258,15 +258,15 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
 
 sub read_todo($) { my ($filename) = @_;
     my $todo = [];
-    my $commits = {};
+    my $commits = {by_hash => {}};
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     while (<$in>) {
         if (/^#.*$/) {
         } elsif (/^pick ([0-9a-f]+) (.*)$/) {
             push @{$todo}, {type => "pick", hash => $1};
-            if (!exists $commits->{$1}) {
+            if (!exists $commits->{by_hash}->{$1}) {
                 # duplicates are in principle acceptable
-                $commits->{$1} = {subject => $2};
+                $commits->{by_hash}->{$1} = {subject => $2};
             }
         } elsif (/^[[:space:]]*$/) {
         } else {
