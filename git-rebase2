@@ -31,6 +31,7 @@ sub main ($) { my @argv = @{$_[0]};
         confess ("Skip not implemented");
     } elsif ($argv[0] eq "--continue") {
         confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+        my ($todo, $commits, $target_ref) = restore_rebase();
         confess ("Continue not implemented");
     # } elsif (scalar @argv == 1) { TODO: find HEAD?
     } elsif (scalar @argv == 2) {
@@ -39,6 +40,15 @@ sub main ($) { my @argv = @{$_[0]};
         run_rebase($todo, $commits, $target_ref);
     } else {
         confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
+    }
+}
+
+sub restore_rebase() {
+    my $target_ref = read_file(".git/rebase2/target_ref");
+    my $todo = read_todo(".git/rebase2/todo");
+    my $current = 0;
+    if (-e ".git/rebase2/current") {
+        $current = \read_todo(".git/rebase2/current");
     }
 }
 
