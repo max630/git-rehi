@@ -28,7 +28,13 @@ sub main ($) { my @argv = @{$_[0]};
         abort_rebase();
     } elsif ($argv[0] eq "--skip") {
         confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
-        confess ("Skip not implemented");
+        my ($todo, $current, $commits, $target_ref) = restore_rebase();
+        print Dumper($todo, $current, $commits, $target_ref);
+        if ($current) {
+            run_command("git reset --hard HEAD");
+            unlink(".git/rebase2/current");
+        }
+        run_rebase($todo, $commits, $target_ref);
     } elsif ($argv[0] eq "--continue") {
         confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
         my ($todo, $current, $commits, $target_ref) = restore_rebase();
