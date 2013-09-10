@@ -83,6 +83,7 @@ sub abort_rebase() {
     my $target_ref = read_file(".git/rebase2/target_ref");
     run_command("git reset --hard $target_ref");
     run_command("git checkout -f $target_ref");
+    cleanup_save();
 }
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
