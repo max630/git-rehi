@@ -87,8 +87,8 @@ sub run_continue($$) { my ($current, $commits) = @_;
     print Dumper($current);
     # TODO: restore proper rebase-like behavior
     if ($current->{type} eq "pick") {
-        if (system("git diff-index --quiet --ignore-submodules --cached HEAD")) {
-            # checked-in already
+        if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
+            # commited already
         } else {
             run_command("git commit -c $current->{hash}");
         }
