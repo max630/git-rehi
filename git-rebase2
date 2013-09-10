@@ -31,8 +31,10 @@ sub main ($) { my @argv = @{$_[0]};
         confess ("Skip not implemented");
     } elsif ($argv[0] eq "--continue") {
         confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
-        my ($todo, $commits, $target_ref) = restore_rebase();
+        my ($todo, $current, $commits, $target_ref) = restore_rebase();
+        print Dumper($todo, $current, $commits, $target_ref);
         confess ("Continue not implemented");
+        run_rebase($todo, $commits, $target_ref);
     # } elsif (scalar @argv == 1) { TODO: find HEAD?
     } elsif (scalar @argv == 2) {
         my ($dest, $source_to) = @argv;
