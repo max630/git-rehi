@@ -213,7 +213,7 @@ sub cleanup_save() {
 }
 
 sub save_todo($$$) { my ($todo, $file, $commits) = @_;
-    with_output_file(".git/rebase2/todo", sub { my ($out) = @_;
+    with_output_file($file, sub { my ($out) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
                 print $out "pick $step->{hash} $commits->{$step->{hash}}->{subject}\n";
