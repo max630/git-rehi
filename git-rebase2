@@ -7,7 +7,11 @@ use Carp;
 use File::Path qw(rmtree);
 
 sub main ($) { my @argv = @{$_[0]};
+    my $interactive = 0;
     if (0) {
+    } elsif ($argv[0] eq "-i" || $argv[0] eq "--interactive") {
+        $interactive = 1;
+        shift @argv;
     } elsif ($argv[0] eq "--abort") {
         confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
         abort_rebase();
@@ -33,6 +37,9 @@ sub main ($) { my @argv = @{$_[0]};
     } elsif (scalar @argv == 2) {
         my ($dest, $source_to) = @argv;
         my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
+        if ($interactive) {
+            ($todo, $commits) = edit_todo($todo);
+        }
         run_rebase($todo, $commits, $target_ref);
     } else {
         confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
