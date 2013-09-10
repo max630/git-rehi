@@ -75,7 +75,7 @@ sub run_continue($$) { my ($current, $commits) = @_;
         if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
             # commited already
         } else {
-            run_command("git commit -c $current->{hash}");
+            run_command("git commit -c $current->{ahash}");
         }
     } else {
         confess "Type $current->{type} is unknown or not implemented";
@@ -104,8 +104,8 @@ sub abort_rebase() {
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
     if ($rebase_step->{type} eq "pick") {
-        print "Apply: $commits->{by_hash}->{$rebase_step->{hash}}->{subject}\n";
-        pick($rebase_step->{hash});
+        print "Apply: $commits->{by_hash}->{$rebase_step->{ahash}}->{subject}\n";
+        pick($rebase_step->{ahash});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
@@ -121,7 +121,7 @@ sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
     my @result = ();
     my $hash = $top_hash;
     do {
-        push @result, {type => 'pick', hash => $hash};
+        push @result, {type => 'pick', ahash => $commits->{by_hash}->{$hash}->{ahash}};
         my $parents = $commits->{by_hash}->{$hash}->{parents};
         confess("Multiple parents for $hash") unless ($#{$parents} == 0);
         $hash = $parents->[0];
@@ -145,24 +145,27 @@ sub git_resolve_hashes($) { my ($refs) = @_;
 sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
-    my $commits = {by_hash => {}};
+    my $commits = {by_hash => {}, by_ahash => {}};
     # TODO: abbreviated hashes should really be used some day,
     # but this needs care
     # looks like git dynamically decides length for each hash,
     # so probably need indexing rather than just substring.
     # Or do it other way around? Don't know...
-    iterate_popen("git log --ancestry-path --pretty=format:%H:%P:%s $from..$to",
+    iterate_popen("git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to",
                   sub {
-        if (/^([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
+        if (/^([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
             my $hash = $1;
-            my @parents = split(/ /, $2);
-            my $subject = $3;
+            my $ahash = $2;
+            my @parents = split(/ /, $3);
+            my $subject = $4;
             verify_hash($hash);
             foreach my $p (@parents) { verify_hash($p); }
-            if (exists $commits->{by_hash}->{$hash}) {
-                confess "Duplicated commit: $hash";
+            if (exists $commits->{by_hash}->{$hash} || exists $commits->{by_ahash}->{$ahash}) {
+                confess "Duplicated commit: $hash ($ahash)";
             }
-            $commits->{by_hash}->{$hash} = {parents => \@parents, subject => $subject};
+            my $obj = {parents => \@parents, subject => $subject, hash => $hash, ahash => $ahash};
+            $commits->{by_hash}->{$hash} = $obj;
+            $commits->{by_ahash}->{$ahash} = $obj;
         } else {
             confess("Could not parse line: $_");
         }
@@ -233,7 +236,7 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
     with_output_file($file, sub { my ($out) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
-                print $out "pick $step->{hash} $commits->{by_hash}->{$step->{hash}}->{subject}\n";
+                print $out "pick $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -243,15 +246,15 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
 
 sub read_todo($) { my ($filename) = @_;
     my $todo = [];
-    my $commits = {by_hash => {}};
+    my $commits = {by_ahash => {}};
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     while (<$in>) {
         if (/^#.*$/) {
         } elsif (/^pick ([0-9a-f]+) (.*)$/) {
-            push @{$todo}, {type => "pick", hash => $1};
-            if (!exists $commits->{by_hash}->{$1}) {
+            push @{$todo}, {type => "pick", ahash => $1};
+            if (!exists $commits->{by_ahash}->{$1}) {
                 # duplicates are in principle acceptable
-                $commits->{by_hash}->{$1} = {subject => $2};
+                $commits->{by_ahash}->{$1} = {subject => $2};
             }
         } elsif (/^[[:space:]]*$/) {
         } else {
