@@ -124,7 +124,7 @@ sub abort_rebase() {
 
 sub run_step($) { my ($rebase_step, $commits) = @_;
     if ($rebase_step->{type} eq "pick") {
-        print "Apply: $commits->{by_hash}->{$rebase_step->{ahash}}->{subject}\n";
+        print "Apply: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
         pick($rebase_step->{ahash});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
