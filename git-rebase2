@@ -41,7 +41,7 @@ sub main ($) { my @argv = @{$_[0]};
             my ($dest, $source_to) = @argv;
             my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
             if ($interactive) {
-                ($todo, $commits) = edit_todo($todo);
+                ($todo, $commits) = edit_todo($todo, $commits);
             }
             run_rebase($todo, $commits, $target_ref);
             return;
