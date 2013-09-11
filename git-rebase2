@@ -21,7 +21,6 @@ sub main ($) { my @argv = @{$_[0]};
         } elsif ($argv[0] eq "--skip") {
             confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
             my ($todo, $current, $commits, $target_ref) = restore_rebase();
-            print Dumper($todo, $current, $commits, $target_ref);
             if ($current) {
                 run_command("git reset --hard HEAD");
                 unlink(".git/rebase2/current");
@@ -31,7 +30,6 @@ sub main ($) { my @argv = @{$_[0]};
         } elsif ($argv[0] eq "--continue") {
             confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
             my ($todo, $current, $commits, $target_ref) = restore_rebase();
-            print Dumper($todo, $current, $commits, $target_ref);
             if ($current) {
                 run_continue($current, $commits);
                 unlink(".git/rebase2/current");
@@ -59,7 +57,6 @@ sub restore_rebase() {
     my $current = 0;
     if (-e ".git/rebase2/current") {
         my @current_todo = read_todo(".git/rebase2/current");
-        print Dumper(\@current_todo);
         $current = get_single($current_todo[0]);
     }
     return ($todo, $current, $commits, $target_ref);
@@ -84,11 +81,8 @@ sub edit_todo($$) { my ($old_todo, $old_commits) = @_;
     # TODO: write without reopen, to fh
     close($tmpfh) or confess ("Unable to close the tmpfile");
     save_todo($old_todo, $tmpname, $old_commits);
-    print "saved\n";
     run_command("editor $tmpname");
-    print "edited\n";
     my ($new_todo, $new_commits) = read_todo($tmpname);
-    print Dumper($new_todo, $new_commits);
     return ($new_todo, $new_commits);
 }
 
@@ -96,7 +90,6 @@ sub run_continue($$) { my ($current, $commits) = @_;
     run_command("git rev-parse --verify HEAD >/dev/null"
                 . " && git update-index --ignore-submodules --refresh"
                 . " && git diff-files --quiet --ignore-submodules");
-    print Dumper($current);
     # TODO: restore proper rebase-like behavior
     if ($current->{type} eq "pick") {
         if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
