@@ -81,7 +81,7 @@ sub edit_todo($$) { my ($old_todo, $old_commits) = @_;
     # TODO: write without reopen, to fh
     close($tmpfh) or confess ("Unable to close the tmpfile");
     save_todo($old_todo, $tmpname, $old_commits);
-    run_command("editor $tmpname");
+    run_command(git_sequence_editor() . " $tmpname");
     my ($new_todo, $new_commits) = read_todo($tmpname);
     return ($new_todo, $new_commits);
 }
@@ -224,8 +224,22 @@ sub git_merge_base($$) { my ($b1, $b2) = @_;
 }
 
 sub git_sequence_editor() {
-    # TODO copy the git_sequence_editor here
-    return "editor";
+    if (exists $ENV{GIT_SEQUENCE_EDITOR}) {
+        return $ENV{GIT_SEQUENCE_EDITOR};
+    }
+
+    my $git_editor = "";
+    foreach my $cmd ("git config sequence.editor", "git var GIT_EDITOR") {
+        iterate_popen("git var GIT_EDITOR", sub {
+            $git_editor = $git_editor . $_;
+        });
+        $git_editor =~ s/^\s+|\s+$//g;
+        if ($git_editor ne "") {
+            return $git_editor;
+        }
+    }
+
+    confess ("Editor not found");
 }
 
 sub run_command($) { my ($command) = @_;
