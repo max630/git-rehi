@@ -5,6 +5,7 @@ use strict;
 use Data::Dumper;
 use Carp;
 use File::Path qw(rmtree);
+use File::Temp qw(:mktemp);
 
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
@@ -70,6 +71,19 @@ sub init_rebase($$) { my ($dest, $source_to) = @_;
     # TODO: edit if interactive
     run_command("git checkout --quiet --detach $dest_hash");
     return ($todo, $commits, $target_ref);
+}
+
+sub edit_todo($$) { my ($old_todo, $old_commits) = @_;
+    my ($tmpfh, $tmpname) = mkstemp(".git/rebase2/todo.XXXXXXXX");
+    # TODO: write without reopen, to fh
+    close($tmpfh) or confess ("Unable to close the tmpfile");
+    save_todo($old_todo, $tmpname, $old_commits);
+    print "saved\n";
+    run_command("editor $tmpname");
+    print "edited\n";
+    my ($new_todo, $new_commits) = read_todo($tmpname);
+    print Dumper($new_todo, $new_commits);
+    return ($new_todo, $new_commits);
 }
 
 sub run_continue($$) { my ($current, $commits) = @_;
@@ -198,6 +212,11 @@ sub git_merge_base($$) { my ($b1, $b2) = @_;
         confess "Merge-base not found for $b1 and $b2"
     }
     return $result;
+}
+
+sub git_sequence_editor() {
+    # TODO copy the git_sequence_editor here
+    return "editor";
 }
 
 sub run_command($) { my ($command) = @_;
