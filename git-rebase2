@@ -97,6 +97,12 @@ sub run_continue($$) { my ($current, $commits) = @_;
         } else {
             run_command("git commit -c $current->{ahash}");
         }
+    } elsif ($current->{type} eq "fixup") {
+        if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
+            # commited already
+        } else {
+            run_command("git commit --amend");
+        }
     } else {
         confess "Type $current->{type} is unknown or not implemented";
     }
@@ -126,6 +132,10 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
     if ($rebase_step->{type} eq "pick") {
         print "Apply: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
         pick($rebase_step->{ahash});
+    } elsif ($rebase_step->{type} eq "fixup") {
+        print "Fixup: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
+        run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
+                    . "&& git commit --amend --no-edit");
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
@@ -262,6 +272,8 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
                 print $out "pick $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
+            } elsif ($step->{type} eq "fixup") {
+                print $out "fixup $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -275,6 +287,12 @@ sub read_todo($) { my ($filename) = @_;
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     while (<$in>) {
         if (/^#.*$/) {
+        } elsif (/^fixup ([0-9a-f]+) (.*)$/) {
+            push @{$todo}, {type => "fixup", ahash => $1};
+            if (!exists $commits->{by_ahash}->{$1}) {
+                # duplicates are in principle acceptable
+                $commits->{by_ahash}->{$1} = {subject => $2};
+            }
         } elsif (/^pick ([0-9a-f]+) (.*)$/) {
             push @{$todo}, {type => "pick", ahash => $1};
             if (!exists $commits->{by_ahash}->{$1}) {
