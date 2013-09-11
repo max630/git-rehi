@@ -103,6 +103,8 @@ sub run_continue($$) { my ($current, $commits) = @_;
         } else {
             run_command("git commit --amend");
         }
+    } elsif ($current->{type} eq "comment") {
+        comment($current->{comment});
     } else {
         confess "Type $current->{type} is unknown or not implemented";
     }
@@ -136,6 +138,9 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
         print "Fixup: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
         run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
                     . "&& git commit --amend --no-edit");
+    } elsif ($rebase_step->{type} eq "comment") {
+        print "Updating comment\n";
+        comment($rebase_step->{comment});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
@@ -144,6 +149,11 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
 sub pick($) { my ($hash) = @_;
     # TODO: clear out all details
     run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash");
+}
+
+sub comment($) { my ($comment) = @_;
+    write_file(".git/rebase2/commit_msg", $comment);
+    run_command("git commit --amend -F .git/rebase2/commit_msg");
 }
 
 sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
@@ -288,6 +298,15 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 print $out "pick $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
             } elsif ($step->{type} eq "fixup") {
                 print $out "fixup $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
+            } elsif ($step->{type} eq "comment") {
+                while ($step->{comment} =~ /\n\.\n/) {
+                    $step->{comment} =~ s/\n\.\n/\n/;
+                }
+                print $out "comment\n$step->{comment}";
+                if (substr($step->{comment}, -1) ne "\n") {
+                    print $out "\n";
+                }
+                print $out ".\n";
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -300,6 +319,7 @@ sub read_todo($) { my ($filename) = @_;
     my $commits = {by_ahash => {}};
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
+    my $comment = "";
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
@@ -315,13 +335,27 @@ sub read_todo($) { my ($filename) = @_;
                     # duplicates are in principle acceptable
                     $commits->{by_ahash}->{$1} = {subject => $2};
                 }
+            } elsif (/^comment\b/) {
+                $mode = "COMMENT";
             } elsif (/^[[:space:]]*$/) {
             } else {
-                confess "Unrecognised todo line: \"$_\"";
+                confess "Unrecognised todo line for mode $mode: \"$_\"";
+            }
+        } elsif ($mode eq "COMMENT") {
+            if (/^#.*$/) {
+            } elsif (/^\.$/) {
+                $mode = "COMMAND";
+                push @{$todo}, {type => "comment", comment => $comment};
+            } else {
+                $comment = $comment . $_;
             }
         } else {
             confess "Unexpected mode: $mode";
         }
+    }
+    close($in);
+    if ($mode eq "COMMENT") {
+        confess "Unterminated comment";
     }
     return ($todo, $commits);
 }
