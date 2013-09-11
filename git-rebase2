@@ -299,23 +299,28 @@ sub read_todo($) { my ($filename) = @_;
     my $todo = [];
     my $commits = {by_ahash => {}};
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
+    my $mode = "COMMAND";
     while (<$in>) {
-        if (/^#.*$/) {
-        } elsif (/^fixup ([0-9a-f]+) (.*)$/) {
-            push @{$todo}, {type => "fixup", ahash => $1};
-            if (!exists $commits->{by_ahash}->{$1}) {
-                # duplicates are in principle acceptable
-                $commits->{by_ahash}->{$1} = {subject => $2};
+        if ($mode eq "COMMAND") {
+            if (/^#.*$/) {
+            } elsif (/^fixup ([0-9a-f]+) (.*)$/) {
+                push @{$todo}, {type => "fixup", ahash => $1};
+                if (!exists $commits->{by_ahash}->{$1}) {
+                    # duplicates are in principle acceptable
+                    $commits->{by_ahash}->{$1} = {subject => $2};
+                }
+            } elsif (/^pick ([0-9a-f]+) (.*)$/) {
+                push @{$todo}, {type => "pick", ahash => $1};
+                if (!exists $commits->{by_ahash}->{$1}) {
+                    # duplicates are in principle acceptable
+                    $commits->{by_ahash}->{$1} = {subject => $2};
+                }
+            } elsif (/^[[:space:]]*$/) {
+            } else {
+                confess "Unrecognised todo line: \"$_\"";
             }
-        } elsif (/^pick ([0-9a-f]+) (.*)$/) {
-            push @{$todo}, {type => "pick", ahash => $1};
-            if (!exists $commits->{by_ahash}->{$1}) {
-                # duplicates are in principle acceptable
-                $commits->{by_ahash}->{$1} = {subject => $2};
-            }
-        } elsif (/^[[:space:]]*$/) {
         } else {
-            confess "Unrecognised todo line: \"$_\"";
+            confess "Unexpected mode: $mode";
         }
     }
     return ($todo, $commits);
