@@ -9,41 +9,47 @@ use File::Temp qw(:mktemp);
 
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
-    if (0) {
-    } elsif ($argv[0] eq "-i" || $argv[0] eq "--interactive") {
-        $interactive = 1;
-        shift @argv;
-    } elsif ($argv[0] eq "--abort") {
-        confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
-        abort_rebase();
-    } elsif ($argv[0] eq "--skip") {
-        confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
-        my ($todo, $current, $commits, $target_ref) = restore_rebase();
-        print Dumper($todo, $current, $commits, $target_ref);
-        if ($current) {
-            run_command("git reset --hard HEAD");
-            unlink(".git/rebase2/current");
+    while (1) {
+        if (0) {
+        } elsif ($argv[0] eq "-i" || $argv[0] eq "--interactive") {
+            $interactive = 1;
+            shift @argv;
+        } elsif ($argv[0] eq "--abort") {
+            confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+            abort_rebase();
+            return;
+        } elsif ($argv[0] eq "--skip") {
+            confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+            my ($todo, $current, $commits, $target_ref) = restore_rebase();
+            print Dumper($todo, $current, $commits, $target_ref);
+            if ($current) {
+                run_command("git reset --hard HEAD");
+                unlink(".git/rebase2/current");
+            }
+            run_rebase($todo, $commits, $target_ref);
+            return;
+        } elsif ($argv[0] eq "--continue") {
+            confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+            my ($todo, $current, $commits, $target_ref) = restore_rebase();
+            print Dumper($todo, $current, $commits, $target_ref);
+            if ($current) {
+                run_continue($current, $commits);
+                unlink(".git/rebase2/current");
+            }
+            run_rebase($todo, $commits, $target_ref);
+            return;
+        # } elsif (scalar @argv == 1) { TODO: find HEAD?
+        } elsif (scalar @argv == 2) {
+            my ($dest, $source_to) = @argv;
+            my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
+            if ($interactive) {
+                ($todo, $commits) = edit_todo($todo);
+            }
+            run_rebase($todo, $commits, $target_ref);
+            return;
+        } else {
+            confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
         }
-        run_rebase($todo, $commits, $target_ref);
-    } elsif ($argv[0] eq "--continue") {
-        confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
-        my ($todo, $current, $commits, $target_ref) = restore_rebase();
-        print Dumper($todo, $current, $commits, $target_ref);
-        if ($current) {
-            run_continue($current, $commits);
-            unlink(".git/rebase2/current");
-        }
-        run_rebase($todo, $commits, $target_ref);
-    # } elsif (scalar @argv == 1) { TODO: find HEAD?
-    } elsif (scalar @argv == 2) {
-        my ($dest, $source_to) = @argv;
-        my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
-        if ($interactive) {
-            ($todo, $commits) = edit_todo($todo);
-        }
-        run_rebase($todo, $commits, $target_ref);
-    } else {
-        confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
     }
 }
 
