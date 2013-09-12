@@ -387,7 +387,7 @@ sub read_todo($) { my ($filename) = @_;
         }
     }
     close($in);
-    if ($mode eq "COMMENT") {
+    if ($mode ne "COMMAND") {
         confess "Unterminated comment";
     }
     return ($todo, $commits);
