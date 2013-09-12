@@ -301,6 +301,14 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
             } elsif ($step->{type} eq "comment") {
                 print $out "comment\n";
                 write_todo_comment($out, $step->{comment});
+            } elsif ($step->{type} eq "merge") {
+                my $flags_str = "";
+                if ($step->{flags}->{ours}) {
+                    $flags_str .= " --ours"
+                }
+                my $parents_str = join " ", @{$step->{parents}};
+                print $out "comment$flags_str $parents_str\n";
+                write_todo_comment($out, $step->{comment});
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
