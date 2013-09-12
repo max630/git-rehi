@@ -299,19 +299,24 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
             } elsif ($step->{type} eq "fixup") {
                 print $out "fixup $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
             } elsif ($step->{type} eq "comment") {
-                while ($step->{comment} =~ /\n\.\n/) {
-                    $step->{comment} =~ s/\n\.\n/\n/;
-                }
-                print $out "comment\n$step->{comment}";
-                if (substr($step->{comment}, -1) ne "\n") {
-                    print $out "\n";
-                }
-                print $out ".\n";
+                print $out "comment\n";
+                write_todo_comment($out, $step->{comment});
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
         }
     });
+}
+
+sub write_todo_comment($$) { my ($out, $comment) = @_;
+    while ($comment =~ /\n\.\n/) {
+        $comment =~ s/\n\.\n/\n/;
+    }
+    print $out "$comment";
+    if (substr($comment, -1) ne "\n") {
+        print $out "\n";
+    }
+    print $out ".\n";
 }
 
 sub read_todo($) { my ($filename) = @_;
