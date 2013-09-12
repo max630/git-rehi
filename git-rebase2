@@ -320,6 +320,8 @@ sub read_todo($) { my ($filename) = @_;
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
     my $comment = "";
+    my %merge_flags;
+    my @merge_parents;
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
@@ -337,6 +339,15 @@ sub read_todo($) { my ($filename) = @_;
                 }
             } elsif (/^comment\b/) {
                 $mode = "COMMENT";
+                $comment = "";
+            } elsif (/^merge (--ours)? ([0-9a-f ]+)$/) {
+                $mode = "MERGE_COMMENT";
+                $comment = "";
+                @merge_parents = split / +/, $2;
+                %merge_flags = ();
+                if ($1) {
+                    $merge_flags{ours} = 1;
+                }
             } elsif (/^[[:space:]]*$/) {
             } else {
                 confess "Unrecognised todo line for mode $mode: \"$_\"";
@@ -346,6 +357,14 @@ sub read_todo($) { my ($filename) = @_;
             } elsif (/^\.$/) {
                 $mode = "COMMAND";
                 push @{$todo}, {type => "comment", comment => $comment};
+            } else {
+                $comment = $comment . $_;
+            }
+        } elsif ($mode eq "MERGE_COMMENT") {
+            if (/^#.*$/) {
+            } elsif (/^\.$/) {
+                $mode = "COMMAND";
+                push @{$todo}, {type => "merge", comment => $comment, parents => \@merge_parents, flags => \%merge_flags};
             } else {
                 $comment = $comment . $_;
             }
