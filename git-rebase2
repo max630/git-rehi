@@ -141,6 +141,21 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
     } elsif ($rebase_step->{type} eq "comment") {
         print "Updating comment\n";
         comment($rebase_step->{comment});
+    } elsif ($rebase_step->{type} eq "merge") {
+        print "Merging\n";
+        my $command = "git merge --no-edit";
+        if ($rebase_step->{flags}->{ours}) {
+            $command .= " --strategy=ours";
+        }
+        my @parents = @{$rebase_step->{parents}};
+        if (shift(@parents) ne "HEAD") {
+            confess("Merging _to_ other branches not implemented");
+        }
+        foreach my $p (@parents) {
+            $command .= " $p";
+        }
+        run_command($command);
+        comment($rebase_step->{comment});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
