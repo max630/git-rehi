@@ -143,14 +143,18 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
         comment($rebase_step->{comment});
     } elsif ($rebase_step->{type} eq "merge") {
         print "Merging\n";
+        # to merge as non-first child:
+        # 1. get the current position
+        # 2. reset to the first child
         my $command = "git merge --no-edit";
         if ($rebase_step->{flags}->{ours}) {
             $command .= " --strategy=ours";
         }
         my @parents = @{$rebase_step->{parents}};
-        if (shift(@parents) ne "HEAD") {
+        if (find_only("HEAD", \@parents) != 1) {
             confess("Merging _to_ other branches not implemented");
         }
+        shift @parents;
         foreach my $p (@parents) {
             $command .= " $p";
         }
@@ -159,6 +163,16 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
+}
+
+sub find_only ($\@) { my ($needle, $items) = @_;
+    my $result = -1;
+    my $pos = 0;
+    my @found = grep { my $res = ($_ eq $needle) ? [$pos] : 0; ++$pos; $res; } @{$items};
+    if (scalar @found != 1) {
+        confess ("Expected ecactly 1 $needle\'s, got {scalar @found}");
+    }
+    return $found[0]->[0];
 }
 
 sub pick($) { my ($hash) = @_;
