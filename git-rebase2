@@ -151,7 +151,7 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
             $command .= " --strategy=ours";
         }
         my @parents = @{$rebase_step->{parents}};
-        if (find_only("HEAD", \@parents) != 1) {
+        if (find_only("HEAD", \@parents) != 0) {
             confess("Merging _to_ other branches not implemented");
         }
         shift @parents;
@@ -168,11 +168,20 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
 sub find_only ($\@) { my ($needle, $items) = @_;
     my $result = -1;
     my $pos = 0;
-    my @found = grep { my $res = ($_ eq $needle) ? [$pos] : 0; ++$pos; $res; } @{$items};
-    if (scalar @found != 1) {
-        confess ("Expected ecactly 1 $needle\'s, got {scalar @found}");
+    foreach my $item (@{$items}) {
+        if ($item eq $needle) {
+            if ($result != -1) {
+                confess("Duplicated $needle");
+            } else {
+                $result = $pos;
+            }
+        }
+        ++$pos;
     }
-    return $found[0]->[0];
+    if ($result == -1) {
+        confess("Not found: $needle");
+    }
+    return $result;
 }
 
 sub pick($) { my ($hash) = @_;
