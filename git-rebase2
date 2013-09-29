@@ -151,8 +151,12 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
             $command .= " --strategy=ours";
         }
         my @parents = @{$rebase_step->{parents}};
-        if (find_only("HEAD", \@parents) != 0) {
-            confess("Merging _to_ other branches not implemented");
+        my $head_pos = find_only("HEAD", \@parents);
+        if ($head_pos != 0) {
+            # TODO: how to handle it in skip?
+            # TODO: dont forget to make sure all parents are good cli args
+            $parents[$head_pos] = git_resolve("HEAD");
+            run_command("git reset --hard $parents[0]");
         }
         shift @parents;
         foreach my $p (@parents) {
