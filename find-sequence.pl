@@ -158,7 +158,7 @@ sub mb_test() {
         # 1 -- 2 -- 3 -- 4
         #  \       /    /
         #   5 --- 6 --7*
-        # but this should work! - base for the 1 is 4
+        # but this should work! - 2 is untouched and 1 is outer merge
         is_deeply (find_sequence({ 1 => {parents => [2, 5]},
                                    2 => {parents => [3]},
                                    3 => {parents => [4]},
