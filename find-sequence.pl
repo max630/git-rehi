@@ -10,18 +10,21 @@ use Data::Compare;
 
 # TODO:
 # * through
+# + explicitly forbid inner merges
 # * inner merges
 #  * interface
 #  * extraction
 
 # $commits : { $hash => { parents => [ $hash ] } }
-sub find_sequence($$$) { my ($commits, $from, $to) = @_;
+sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
+    my %through_hash = ();
+    @through_hash{@{$through_list}} = ();
     my %commitsX = ();
     foreach my $h (keys %{$commits}) {
         $commitsX{$h} = { children_count => 0, children => [] };
     }
     $commitsX{$from} = { children_count => 0, children => [] };
-    $commitsX{$to} = { children_count => 0, children => [], cost => 0 };
+    $commitsX{$to} = { children_count => 0, children => [], cost => [0, {}] };
     foreach my $h (keys %{$commits}) {
         foreach my $p (@{$commits->{$h}->{parents}}) {
             if (exists $commitsX{$p}) {
@@ -38,7 +41,7 @@ sub find_sequence($$$) { my ($commits, $from, $to) = @_;
                 push(@{$commitsX{$p}->{children}}, $v);
                 if (scalar @{$commitsX{$p}->{children}} == $commitsX{$p}->{children_count}) {
                     my ($min_cost, $min_child) = find_minimal_cost(map { [$commitsX{$_}->{cost}, $_] } @{$commitsX{$p}->{children}});
-                    $commitsX{$p}->{cost} = $min_cost + 1;
+                    $commitsX{$p}->{cost} = [$min_cost->[0] + 1, $min_cost->[1]];
                     $commitsX{$p}->{sequence_child} = $min_child;
                     $next_edge{$p} = 1;
                 }
@@ -50,6 +53,9 @@ sub find_sequence($$$) { my ($commits, $from, $to) = @_;
     my $next = $from;
     while ($next ne $to) {
         $next = $commitsX{$next}->{sequence_child};
+        if ($commitsX{$next}->{children_count} > 1) {
+            confess("inner merges not supported yet (found in commit $next)");
+        }
         push @res, $next;
     }
     return \@res;
@@ -58,11 +64,32 @@ sub find_sequence($$$) { my ($commits, $from, $to) = @_;
 sub find_minimal_cost(@) {
     my @result = (undef, undef);
     foreach my $item (@_) {
-        if (!defined $result[0] || $result[0] > $item->[0]) {
+        if (!defined $result[0] || do {
+                my ($result_cost, $result_marks) = @{$result[0]};
+                my ($item_cost, $item_marks) = @{$item->[0]};
+                if (is_strict_subset($result_marks, $item_marks)) {
+                    1;
+                } elsif (is_strict_subset($item_marks, $result_marks)) {
+                    0;
+                } elsif (%$item_marks || %$result_marks) {
+                    confess("Non-subsequent throughs not supported");
+                } else {
+                    $result_cost > $item_cost;
+                }
+             }) {
             @result = @{$item};
         }
     }
     return @result;
+}
+
+sub is_strict_subset(\%\%) { my ($sub, $super) = @_;
+    foreach my $k (keys %$sub) {
+        if (!exists $super->{$k}) {
+            return 0;
+        }
+    }
+    return (scalar (keys %$sub) < scalar (keys %$super));
 }
 
 sub mb_test() {
@@ -72,7 +99,7 @@ sub mb_test() {
     } else {
         is_deeply (find_sequence({ 1 => {parents => [2, 3]},
                                    2 => {parents => [3,5]}  },
-                                   2, 1),
+                                   2, 1, []),
                                 [1]);
         # 1 --- 2 --- 6
         #  \        /
@@ -82,8 +109,20 @@ sub mb_test() {
                                    3 => {parents => [4]},
                                    4 => {parents => [6]},
                                    6 => {parents => [7,10]}  },
-                                   6, 1),
+                                   6, 1, []),
                                 [2,1]);
+        # 1 -- 2 -- 3 -- 4
+        #  \       /    /
+        #   5 --- 6 -- 7
+        # should fail (inner merges not allowed)
+        isnt (do { eval {find_sequence({ 1 => {parents => [2, 5]},
+                                         2 => {parents => [3]},
+                                         3 => {parents => [4]},
+                                         4 => {parents => []},
+                                         5 => {parents => [6]},
+                                         6 => {parents => [3, 7]},
+                                         7 => {parents => [4]},
+                                       }, 4, 1, [])}; $@;}, "");
         done_testing();
     }
 }
