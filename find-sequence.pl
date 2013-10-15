@@ -42,6 +42,11 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
                 if (scalar @{$commitsX{$p}->{children}} == $commitsX{$p}->{children_count}) {
                     my ($min_cost, $min_child) = find_minimal_cost(map { [$commitsX{$_}->{cost}, $_] } @{$commitsX{$p}->{children}});
                     $commitsX{$p}->{cost} = [$min_cost->[0] + 1, $min_cost->[1]];
+                    if (exists $through_hash{$p}) {
+                        my %new_set = $commitsX{$p}->{cost}->[1];
+                        $new_set{$p} = ();
+                        $commitsX{$p}->{cost}->[1] = \%new_set;
+                    }
                     $commitsX{$p}->{sequence_child} = $min_child;
                     $next_edge{$p} = 1;
                 }
@@ -67,14 +72,20 @@ sub find_minimal_cost(@) {
         if (!defined $result[0] || do {
                 my ($result_cost, $result_marks) = @{$result[0]};
                 my ($item_cost, $item_marks) = @{$item->[0]};
-                if (is_strict_subset($result_marks, $item_marks)) {
-                    1;
-                } elsif (is_strict_subset($item_marks, $result_marks)) {
-                    0;
-                } elsif (%$item_marks || %$result_marks) {
-                    confess("Non-subsequent throughs not supported");
+                if (is_subset($result_marks, $item_marks)) {
+                    if (is_subset($item_marks, $result_marks)) {
+                        # they are equal
+                        $result_cost > $item_cost;
+                    } else {
+                        1;
+                    }
                 } else {
-                    $result_cost > $item_cost;
+                    if (is_subset($item_marks, $result_marks)) {
+                        0;
+                    } else {
+                        print Dumper($result_marks, $item);
+                        confess("Non-subsequent throughs not supported");
+                    }
                 }
              }) {
             @result = @{$item};
@@ -83,13 +94,13 @@ sub find_minimal_cost(@) {
     return @result;
 }
 
-sub is_strict_subset(\%\%) { my ($sub, $super) = @_;
+sub is_subset(\%\%) { my ($sub, $super) = @_;
     foreach my $k (keys %$sub) {
         if (!exists $super->{$k}) {
             return 0;
         }
     }
-    return (scalar (keys %$sub) < scalar (keys %$super));
+    return 1;
 }
 
 sub mb_test() {
@@ -111,10 +122,20 @@ sub mb_test() {
                                    6 => {parents => [7,10]}  },
                                    6, 1, []),
                                 [2,1]);
+        # 1 --- 2 --- 6
+        #  \        /
+        #   3 ----4*
+        is_deeply (find_sequence({ 1 => {parents => [2, 3]},
+                                   2 => {parents => [6]},
+                                   3 => {parents => [4]},
+                                   4 => {parents => [6]},
+                                   6 => {parents => [7,10]}  },
+                                   6, 1, [4]),
+                                [4,3,1]);
         # 1 -- 2 -- 3 -- 4
         #  \       /    /
         #   5 --- 6 -- 7
-        # should fail (inner merges not allowed)
+        # should fail (inner merge in 1 from base 3 not allowed)
         isnt (do { eval {find_sequence({ 1 => {parents => [2, 5]},
                                          2 => {parents => [3]},
                                          3 => {parents => [4]},
@@ -123,6 +144,19 @@ sub mb_test() {
                                          6 => {parents => [3, 7]},
                                          7 => {parents => [4]},
                                        }, 4, 1, [])}; $@;}, "");
+        # 1 -- 2 -- 3 -- 4
+        #  \       /    /
+        #   5 --- 6 --7*
+        # but this should work! - base for the 1 is 4
+        is_deeply (find_sequence({ 1 => {parents => [2, 5]},
+                                   2 => {parents => [3]},
+                                   3 => {parents => [4]},
+                                   4 => {parents => []},
+                                   5 => {parents => [6]},
+                                   6 => {parents => [3, 7]},
+                                   7 => {parents => [4]},
+                                  }, 4, 1, [7]),
+                                [7,6,5,1]);
         done_testing();
     }
 }
