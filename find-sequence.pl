@@ -43,7 +43,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
                     my ($min_cost, $min_child) = find_minimal_cost(map { [$commitsX{$_}->{cost}, $_] } @{$commitsX{$p}->{children}});
                     $commitsX{$p}->{cost} = [$min_cost->[0] + 1, $min_cost->[1]];
                     if (exists $through_hash{$p}) {
-                        my %new_set = $commitsX{$p}->{cost}->[1];
+                        my %new_set = %{$commitsX{$p}->{cost}->[1]};
                         $new_set{$p} = ();
                         $commitsX{$p}->{cost}->[1] = \%new_set;
                     }
