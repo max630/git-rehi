@@ -17,6 +17,7 @@ use Data::Compare;
 
 # $commits : { $hash => { parents => [ $hash ] } }
 sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
+    # initialize data
     my %through_hash = ();
     @through_hash{@{$through_list}} = ();
     my %commitsX = ();
@@ -25,6 +26,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     }
     $commitsX{$from} = { children_count => 0, children => [] };
     $commitsX{$to} = { children_count => 0, children => [], cost => [0, {}] };
+    # fill children_count for each commit
     foreach my $h (keys %{$commits}) {
         foreach my $p (@{$commits->{$h}->{parents}}) {
             if (exists $commitsX{$p}) {
@@ -32,6 +34,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             }
         }
     }
+    # main step - mark each commit with cost and best child
     my %edge = ($to => 1);
     while (scalar %edge) {
         my %next_edge = ();
@@ -40,6 +43,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             foreach my $p (@{$commits->{$v}->{parents}}) {
                 push(@{$commitsX{$p}->{children}}, $v);
                 if (scalar @{$commitsX{$p}->{children}} == $commitsX{$p}->{children_count}) {
+                    # all children are filled, find the best one
                     my ($min_cost, $min_child) = find_minimal_cost(map { [$commitsX{$_}->{cost}, $_] } @{$commitsX{$p}->{children}});
                     $commitsX{$p}->{cost} = [$min_cost->[0] + 1, $min_cost->[1]];
                     if (exists $through_hash{$p}) {
@@ -54,6 +58,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         }
         %edge = %next_edge;
     }
+    # collect the path by child marks
     my @res = ();
     my $next = $from;
     while ($next ne $to) {
