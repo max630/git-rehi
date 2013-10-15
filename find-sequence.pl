@@ -9,7 +9,7 @@ use Test::More;
 use Data::Compare;
 
 # TODO:
-# * through
+# + through
 # + explicitly forbid inner merges
 # * inner merges
 #  * interface
@@ -83,8 +83,9 @@ sub find_minimal_cost(@) {
                     if (is_subset($item_marks, $result_marks)) {
                         0;
                     } else {
-                        print Dumper($result_marks, $item);
-                        confess("Non-subsequent throughs not supported");
+                        my $result_marks_line = join ",", keys %$result_marks;
+                        my $item_marks_line = join ",", keys %$item_marks;
+                        confess("Non-subsequent throughs not supported (met [$result_marks_line] vs [$item_marks_line])");
                     }
                 }
              }) {
