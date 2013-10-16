@@ -199,16 +199,11 @@ sub comment($) { my ($comment) = @_;
 }
 
 sub build_rebase_sequence($$) { my ($commits, $from, $to) = @_;
-    confess("Invalid top hash: $to") unless (exists $commits->{by_hash}->{$to});
-    my @result = ();
-    my $hash = $to;
-    do {
-        push @result, {type => 'pick', ahash => $commits->{by_hash}->{$hash}->{ahash}};
-        my $parents = $commits->{by_hash}->{$hash}->{parents};
-        confess("Multiple parents for $hash") unless (scalar @{$parents} == 1);
-        $hash = $parents->[0];
-    } while (exists $commits->{by_hash}->{$hash}); # TODO: use bottom_hash instead
-    @result = reverse @result;
+    my @result;
+    foreach my $step_hash (@{find_sequence($commits->{by_hash}, $from, $to, [])}) {
+        confess("Multiple parents for $step_hash") unless (scalar @{$commits->{by_hash}->{$step_hash}->{parents}} == 1);
+        push @result, { type => 'pick', ahash => $commits->{by_hash}->{$step_hash}->{ahash} };
+    }
     return \@result;
 }
 
