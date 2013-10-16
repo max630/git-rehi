@@ -200,11 +200,36 @@ sub comment($) { my ($comment) = @_;
 
 sub build_rebase_sequence($$) { my ($commits, $from, $to) = @_;
     my @result;
+    my $step_hash = $from;
     foreach my $step_hash (@{find_sequence($commits->{by_hash}, $from, $to, [])}) {
-        confess("Multiple parents for $step_hash") unless (scalar @{$commits->{by_hash}->{$step_hash}->{parents}} == 1);
-        push @result, { type => 'pick', ahash => $commits->{by_hash}->{$step_hash}->{ahash} };
+        if (scalar @{$commits->{by_hash}->{$step_hash}->{parents}} == 1) {
+            push @result, { type => 'pick', ahash => $commits->{by_hash}->{$step_hash}->{ahash} };
+        } else {
+            push @result, make_merge_steps($step_hash, $prev_hash, $commits);
+        }
+        $prev_hash = $step_hash;
     }
     return \@result;
+}
+
+# TODO: tests, tests, tests
+sub make_merge_steps($$\%) { my ($step_hash, $prev_hash, $commits) = @_;
+    my $head_idx = find_only($prev_hash, $commits->{by_hash}->{$step_hash}->{parents});
+    my @parents_ahashes = map {
+        if (exists $commits->{by_hash}->{$_}) {
+            $commits->{by_hash}->{$_}->{ahash};
+        } else {
+            my ($ahash) = git_resolve_hashes([$_]);
+        }
+    } $commits->{by_hash}->{$step_hash}->{parents};
+    my %merge_flags;
+    if (system("git diff --quiet $step_hash $parents_ahashes->[$head_idx]") == 0) {
+        $merge_flags{ours} = 1;
+    }
+    $parents_ahashes->[$head_idx] = "HEAD";
+    my $comment = "";
+    iterate_popen("git log --max-count=1 --pretty=format:%B $step_hash", sub { $comment .= $_; });
+    return { type => "merge", comment => $comment, parents => $parents_ahashes, flags => \%merge_flags };
 }
 
 sub git_resolve_hashes($) { my ($refs) = @_;
