@@ -67,9 +67,9 @@ sub init_rebase($$) { my ($dest, $source_to) = @_;
     my $source_from = git_merge_base($dest, $source_to);
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
-    my ($dest_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_to]);
+    my ($dest_hash, $source_from_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_from, $source_to]);
     my $commits = git_fetch_commits($source_from, $source_to);
-    my $todo = build_rebase_sequence($commits, $source_to_hash);
+    my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash);
     init_save($target_ref);
     # TODO: edit if interactive
     run_command("git checkout --quiet --detach $dest_hash");
@@ -198,10 +198,10 @@ sub comment($) { my ($comment) = @_;
     run_command("git commit --amend -F .git/rebase2/commit_msg");
 }
 
-sub build_rebase_sequence($$) { my ($commits, $top_hash) = @_;
-    confess("Invalid top hash: $top_hash") unless (exists $commits->{by_hash}->{$top_hash});
+sub build_rebase_sequence($$) { my ($commits, $from, $to) = @_;
+    confess("Invalid top hash: $to") unless (exists $commits->{by_hash}->{$to});
     my @result = ();
-    my $hash = $top_hash;
+    my $hash = $to;
     do {
         push @result, {type => 'pick', ahash => $commits->{by_hash}->{$hash}->{ahash}};
         my $parents = $commits->{by_hash}->{$hash}->{parents};
