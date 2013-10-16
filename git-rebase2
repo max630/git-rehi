@@ -200,7 +200,7 @@ sub comment($) { my ($comment) = @_;
 
 sub build_rebase_sequence($$) { my ($commits, $from, $to) = @_;
     my @result;
-    my $step_hash = $from;
+    my $prev_hash = $from;
     foreach my $step_hash (@{find_sequence($commits->{by_hash}, $from, $to, [])}) {
         if (scalar @{$commits->{by_hash}->{$step_hash}->{parents}} == 1) {
             push @result, { type => 'pick', ahash => $commits->{by_hash}->{$step_hash}->{ahash} };
@@ -214,22 +214,22 @@ sub build_rebase_sequence($$) { my ($commits, $from, $to) = @_;
 
 # TODO: tests, tests, tests
 sub make_merge_steps($$\%) { my ($step_hash, $prev_hash, $commits) = @_;
-    my $head_idx = find_only($prev_hash, $commits->{by_hash}->{$step_hash}->{parents});
+    my $head_idx = find_only($prev_hash, @{$commits->{by_hash}->{$step_hash}->{parents}});
     my @parents_ahashes = map {
         if (exists $commits->{by_hash}->{$_}) {
             $commits->{by_hash}->{$_}->{ahash};
         } else {
             my ($ahash) = git_resolve_hashes([$_]);
         }
-    } $commits->{by_hash}->{$step_hash}->{parents};
+    } @{$commits->{by_hash}->{$step_hash}->{parents}};
     my %merge_flags;
-    if (system("git diff --quiet $step_hash $parents_ahashes->[$head_idx]") == 0) {
+    if (system("git diff --quiet $step_hash $parents_ahashes[$head_idx]") == 0) {
         $merge_flags{ours} = 1;
     }
-    $parents_ahashes->[$head_idx] = "HEAD";
+    $parents_ahashes[$head_idx] = "HEAD";
     my $comment = "";
     iterate_popen("git log --max-count=1 --pretty=format:%B $step_hash", sub { $comment .= $_; });
-    return { type => "merge", comment => $comment, parents => $parents_ahashes, flags => \%merge_flags };
+    return { type => "merge", comment => $comment, parents => \@parents_ahashes, flags => \%merge_flags };
 }
 
 sub git_resolve_hashes($) { my ($refs) = @_;
@@ -369,7 +369,7 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                     $flags_str .= " --ours"
                 }
                 my $parents_str = join " ", @{$step->{parents}};
-                print $out "comment$flags_str $parents_str\n";
+                print $out "merge$flags_str $parents_str\n";
                 write_todo_comment($out, $step->{comment});
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
