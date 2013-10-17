@@ -319,6 +319,15 @@ sub run_command($) { my ($command) = @_;
     confess("Command failed: $ret") unless ($ret == 0);
 }
 
+sub read_popen($) { my ($command) = @_;
+    my $res = "";
+    iterate_popen($command, sub {
+        $res .= $_;
+    });
+    $res =~ s/^\s+|\s+$//g;
+    return $res;
+}
+
 sub iterate_popen($$) { my ($command, $code) = @_;
     open(my $in, "-|", $command) or confess "Cannot start a program: $!";
     while (<$in>) {
