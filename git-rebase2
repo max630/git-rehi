@@ -9,12 +9,17 @@ use File::Temp qw(:mktemp);
 
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
+    my @through;
     while (1) {
         if (0) {
         } elsif ($argv[0] eq "-i" || $argv[0] eq "--interactive") {
             $interactive = 1;
             shift @argv;
-        } elsif ($argv[0] eq "--abort") {
+        } elsif ($argv[0] eq "--through") {
+            push @through, $argv[1];
+            shift @argv;
+            shift @argv;
+        } elsif ($argv[0] eq "--abort") { # TODO: make them a very specific
             confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
             abort_rebase();
             return;
@@ -39,7 +44,7 @@ sub main ($) { my @argv = @{$_[0]};
         # } elsif (scalar @argv == 1) { TODO: find HEAD?
         } elsif (scalar @argv == 2) {
             my ($dest, $source_to) = @argv;
-            my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to);
+            my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to, \@through);
             if ($interactive) {
                 ($todo, $commits) = edit_todo($todo, $commits);
             }
@@ -62,14 +67,18 @@ sub restore_rebase() {
     return ($todo, $current, $commits, $target_ref);
 }
 
-sub init_rebase($$) { my ($dest, $source_to) = @_;
+sub init_rebase($$$) { my ($dest, $source_to, $through) = @_;
     my $target_ref = $source_to;
     my $source_from = git_merge_base($dest, $source_to);
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
     my ($dest_hash, $source_from_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_from, $source_to]);
+    my @through_hashes;
+    if (scalar @{$through} > 0) {
+        @through_hashes = git_resolve_hashes($through);
+    }
     my $commits = git_fetch_commits($source_from, $source_to);
-    my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash);
+    my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
     init_save($target_ref);
     # TODO: edit if interactive
     run_command("git checkout --quiet --detach $dest_hash");
@@ -155,7 +164,7 @@ sub run_step($) { my ($rebase_step, $commits) = @_;
         if ($head_pos != 0) {
             # TODO: how to handle it in skip?
             # TODO: dont forget to make sure all parents are good cli args
-            $parents[$head_pos] = git_resolve("HEAD");
+            ($parents[$head_pos]) = git_resolve_hashes(["HEAD"]);
             run_command("git reset --hard $parents[0]");
         }
         shift @parents;
@@ -198,10 +207,10 @@ sub comment($) { my ($comment) = @_;
     run_command("git commit --amend -F .git/rebase2/commit_msg");
 }
 
-sub build_rebase_sequence($$) { my ($commits, $from, $to) = @_;
+sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
     my @result;
     my $prev_hash = $from;
-    foreach my $step_hash (@{find_sequence($commits->{by_hash}, $from, $to, [])}) {
+    foreach my $step_hash (@{find_sequence($commits->{by_hash}, $from, $to, $through)}) {
         if (scalar @{$commits->{by_hash}->{$step_hash}->{parents}} == 1) {
             push @result, { type => 'pick', ahash => $commits->{by_hash}->{$step_hash}->{ahash} };
         } else {
@@ -233,6 +242,7 @@ sub make_merge_steps($$\%) { my ($step_hash, $prev_hash, $commits) = @_;
 }
 
 sub git_resolve_hashes($) { my ($refs) = @_;
+    print Dumper($refs);
     foreach (@{$refs}) { verify_cmdarg($_); }
     my $refs_str = join " ", @{$refs};
     my @result = ();
