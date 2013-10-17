@@ -300,12 +300,8 @@ sub git_sequence_editor() {
         return $ENV{GIT_SEQUENCE_EDITOR};
     }
 
-    my $git_editor = "";
-    foreach my $cmd ("git config sequence.editor", "git var GIT_EDITOR") {
-        iterate_popen("git var GIT_EDITOR", sub {
-            $git_editor = $git_editor . $_;
-        });
-        $git_editor =~ s/^\s+|\s+$//g;
+    foreach my $cmd ("git config sequence.editor || true", "git var GIT_EDITOR || true") {
+        my $git_editor = read_popen($cmd);
         if ($git_editor ne "") {
             return $git_editor;
         }
