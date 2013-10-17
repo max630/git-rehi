@@ -242,7 +242,6 @@ sub make_merge_steps($$\%) { my ($step_hash, $prev_hash, $commits) = @_;
 }
 
 sub git_resolve_hashes($) { my ($refs) = @_;
-    print Dumper($refs);
     foreach (@{$refs}) { verify_cmdarg($_); }
     my $refs_str = join " ", @{$refs};
     my @result = ();
