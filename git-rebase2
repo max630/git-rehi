@@ -395,8 +395,8 @@ sub read_todo($) { my ($filename) = @_;
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
     my $comment = "";
-    my %merge_flags;
-    my @merge_parents;
+    my $merge_flags = undef;
+    my $merge_parents = undef;
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
@@ -418,11 +418,11 @@ sub read_todo($) { my ($filename) = @_;
             } elsif (/^merge( --ours)? (.+[^\n\r ])$/) {
                 $mode = "MERGE_COMMENT";
                 $comment = "";
-                @merge_parents = split / +/, $2;
+                $merge_parents = [split / +/, $2];
                 # TODO: verify as refs
-                %merge_flags = ();
+                $merge_flags = {};
                 if ($1) {
-                    $merge_flags{ours} = 1;
+                    $merge_flags->{ours} = 1;
                 }
             } elsif (/^[[:space:]]*$/) {
             } else {
@@ -440,7 +440,7 @@ sub read_todo($) { my ($filename) = @_;
             if (/^#.*$/) {
             } elsif (/^\.$/) {
                 $mode = "COMMAND";
-                push @{$todo}, {type => "merge", comment => $comment, parents => \@merge_parents, flags => \%merge_flags};
+                push @{$todo}, {type => "merge", comment => $comment, parents => $merge_parents, flags => $merge_flags};
             } else {
                 $comment = $comment . $_;
             }
