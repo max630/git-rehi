@@ -43,20 +43,23 @@ sub main ($) { my @argv = @{$_[0]};
             return;
         # } elsif (scalar @argv == 1) { TODO: find HEAD?
         } elsif (scalar @argv == 2) {
-            my ($dest, $source_to) = @argv;
-            my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to, \@through);
-            if ($interactive) {
-                ($todo, $commits) = edit_todo($todo, $commits);
-            }
-            if (scalar @{$todo} > 0) {
-                run_rebase($todo, $commits, $target_ref);
-            } else {
-                print "Nothing to do\n"
-            }
+            main_parsed($argv[0], $argv[1], \@through, $interactive);
             return;
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
         }
+    }
+}
+
+sub main_parsed($$$$) { my ($dest, $source_to, $through, $interactive) = @_;
+    my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to, $through);
+    if ($interactive) {
+        ($todo, $commits) = edit_todo($todo, $commits);
+    }
+    if (scalar @{$todo} > 0) {
+        run_rebase($todo, $commits, $target_ref);
+    } else {
+        print "Nothing to do\n"
     }
 }
 
