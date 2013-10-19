@@ -42,9 +42,12 @@ sub main ($) { my @argv = @{$_[0]};
             run_rebase($todo, $commits, $target_ref);
             return;
         } elsif (scalar @argv == 1) {
-            confess("TODO");
-            # TODO: parse HEAD
-            main_parsed($argv[0], undef, \@through, $interactive);
+            my $head_path = read_popen("git symbolic-ref -q HEAD");
+            if ($head_path =~ /refs\/heads\/(.*)/) {
+                main_parsed($argv[0], $1, \@through, $interactive);
+            } else {
+                confess("Unsupported ref checked-out: $head_path");
+            }
             return;
         } elsif (scalar @argv == 2) {
             main_parsed($argv[0], $argv[1], \@through, $interactive);
