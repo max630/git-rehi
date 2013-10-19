@@ -1,7 +1,6 @@
 # git-rebase2, advanced rebaser
 
-This project is in early implementation stage. Most of the described is not
-done or not even detailed.
+Done to some usable state. See the TODO.md for missing things.
 
 ## Motivation
 
@@ -26,26 +25,81 @@ Features are follows from the list in previous section:
 * Analysis before editing the todo list, selecting only the interesting path
   from the history to be changed.
 
-## Why perl
+## Usage
 
-Just because I like it. Also, it should be able be used with msysgit
-installation out of the box.
+Run the script inside of a git repository. If it is in PATH, git will run it
+for you if you use `git rebase2`.
 
-## Todo list improvements
+In general, arguments similar to th original rebase's ones.
 
-* ability to specify comment directly in the todo list
-* native support for merges. Ability to specify comment, order of the children,
-  also ours/theirs flag.
-* merges with commits, which are not touched by the rebase. I call them
-  external merges.
-* merges with commits, which are touched by the rebase. I cal them internal
-  merges. Design of this is a hard part. It should be able to specify the other
-  commit paths which I do not intend to change, only pick verbatim, without
-  listing them all. Maybe as ranges?
+`git rebase2 [options] [--onto <newbase>] <upstream> [<branch>]`
 
-## Analysis improvements
+Calculates optimal path from latest common ancestor of `<branch>` and
+`<upstream>`, and apply it to repository, starting from `<newbase>`, or from
+`<branch>`, if --onto is not specified. If `<branch>` is not specified,
+the currently checked-out branch is used. In the end, `<branch>` is reset to
+the top of the resulting commit sequence and checked out.
 
-Build reasonable todo list, with use all of the features listed in the previous
-section. I see it as I specify the "from" and "to" commits, and optionally a
-list of "through" commits, and it puts to the todo list the minimal path which
-contains them.
+`git rebase2 --continue`
+
+Retry failed step after resolution.
+
+`git rebase2 --abort`
+
+Aborts whole rebase. `<branch>` returns to where it was before starting and is
+checked-out.
+
+`git rebase2 --skip`
+
+Skip failed step and go on with next ones.
+
+### Options
+
+`--interactive`
+
+Allows user to edit step list before starting applying them.
+
+`--through <ref>`
+
+By default, `git-rebase2` looks for the shortest path from `<upstream>` to
+`<base>`.  This option can be used to affect the path, specifying the commit
+which it should contain. Can be used several times, specifying several commits.
+
+### Steps
+
+Types of step, which `git-rebase2` recognize and which can be used in todo list.
+
+`pick <ahash> [<subject>]`
+
+Apply the non-merge change at specified hash `ahash`, repeating it comment and
+author. `subject` is ignored.
+
+`fixup <ahash> [<subject>]`
+
+Apply the non-merge change at specified hash `ahash` and amend the latest
+commit which is currently in HEAD. No change to message. `subject` is ignored
+
+`comment`
+
+Change the message of the latest commit. Following lines are the message contents.
+A line containing single "." marks the end of message.
+
+`merge [--ours] <parent1> <parent2> ...`
+
+Merge latest commit with others. Order of parents will be exactly the same as
+specified in the command. Exactly one of the `parentN` should be literal
+"`HEAD`" (without qquotes). If `--ours` is specified, merge will be performed
+with strategy `ours` (that is, is will copy the `parent1`, just marking others
+as merged and ignoring their contents).
+
+Message for the merge commit follows the command, terminated with ".", like for
+the `comment` command.
+
+## Types of merge
+
+* merge which contains only one parent from changes sequence, and all others
+  already exist and are untouched by the rebase. I call it "external merge".
+  They are supported, detected and handled when specified in todo.
+* merge which contains two or more parents from changes sequence. That is
+  "internal merge". Not supported currently. Could be manually constructed in
+  todo if there were `exec` command.
