@@ -48,7 +48,11 @@ sub main ($) { my @argv = @{$_[0]};
             if ($interactive) {
                 ($todo, $commits) = edit_todo($todo, $commits);
             }
-            run_rebase($todo, $commits, $target_ref);
+            if (scalar @{$todo} > 0) {
+                run_rebase($todo, $commits, $target_ref);
+            } else {
+                print "Nothing to do\n"
+            }
             return;
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
