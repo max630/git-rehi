@@ -60,6 +60,7 @@ sub main_parsed($$$$) { my ($dest, $source_to, $through, $interactive) = @_;
         run_command("git checkout --quiet --detach $dest_hash");
         run_rebase($todo, $commits, $target_ref);
     } else {
+        cleanup_save();
         print "Nothing to do\n"
     }
 }
