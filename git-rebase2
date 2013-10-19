@@ -9,6 +9,7 @@ use File::Temp qw(:mktemp);
 
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
+    my $onto = undef;
     my @through;
     while (1) {
         if (0) {
@@ -17,6 +18,12 @@ sub main ($) { my @argv = @{$_[0]};
             shift @argv;
         } elsif ($argv[0] eq "--through") {
             push @through, $argv[1];
+            shift @argv;
+            shift @argv;
+        } elsif ($argv[0] eq "--onto") {
+            confess("--onto doubled") if (defined $onto);
+            my $onto_val = $argv[1];
+            $onto = \$onto_val;
             shift @argv;
             shift @argv;
         } elsif ($argv[0] eq "--abort") { # TODO: make them a very specific
@@ -44,13 +51,13 @@ sub main ($) { my @argv = @{$_[0]};
         } elsif (scalar @argv == 1) {
             my $head_path = read_popen("git symbolic-ref -q HEAD");
             if ($head_path =~ /refs\/heads\/(.*)/) {
-                main_parsed($argv[0], $1, \@through, $interactive);
+                main_parsed($argv[0], $1, $onto, \@through, $interactive);
             } else {
                 confess("Unsupported ref checked-out: $head_path");
             }
             return;
         } elsif (scalar @argv == 2) {
-            main_parsed($argv[0], $argv[1], \@through, $interactive);
+            main_parsed($argv[0], $argv[1], $onto, \@through, $interactive);
             return;
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
@@ -58,8 +65,14 @@ sub main ($) { my @argv = @{$_[0]};
     }
 }
 
-sub main_parsed($$$$) { my ($dest, $source_to, $through, $interactive) = @_;
-    my ($todo, $commits, $target_ref, $dest_hash) = init_rebase($dest, $source_to, $through);
+sub main_parsed($$$$) { my ($dest, $source_to, $onto, $through, $interactive) = @_;
+    my $source_from = git_merge_base($dest, $source_to);
+    # I'm not sure I understang original rebase logic here
+    # trying to reproduce it
+    if (defined $onto) {
+        $dest = ${$onto};
+    }
+    my ($todo, $commits, $target_ref, $dest_hash) = init_rebase($dest, $source_from, $source_to, $through);
     if ($interactive) {
         ($todo, $commits) = edit_todo($todo, $commits);
     }
@@ -83,9 +96,8 @@ sub restore_rebase() {
     return ($todo, $current, $commits, $target_ref);
 }
 
-sub init_rebase($$$) { my ($dest, $source_to, $through) = @_;
+sub init_rebase($$$$) { my ($dest, $source_from, $source_to, $through) = @_;
     my $target_ref = $source_to;
-    my $source_from = git_merge_base($dest, $source_to);
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
     my ($dest_hash, $source_from_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_from, $source_to]);
