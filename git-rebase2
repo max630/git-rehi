@@ -41,7 +41,11 @@ sub main ($) { my @argv = @{$_[0]};
             }
             run_rebase($todo, $commits, $target_ref);
             return;
-        # } elsif (scalar @argv == 1) { TODO: find HEAD?
+        } elsif (scalar @argv == 1) {
+            confess("TODO");
+            # TODO: parse HEAD
+            main_parsed($argv[0], undef, \@through, $interactive);
+            return;
         } elsif (scalar @argv == 2) {
             main_parsed($argv[0], $argv[1], \@through, $interactive);
             return;
