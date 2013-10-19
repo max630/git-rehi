@@ -52,11 +52,12 @@ sub main ($) { my @argv = @{$_[0]};
 }
 
 sub main_parsed($$$$) { my ($dest, $source_to, $through, $interactive) = @_;
-    my ($todo, $commits, $target_ref) = init_rebase($dest, $source_to, $through);
+    my ($todo, $commits, $target_ref, $dest_hash) = init_rebase($dest, $source_to, $through);
     if ($interactive) {
         ($todo, $commits) = edit_todo($todo, $commits);
     }
     if (scalar @{$todo} > 0) {
+        run_command("git checkout --quiet --detach $dest_hash");
         run_rebase($todo, $commits, $target_ref);
     } else {
         print "Nothing to do\n"
@@ -88,8 +89,7 @@ sub init_rebase($$$) { my ($dest, $source_to, $through) = @_;
     my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
     init_save($target_ref);
     # TODO: edit if interactive
-    run_command("git checkout --quiet --detach $dest_hash");
-    return ($todo, $commits, $target_ref);
+    return ($todo, $commits, $target_ref, $dest_hash);
 }
 
 sub edit_todo($$) { my ($old_todo, $old_commits) = @_;
