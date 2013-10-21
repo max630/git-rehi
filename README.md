@@ -3,10 +3,10 @@
 Done to some usable state. See the TODO.md for missing things.
 
 **SAFETY NOTES**: Note that it is an experimental software. You'd better have a
-backup if you run it at a valuable repository. I usually always have some
-temporary reference to the older head and inspect the result in gitk or
-otherwise before removing it. I also never use automatic gc (this script does
-not contain it also).
+backup if you run it at a valuable repository, for example it should be cloned
+somewhere. I also usually have some temporary reference to the older head and
+inspect the result in gitk or otherwise before removing it. And never use
+automatic gc (this script does not contain it also).
 
 ## Motivation
 
