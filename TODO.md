@@ -5,6 +5,7 @@
 Should be fixed.
 
 * missing documentation
+* the rebase2 data directory is inconsitent state after syntax error in todo
 * handle errors more nicely. I like stacktraces, but they should not popup in everyday situations like merge conflict.
 * less noise in general
 * parse --continue, --skip and --abort as separated option from regular call
