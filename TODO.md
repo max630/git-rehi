@@ -16,7 +16,8 @@ Should be fixed.
 
 I pretend the script to be useful as is, but more features is always better
 
-* 'exec' step in todo. Needed for creating inner merges at least.
+* `edit` step. Is needed.
+* `exec` step in todo. Needed for creating inner merges at least.
 * inner merges handling. Was planned from beginning, and should not be very hard in backend, but I still don't have an idea how to make acceptable UI.
 * syntax-check of todo with retry.
-* 'request-comment' for editing in todo.
+* `request-comment` for editing in todo.
