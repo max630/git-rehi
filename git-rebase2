@@ -447,11 +447,11 @@ sub read_todo($) { my ($filename) = @_;
                     # duplicates are in principle acceptable
                     $commits->{by_ahash}->{$1} = {subject => $2};
                 }
-            } elsif (/^pick ([0-9a-f]+) (.*)$/) {
+            } elsif (/^pick ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "pick", ahash => $1};
                 if (!exists $commits->{by_ahash}->{$1}) {
                     # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$1} = {subject => $2};
+                    $commits->{by_ahash}->{$1} = {subject => $3};
                 }
             } elsif (/^comment\b/) {
                 $mode = "COMMENT";
