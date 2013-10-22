@@ -133,6 +133,12 @@ sub run_continue($$) { my ($current, $commits) = @_;
         } else {
             run_command("git commit -c $current->{ahash}");
         }
+    } elsif ($current->{type} eq "edit") {
+        if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
+            # commited already
+        } else {
+            confess("No unstaged changes should be after 'edit'");
+        }
     } elsif ($current->{type} eq "fixup") {
         if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
             # commited already
@@ -149,9 +155,13 @@ sub run_continue($$) { my ($current, $commits) = @_;
 sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
     # TODO: handle errors
     while (defined (my $current = shift @{$todo})) {
+        my $pause = 0;
         save_todo($todo, ".git/rebase2/todo", $commits);
         save_todo([$current], ".git/rebase2/current", $commits);
-        run_step($current, $commits);
+        run_step($current, $commits, \$pause);
+        if ($pause) {
+            return;
+        }
         unlink(".git/rebase2/current");
     }
     # TODO: make proper reflog
@@ -166,10 +176,15 @@ sub abort_rebase() {
     cleanup_save();
 }
 
-sub run_step($) { my ($rebase_step, $commits) = @_;
+sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
     if ($rebase_step->{type} eq "pick") {
         print "Apply: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
         pick($rebase_step->{ahash});
+    } elsif ($rebase_step->{type} eq "edit") {
+        print "Apply: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
+        pick($rebase_step->{ahash});
+        print "Amend the commit and run \"git rebase2 --continue\"\n";
+        ${$pause} = 1;
     } elsif ($rebase_step->{type} eq "fixup") {
         print "Fixup: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
         run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
@@ -399,6 +414,8 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
                 print $out "pick $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
+            } elsif ($step->{type} eq "edit") {
+                print $out "edit $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
             } elsif ($step->{type} eq "fixup") {
                 print $out "fixup $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
             } elsif ($step->{type} eq "comment") {
@@ -441,14 +458,20 @@ sub read_todo($) { my ($filename) = @_;
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
-            } elsif (/^fixup ([0-9a-f]+) (.*)$/) {
+            } elsif (/^fixup ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => $1};
                 if (!exists $commits->{by_ahash}->{$1}) {
                     # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$1} = {subject => $2};
+                    $commits->{by_ahash}->{$1} = {subject => $3};
                 }
             } elsif (/^pick ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "pick", ahash => $1};
+                if (!exists $commits->{by_ahash}->{$1}) {
+                    # duplicates are in principle acceptable
+                    $commits->{by_ahash}->{$1} = {subject => $3};
+                }
+            } elsif (/^edit ([0-9a-f]+)( (.*))?$/) {
+                push @{$todo}, {type => "edit", ahash => $1};
                 if (!exists $commits->{by_ahash}->{$1}) {
                     # duplicates are in principle acceptable
                     $commits->{by_ahash}->{$1} = {subject => $3};
