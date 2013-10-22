@@ -18,7 +18,6 @@ I pretend the script to be useful as is, but more features is always better
 
 * `pick` without subject (happens if adding manually) does not work
  * now roughly fixed, but should print real subject after the "Apply:"
-* `edit` step. Is needed.
 * `exec` step in todo. Needed for creating inner merges at least.
 * inner merges handling. Was planned from beginning, and should not be very hard in backend, but I still don't have an idea how to make acceptable UI.
 * syntax-check of todo with retry.
