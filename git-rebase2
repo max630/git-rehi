@@ -127,7 +127,7 @@ sub edit_todo($$$) { my ($old_todo, $old_commits, $ok) = @_;
     save_todo($old_todo, $tmpname, $old_commits);
     my $editor = git_sequence_editor();
     my ($new_todo, $new_commits) =
-        retry($ok, sub { run_command($editor . " $tmpname"); read_todo($tmpname); });
+        retry($ok, sub { run_command($editor . " $tmpname"); read_todo($tmpname, { onSyntaxError => sub { die(@_, "\n"); } }); });
     return ($new_todo, $new_commits);
 }
 
@@ -142,7 +142,7 @@ sub retry ($$) { my ($ok, $code) = @_;
             $result = eval { $code->(); }
         }
         if ($@ ne "") {
-            print "Error: $@\n";
+            print "Error: $@";
             print "Retry (y/N)?";
             my $answer = <STDIN>;
             if ($answer !~ /^y.*/i) {
@@ -533,6 +533,7 @@ sub read_todo($;\$) { my ($filename, $errorHandler) = @_;
                 }
             } elsif (/^[[:space:]]*$/) {
             } else {
+                s/\n//;
                 $onSyntaxError->("Unrecognised todo line for mode $mode: \"$_\"");
             }
         } elsif ($mode eq "COMMENT") {
