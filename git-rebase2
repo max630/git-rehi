@@ -485,7 +485,12 @@ sub write_todo_comment($$) { my ($out, $comment) = @_;
     print $out ".\n";
 }
 
-sub read_todo($) { my ($filename) = @_;
+sub default_error($) { my ($msg) = @_;
+    confess($msg);
+}
+
+sub read_todo($;\$) { my ($filename, $errorHandler) = @_;
+    my $onSyntaxError = (defined $errorHandler && exists $errorHandler->{onSyntaxError}) ? $errorHandler->{onSyntaxError} : \&default_error ;
     my $todo = [];
     my $commits = {by_ahash => {}};
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
@@ -528,7 +533,7 @@ sub read_todo($) { my ($filename) = @_;
                 }
             } elsif (/^[[:space:]]*$/) {
             } else {
-                confess "Unrecognised todo line for mode $mode: \"$_\"";
+                $onSyntaxError->("Unrecognised todo line for mode $mode: \"$_\"");
             }
         } elsif ($mode eq "COMMENT") {
             if (/^#.*$/) {
@@ -547,12 +552,12 @@ sub read_todo($) { my ($filename) = @_;
                 $comment = $comment . $_;
             }
         } else {
-            confess "Unexpected mode: $mode";
+            $onSyntaxError->("Unexpected mode: $mode");
         }
     }
     close($in);
     if ($mode ne "COMMAND") {
-        confess "Unterminated comment";
+        $onSyntaxError->("Unterminated comment");
     }
     return ($todo, $commits);
 }
