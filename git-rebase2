@@ -510,23 +510,23 @@ sub read_todo($;\$) { my ($filename, $errorHandler) = @_;
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
-            } elsif (/^fixup ([0-9a-f]+)( (.*))?$/) {
-                push @{$todo}, {type => "fixup", ahash => $1};
-                if (!exists $commits->{by_ahash}->{$1}) {
+            } elsif (/^(f|fixup) ([0-9a-f]+)( (.*))?$/) {
+                push @{$todo}, {type => "fixup", ahash => $2};
+                if (!exists $commits->{by_ahash}->{$2}) {
                     # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$1} = {subject => $3};
+                    $commits->{by_ahash}->{$2} = {subject => $4};
                 }
-            } elsif (/^pick ([0-9a-f]+)( (.*))?$/) {
-                push @{$todo}, {type => "pick", ahash => $1};
-                if (!exists $commits->{by_ahash}->{$1}) {
+            } elsif (/^(p|pick) ([0-9a-f]+)( (.*))?$/) {
+                push @{$todo}, {type => "pick", ahash => $2};
+                if (!exists $commits->{by_ahash}->{$2}) {
                     # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$1} = {subject => $3};
+                    $commits->{by_ahash}->{$2} = {subject => $4};
                 }
-            } elsif (/^edit ([0-9a-f]+)( (.*))?$/) {
-                push @{$todo}, {type => "edit", ahash => $1};
-                if (!exists $commits->{by_ahash}->{$1}) {
+            } elsif (/^(e|edit) ([0-9a-f]+)( (.*))?$/) {
+                push @{$todo}, {type => "edit", ahash => $2};
+                if (!exists $commits->{by_ahash}->{$2}) {
                     # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$1} = {subject => $3};
+                    $commits->{by_ahash}->{$2} = {subject => $4};
                 }
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
