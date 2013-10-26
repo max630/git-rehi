@@ -119,9 +119,9 @@ sub init_rebase($$$$) { my ($dest, $source_from, $source_to, $through) = @_;
     if (scalar @{$through} > 0) {
         @through_hashes = git_resolve_hashes($through);
     }
+    init_save($target_ref);
     my $commits = git_fetch_commits($source_from, $source_to);
     my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
-    init_save($target_ref);
     # TODO: edit if interactive
     return ($todo, $commits, $target_ref, $dest_hash);
 }
@@ -348,14 +348,22 @@ sub git_resolve_hashes($) { my ($refs) = @_;
 sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
+    open(my $in, ">", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+    iterate_popen("git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to",
+                  sub { printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!"); });
+    close($in) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+    return git_parse_commits();
+}
+
+sub git_parse_commits() {
     my $commits = {by_hash => {}, by_ahash => {}};
     # TODO: abbreviated hashes should really be used some day,
     # but this needs care
     # looks like git dynamically decides length for each hash,
     # so probably need indexing rather than just substring.
     # Or do it other way around? Don't know...
-    iterate_popen("git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to",
-                  sub {
+    open(my $in, "<", "$GIT_DIR/rebase2/commits") or confess("Cannot read commits cache ($GIT_DIR/rebase2/commits): $!");
+    while (<$in>) {
         if (/^([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
             my $hash = $1;
             my $ahash = $2;
@@ -372,7 +380,8 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
         } else {
             confess("Could not parse line: $_");
         }
-    });
+    }
+    close($in);
     return $commits;
 }
 
