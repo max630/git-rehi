@@ -6,7 +6,8 @@ Done to some usable state. See the TODO.md for missing things.
 backup if you run it at a valuable repository, for example it should be cloned
 somewhere. I also usually have some temporary reference to the older head and
 inspect the result in gitk or otherwise before removing it. And never use
-automatic gc (this script does not contain it also).
+automatic gc (this script does not call it directly, but some of used commands
+may trigger it if it is enabled in the config).
 
 ## Motivation
 
@@ -78,12 +79,13 @@ Types of step, which `git-rebase2` recognize and which can be used in todo list.
 `pick <ahash> [<subject>]`
 
 Apply the non-merge change at specified hash `ahash`, repeating it comment and
-author. `subject` is ignored.
+author. `subject` is ignored. Can be abbreviated to `p`.
 
 `fixup <ahash> [<subject>]`
 
 Apply the non-merge change at specified hash `ahash` and amend the latest
-commit which is currently in HEAD. No change to message. `subject` is ignored
+commit which is currently in HEAD. No change to message. `subject` is ignored.
+Can be abbreviated to `f`.
 
 `comment`
 
@@ -101,11 +103,22 @@ as merged and ignoring their contents).
 Message for the merge commit follows the command, terminated with ".", like for
 the `comment` command.
 
+`edit <ahash> [<subject>]`
+
+Like `pick`, but stops after that, allowing user to make some manual changes.
+Can be abbreviated to `e`.
+
+`exec <command>`
+
+Executes a shell command. Can be abbreviated to `x`.
+
 ## Types of merge
 
 * merge which contains only one parent from changes sequence, and all others
   already exist and are untouched by the rebase. I call it "external merge".
   They are supported, detected and handled when specified in todo.
 * merge which contains two or more parents from changes sequence. That is
-  "internal merge". Not supported currently. Could be manually constructed in
-  todo if there were `exec` command.
+  "internal merge". Not supported currently, path finding aborts if
+  they are detected.
+  But they still can be manually constructed in interactive rebase with using
+  step `exec`, like in original rebase.
