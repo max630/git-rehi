@@ -364,25 +364,29 @@ sub git_parse_commits() {
     # Or do it other way around? Don't know...
     open(my $in, "<", "$GIT_DIR/rebase2/commits") or confess("Cannot read commits cache ($GIT_DIR/rebase2/commits): $!");
     while (<$in>) {
-        if (/^([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
-            my $hash = $1;
-            my $ahash = $2;
-            my @parents = split(/ /, $3);
-            my $subject = $4;
-            verify_hash($hash);
-            foreach my $p (@parents) { verify_hash($p); }
-            if (exists $commits->{by_hash}->{$hash} || exists $commits->{by_ahash}->{$ahash}) {
-                confess "Duplicated commit: $hash ($ahash)";
-            }
-            my $obj = {parents => \@parents, subject => $subject, hash => $hash, ahash => $ahash};
-            $commits->{by_hash}->{$hash} = $obj;
-            $commits->{by_ahash}->{$ahash} = $obj;
-        } else {
-            confess("Could not parse line: $_");
-        }
+        git_parse_commit_line($commits, $_);
     }
     close($in);
     return $commits;
+}
+
+sub git_parse_commit_line($$) { my ($commits, $line) = @_;
+    if ($line =~ /^([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
+        my $hash = $1;
+        my $ahash = $2;
+        my @parents = split(/ /, $3);
+        my $subject = $4;
+        verify_hash($hash);
+        foreach my $p (@parents) { verify_hash($p); }
+        if (exists $commits->{by_hash}->{$hash} || exists $commits->{by_ahash}->{$ahash}) {
+            confess "Duplicated commit: $hash ($ahash)";
+        }
+        my $obj = {parents => \@parents, subject => $subject, hash => $hash, ahash => $ahash};
+        $commits->{by_hash}->{$hash} = $obj;
+        $commits->{by_ahash}->{$ahash} = $obj;
+    } else {
+        confess("Could not parse line: $line");
+    }
 }
 
 sub git_merge_base($$) { my ($b1, $b2) = @_;
