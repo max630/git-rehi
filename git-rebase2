@@ -7,6 +7,8 @@ use Carp;
 use File::Path qw(rmtree);
 use File::Temp qw(:mktemp);
 
+my $GIT_DIR = read_popen("git rev-parse --git-dir");
+
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
     my $onto = undef;
@@ -35,7 +37,7 @@ sub main ($) { my @argv = @{$_[0]};
             my ($todo, $current, $commits, $target_ref) = restore_rebase();
             if ($current) {
                 run_command("git reset --hard HEAD");
-                unlink(".git/rebase2/current");
+                unlink("$GIT_DIR/rebase2/current");
             }
             run_rebase($todo, $commits, $target_ref);
             return;
@@ -44,7 +46,7 @@ sub main ($) { my @argv = @{$_[0]};
             my ($todo, $current, $commits, $target_ref) = restore_rebase();
             if ($current) {
                 run_continue($current, $commits);
-                unlink(".git/rebase2/current");
+                unlink("$GIT_DIR/rebase2/current");
             }
             run_rebase($todo, $commits, $target_ref);
             return;
@@ -92,11 +94,11 @@ sub main_parsed($$$$) { my ($dest, $source_to, $onto, $through, $interactive) = 
 }
 
 sub restore_rebase() {
-    my $target_ref = read_file(".git/rebase2/target_ref");
-    my ($todo, $commits) = read_todo(".git/rebase2/todo");
+    my $target_ref = read_file("$GIT_DIR/rebase2/target_ref");
+    my ($todo, $commits) = read_todo("$GIT_DIR/rebase2/todo");
     my $current = 0;
-    if (-e ".git/rebase2/current") {
-        my @current_todo = read_todo(".git/rebase2/current");
+    if (-e "$GIT_DIR/rebase2/current") {
+        my @current_todo = read_todo("$GIT_DIR/rebase2/current");
         $current = get_single($current_todo[0]);
     }
     return ($todo, $current, $commits, $target_ref);
@@ -121,7 +123,7 @@ sub init_rebase($$$$) { my ($dest, $source_from, $source_to, $through) = @_;
 sub retry ($$);
 
 sub edit_todo($$$) { my ($old_todo, $old_commits, $ok) = @_;
-    my ($tmpfh, $tmpname) = mkstemp(".git/rebase2/todo.XXXXXXXX");
+    my ($tmpfh, $tmpname) = mkstemp("$GIT_DIR/rebase2/todo.XXXXXXXX");
     # TODO: write without reopen, to fh
     close($tmpfh) or confess ("Unable to close the tmpfile");
     save_todo($old_todo, $tmpname, $old_commits);
@@ -196,13 +198,13 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
     # TODO: handle errors
     while (defined (my $current = shift @{$todo})) {
         my $pause = 0;
-        save_todo($todo, ".git/rebase2/todo", $commits);
-        save_todo([$current], ".git/rebase2/current", $commits);
+        save_todo($todo, "$GIT_DIR/rebase2/todo", $commits);
+        save_todo([$current], "$GIT_DIR/rebase2/current", $commits);
         run_step($current, $commits, \$pause);
         if ($pause) {
             return;
         }
-        unlink(".git/rebase2/current");
+        unlink("$GIT_DIR/rebase2/current");
     }
     # TODO: make proper reflog
     run_command("git checkout -B $target_ref");
@@ -210,7 +212,7 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
 }
 
 sub abort_rebase() {
-    my $target_ref = read_file(".git/rebase2/target_ref");
+    my $target_ref = read_file("$GIT_DIR/rebase2/target_ref");
     run_command("git reset --hard $target_ref");
     run_command("git checkout -f $target_ref");
     cleanup_save();
@@ -287,8 +289,8 @@ sub pick($) { my ($hash) = @_;
 }
 
 sub comment($) { my ($comment) = @_;
-    write_file(".git/rebase2/commit_msg", $comment);
-    run_command("git commit --amend -F .git/rebase2/commit_msg");
+    write_file("$GIT_DIR/rebase2/commit_msg", $comment);
+    run_command("git commit --amend -F \"$GIT_DIR/rebase2/commit_msg\"");
 }
 
 sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
@@ -439,16 +441,16 @@ sub verify_cmdarg($) { my ($str) = @_;
 }
 
 sub init_save($) { my ($target_ref) = @_;
-    if (-e ".git/rebase2") {
+    if (-e "$GIT_DIR/rebase2") {
         confess "already in progress?";
     }
-    mkdir(".git/rebase2") or confess "Mkdir .git/rebase2 failed: $!";
-    write_file(".git/rebase2/target_ref", $target_ref);
+    mkdir("$GIT_DIR/rebase2") or confess "Mkdir $GIT_DIR/rebase2 failed: $!";
+    write_file("$GIT_DIR/rebase2/target_ref", $target_ref);
 }
 
 sub cleanup_save() {
     # will throw itself
-    rmtree(".git/rebase2");
+    rmtree("$GIT_DIR/rebase2");
 }
 
 sub save_todo($$$) { my ($todo, $file, $commits) = @_;
