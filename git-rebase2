@@ -20,6 +20,13 @@ sub git_no_uncommitted_changes()
     return (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0);
 }
 
+sub git_verify_clean()
+{
+    confess "Not clean working directory" unless git_no_uncommitted_changes();
+    confess "git-am or rebase in progress" if -e "$GIT_DIR/rebase-apply";
+    confess "rebase in progress" if -e "$GIT_DIR/rebase-merge";
+}
+
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
     my $onto = undef;
@@ -62,7 +69,7 @@ sub main ($) { my @argv = @{$_[0]};
             run_rebase($todo, $commits, $target_ref);
             return;
         } elsif (scalar @argv == 1) {
-            confess "Not clean working directory" unless git_no_uncommitted_changes();
+            git_verify_clean();
             my $head_path = read_popen("git symbolic-ref -q HEAD");
             if ($head_path =~ /refs\/heads\/(.*)/) {
                 main_parsed($argv[0], $1, $onto, \@through, $interactive);
@@ -71,7 +78,7 @@ sub main ($) { my @argv = @{$_[0]};
             }
             return;
         } elsif (scalar @argv == 2) {
-            confess "Not clean working directory" unless git_no_uncommitted_changes();
+            git_verify_clean();
             main_parsed($argv[0], $argv[1], $onto, \@through, $interactive);
             return;
         } else {
