@@ -15,6 +15,35 @@ if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
     confess("Some unsupported symbols in: $GIT_DIR");
 }
 
+sub retry (&$) { my ($code, $ok) = @_;
+    my $warray = wantarray;
+    while (1) {
+        my $result;
+        my @result;
+        if ($warray) {
+            @result = eval { $code->(); }
+        } else {
+            $result = eval { $code->(); }
+        }
+        if ($@ ne "") {
+            print "Error: $@";
+            print "Retry (y/N)?";
+            my $answer = <STDIN>;
+            if ($answer !~ /^y.*/i) {
+                ${$ok} = 0;
+                return;
+            }
+        } else {
+            ${$ok} = 1;
+            if ($warray) {
+                return @result;
+            } else {
+                return $result;
+            }
+        }
+    }
+}
+
 sub git_no_uncommitted_changes()
 {
     return (system("git diff-index --quiet --ignore-submodules HEAD") == 0);
@@ -140,8 +169,6 @@ sub init_rebase($$$$) { my ($dest, $source_from, $source_to, $through) = @_;
     return ($todo, $commits, $target_ref, $dest_hash);
 }
 
-sub retry ($$);
-
 sub edit_todo($$$) { my ($old_todo, $old_commits, $ok) = @_;
     my ($tmpfh, $tmpname) = mkstemp("$GIT_DIR/rebase2/todo.XXXXXXXX");
     # TODO: write without reopen, to fh
@@ -149,37 +176,8 @@ sub edit_todo($$$) { my ($old_todo, $old_commits, $ok) = @_;
     save_todo($old_todo, $tmpname, $old_commits);
     my $editor = git_sequence_editor();
     my ($new_todo, $new_commits) =
-        retry($ok, sub { run_command($editor . " $tmpname"); read_todo($tmpname, { onSyntaxError => sub { die(@_, "\n"); } }); });
+        retry { run_command($editor . " $tmpname"); read_todo($tmpname, { onSyntaxError => sub { die(@_, "\n"); } }); } $ok;
     return ($new_todo, $new_commits);
-}
-
-sub retry ($$) { my ($ok, $code) = @_;
-    my $warray = wantarray;
-    while (1) {
-        my $result;
-        my @result;
-        if ($warray) {
-            @result = eval { $code->(); }
-        } else {
-            $result = eval { $code->(); }
-        }
-        if ($@ ne "") {
-            print "Error: $@";
-            print "Retry (y/N)?";
-            my $answer = <STDIN>;
-            if ($answer !~ /^y.*/i) {
-                ${$ok} = 0;
-                return;
-            }
-        } else {
-            ${$ok} = 1;
-            if ($warray) {
-                return @result;
-            } else {
-                return $result;
-            }
-        }
-    }
 }
 
 sub run_continue($$) { my ($current, $commits) = @_;
