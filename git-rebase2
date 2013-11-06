@@ -164,10 +164,12 @@ sub main_parsed($$$$) { my ($dest, $source_to, $onto, $through, $interactive) = 
 
 sub restore_rebase() {
     my $target_ref = read_file("$GIT_DIR/rebase2/target_ref");
-    my ($todo, $commits) = read_todo("$GIT_DIR/rebase2/todo");
+    my $commits = git_parse_commits();
+    # TODO: add $unknown_commits  to $commits
+    my ($todo, $unknown_commits) = read_todo("$GIT_DIR/rebase2/todo", $commits);
     my $current = 0;
     if (-e "$GIT_DIR/rebase2/current") {
-        my @current_todo = read_todo("$GIT_DIR/rebase2/current");
+        my @current_todo = read_todo("$GIT_DIR/rebase2/current", $commits);
         $current = get_single($current_todo[0]);
     }
     return ($todo, $current, $commits, $target_ref);
@@ -198,9 +200,9 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
     my ($new_todo, $new_commits) =
         retry {
             run_command($editor . " $tmpname");
-            read_todo($tmpname, { onSyntaxError => sub { die(@_, "\n"); } });
+            my ($new_todo1, $unknown_commits1) = read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
+            return ($new_todo1, []);
         } $ok;
-    %{$commits} = %{$new_commits};
     return $new_todo;
 }
 
@@ -557,10 +559,10 @@ sub default_error($) { my ($msg) = @_;
     confess($msg);
 }
 
-sub read_todo($;\$) { my ($filename, $errorHandler) = @_;
+sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     my $onSyntaxError = (defined $errorHandler && exists $errorHandler->{onSyntaxError}) ? $errorHandler->{onSyntaxError} : \&default_error ;
     my $todo = [];
-    my $commits = {by_ahash => {}};
+    my $unknown_commits = [];
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
     my $comment = "";
@@ -572,20 +574,17 @@ sub read_todo($;\$) { my ($filename, $errorHandler) = @_;
             } elsif (/^(f|fixup) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => $2};
                 if (!exists $commits->{by_ahash}->{$2}) {
-                    # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$2} = {subject => $4};
+                    push @{$unknown_commits}, $2;
                 }
             } elsif (/^(p|pick) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "pick", ahash => $2};
                 if (!exists $commits->{by_ahash}->{$2}) {
-                    # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$2} = {subject => $4};
+                    push @{$unknown_commits}, $2;
                 }
             } elsif (/^(e|edit) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "edit", ahash => $2};
                 if (!exists $commits->{by_ahash}->{$2}) {
-                    # duplicates are in principle acceptable
-                    $commits->{by_ahash}->{$2} = {subject => $4};
+                    push @{$unknown_commits}, $2;
                 }
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
@@ -630,7 +629,7 @@ sub read_todo($;\$) { my ($filename, $errorHandler) = @_;
     if ($mode ne "COMMAND") {
         $onSyntaxError->("Unterminated comment");
     }
-    return ($todo, $commits);
+    return ($todo, $unknown_commits);
 }
 
 sub with_output_file($$) { my ($filename, $proc) = @_;
