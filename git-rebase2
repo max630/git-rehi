@@ -12,7 +12,7 @@ my $GIT_DIR = read_popen("git rev-parse --git-dir");
 # definitely no \ or " (to be used in command-line), what else?
 # be safe here
 if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
-    confess("Som unsupported symbols in: $GIT_DIR");
+    confess("Some unsupported symbols in: $GIT_DIR");
 }
 
 sub git_no_uncommitted_changes()
