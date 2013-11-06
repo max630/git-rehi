@@ -126,7 +126,7 @@ sub main_parsed($$$$) { my ($dest, $source_to, $onto, $through, $interactive) = 
     my ($todo, $commits, $target_ref, $dest_hash) = init_rebase($dest, $source_from, $source_to, $through);
     if ($interactive) {
         my $ok;
-        ($todo, $commits) = edit_todo($todo, $commits, \$ok);
+        $todo = edit_todo($todo, $commits, \$ok);
         if (!$ok) {
             cleanup_save();
             print "Aborted\n";
@@ -169,15 +169,19 @@ sub init_rebase($$$$) { my ($dest, $source_from, $source_to, $through) = @_;
     return ($todo, $commits, $target_ref, $dest_hash);
 }
 
-sub edit_todo($$$) { my ($old_todo, $old_commits, $ok) = @_;
+sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
     my ($tmpfh, $tmpname) = mkstemp("$GIT_DIR/rebase2/todo.XXXXXXXX");
     # TODO: write without reopen, to fh
     close($tmpfh) or confess ("Unable to close the tmpfile");
-    save_todo($old_todo, $tmpname, $old_commits);
+    save_todo($old_todo, $tmpname, $commits);
     my $editor = git_sequence_editor();
     my ($new_todo, $new_commits) =
-        retry { run_command($editor . " $tmpname"); read_todo($tmpname, { onSyntaxError => sub { die(@_, "\n"); } }); } $ok;
-    return ($new_todo, $new_commits);
+        retry {
+            run_command($editor . " $tmpname");
+            read_todo($tmpname, { onSyntaxError => sub { die(@_, "\n"); } });
+        } $ok;
+    %{$commits} = %{$new_commits};
+    return $new_todo;
 }
 
 sub run_continue($$) { my ($current, $commits) = @_;
