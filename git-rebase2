@@ -17,7 +17,7 @@ if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
 
 sub git_no_uncommitted_changes()
 {
-    return (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0);
+    return (system("git diff-index --quiet --ignore-submodules HEAD") == 0);
 }
 
 sub git_verify_clean()
