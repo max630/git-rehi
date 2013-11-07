@@ -398,21 +398,18 @@ sub git_resolve_hashes($) { my ($refs) = @_;
 sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
+    my $commits = {by_hash => {}, by_ahash => {}};
     open(my $in, ">", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     iterate_popen {
+        git_parse_commit_line($commits, $_);
         printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     } "git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to";
     close($in) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
-    return git_parse_commits();
+    return $commits;
 }
 
 sub git_parse_commits() {
     my $commits = {by_hash => {}, by_ahash => {}};
-    # TODO: abbreviated hashes should really be used some day,
-    # but this needs care
-    # looks like git dynamically decides length for each hash,
-    # so probably need indexing rather than just substring.
-    # Or do it other way around? Don't know...
     open(my $in, "<", "$GIT_DIR/rebase2/commits") or confess("Cannot read commits cache ($GIT_DIR/rebase2/commits): $!");
     while (<$in>) {
         git_parse_commit_line($commits, $_);
