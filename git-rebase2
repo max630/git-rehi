@@ -15,6 +15,8 @@ if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
     confess("Some unsupported symbols in: $GIT_DIR");
 }
 
+# {{{ utils
+
 sub retry (&$) { my ($code, $ok) = @_;
     my $warray = wantarray;
     while (1) {
@@ -44,6 +46,22 @@ sub retry (&$) { my ($code, $ok) = @_;
     }
 }
 
+# }}}
+
+# {{{ io utils
+
+sub iterate_popen(&$) { my ($code, $command) = @_;
+    open(my $in, "-|", $command) or confess "Cannot start a program: $!";
+    while (<$in>) {
+        $code->($_);
+    }
+    close ($in) or confess "Program failed";
+}
+
+# }}}
+
+# {{{ git utils
+
 sub git_no_uncommitted_changes()
 {
     return (system("git diff-index --quiet --ignore-submodules HEAD") == 0);
@@ -55,6 +73,8 @@ sub git_verify_clean()
     confess "git-am or rebase in progress" if -e "$GIT_DIR/rebase-apply";
     confess "rebase in progress" if -e "$GIT_DIR/rebase-merge";
 }
+
+# }}}
 
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
@@ -357,7 +377,9 @@ sub make_merge_steps($$\%) { my ($step_hash, $prev_hash, $commits) = @_;
     }
     $parents_ahashes[$head_idx] = "HEAD";
     my $comment = "";
-    iterate_popen("git log --max-count=1 --pretty=format:%B $step_hash", sub { $comment .= $_; });
+    iterate_popen {
+        $comment .= $_;
+    } "git log --max-count=1 --pretty=format:%B $step_hash";
     return { type => "merge", comment => $comment, parents => \@parents_ahashes, flags => \%merge_flags };
 }
 
@@ -365,10 +387,10 @@ sub git_resolve_hashes($) { my ($refs) = @_;
     foreach (@{$refs}) { verify_cmdarg($_); }
     my $refs_str = join " ", @{$refs};
     my @result = ();
-    iterate_popen("git rev-parse $refs_str", sub {
+    iterate_popen {
         s/^\s+|\s+$//g;
         push @result, $_;
-    });
+    } "git rev-parse $refs_str";
     confess("Hash number does not match") unless ($#result == $#{$refs});
     return @result;
 }
@@ -377,8 +399,9 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     open(my $in, ">", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
-    iterate_popen("git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to",
-                  sub { printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!"); });
+    iterate_popen {
+        printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+    } "git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to";
     close($in) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     return git_parse_commits();
 }
@@ -422,7 +445,7 @@ sub git_merge_base($$) { my ($b1, $b2) = @_;
     verify_cmdarg($b2);
     my $result = "";
     my $hit = 0;
-    iterate_popen("git merge-base -a $b1 $b2", sub {
+    iterate_popen {
         s/^\s+|\s+$//g;
         if (!$hit) {
             $result = $_;
@@ -430,7 +453,7 @@ sub git_merge_base($$) { my ($b1, $b2) = @_;
         } else {
             confess "Multiple merge-bases for $b1 and $b2";
         }
-    });
+    } "git merge-base -a $b1 $b2";
     if (!$hit) {
         confess "Merge-base not found for $b1 and $b2"
     }
@@ -459,19 +482,9 @@ sub run_command($) { my ($command) = @_;
 
 sub read_popen($) { my ($command) = @_;
     my $res = "";
-    iterate_popen($command, sub {
-        $res .= $_;
-    });
+    iterate_popen { $res .= $_; } $command;
     $res =~ s/^\s+|\s+$//g;
     return $res;
-}
-
-sub iterate_popen($$) { my ($command, $code) = @_;
-    open(my $in, "-|", $command) or confess "Cannot start a program: $!";
-    while (<$in>) {
-        $code->($_);
-    }
-    close ($in) or confess "Program failed";
 }
 
 sub verify_hash($) { my ($str) = @_;
