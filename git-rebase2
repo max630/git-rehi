@@ -266,6 +266,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             $command .= " --strategy=ours";
         }
         my @parents = @{$rebase_step->{parents}};
+        my %parent_hashes = map { $_ => undef } git_resolve_hashes(\@parents);
         my $head_pos = find_only("HEAD", \@parents);
         if ($head_pos != 0) {
             # TODO: how to handle it in skip?
@@ -278,6 +279,11 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             $command .= " $p";
         }
         run_command($command);
+        my ($head_hash) = git_resolve_hashes(["HEAD"]);
+        if (exists $parent_hashes{$head_hash}) {
+            # TODO: after newer merge is implemented, more data is available. Use it
+            die "Merge of " . (join ",", @{$rebase_step->{parents}}) . " became noop or fastforward.";
+        }
         comment($rebase_step->{comment});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
