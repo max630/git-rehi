@@ -282,7 +282,13 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         my ($head_hash) = git_resolve_hashes(["HEAD"]);
         if (exists $parent_hashes{$head_hash}) {
             # TODO: after newer merge is implemented, more data is available. Use it
-            die "Merge of " . (join ",", @{$rebase_step->{parents}}) . " became noop or fastforward.";
+            print "Merge of " . (join ",", @{$rebase_step->{parents}}) . " became noop or fastforward.\n";
+            print "You would probably want to do now one of the following:\n";
+            print " * force non-fastforward merge\n";
+            print " * merge some other parent instead of the one from history\n";
+            print " * skip the step at all (is it a non-interactive rebase?)\n";
+            print "Then invoke git rebase2 --skip\n";
+            die "Stopped";
         }
         comment($rebase_step->{comment});
     } else {
