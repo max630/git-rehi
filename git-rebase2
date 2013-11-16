@@ -12,7 +12,19 @@ my $GIT_DIR = read_popen("git rev-parse --git-dir");
 # definitely no \ or " (to be used in command-line), what else?
 # be safe here
 if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
-    confess("Som unsupported symbols in: $GIT_DIR");
+    confess("Some unsupported symbols in: $GIT_DIR");
+}
+
+sub git_no_uncommitted_changes()
+{
+    return (system("git diff-index --quiet --ignore-submodules HEAD") == 0);
+}
+
+sub git_verify_clean()
+{
+    confess "Not clean working directory" unless git_no_uncommitted_changes();
+    confess "git-am or rebase in progress" if -e "$GIT_DIR/rebase-apply";
+    confess "rebase in progress" if -e "$GIT_DIR/rebase-merge";
 }
 
 sub main ($) { my @argv = @{$_[0]};
@@ -57,6 +69,7 @@ sub main ($) { my @argv = @{$_[0]};
             run_rebase($todo, $commits, $target_ref);
             return;
         } elsif (scalar @argv == 1) {
+            git_verify_clean();
             my $head_path = read_popen("git symbolic-ref -q HEAD");
             if ($head_path =~ /refs\/heads\/(.*)/) {
                 main_parsed($argv[0], $1, $onto, \@through, $interactive);
@@ -65,6 +78,7 @@ sub main ($) { my @argv = @{$_[0]};
             }
             return;
         } elsif (scalar @argv == 2) {
+            git_verify_clean();
             main_parsed($argv[0], $argv[1], $onto, \@through, $interactive);
             return;
         } else {
@@ -174,19 +188,19 @@ sub run_continue($$) { my ($current, $commits) = @_;
                 . " && git diff-files --quiet --ignore-submodules");
     # TODO: restore proper rebase-like behavior
     if ($current->{type} eq "pick") {
-        if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
+        if (git_no_uncommitted_changes()) {
             # commited already
         } else {
             run_command("git commit -c $current->{ahash}");
         }
     } elsif ($current->{type} eq "edit") {
-        if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
+        if (git_no_uncommitted_changes()) {
             # commited already
         } else {
             confess("No unstaged changes should be after 'edit'");
         }
     } elsif ($current->{type} eq "fixup") {
-        if (system("git diff-index --quiet --ignore-submodules --cached HEAD") == 0) {
+        if (git_no_uncommitted_changes()) {
             # commited already
         } else {
             run_command("git commit --amend");
@@ -252,6 +266,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             $command .= " --strategy=ours";
         }
         my @parents = @{$rebase_step->{parents}};
+        my %parent_hashes = map { $_ => undef } git_resolve_hashes(\@parents);
         my $head_pos = find_only("HEAD", \@parents);
         if ($head_pos != 0) {
             # TODO: how to handle it in skip?
@@ -264,6 +279,17 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             $command .= " $p";
         }
         run_command($command);
+        my ($head_hash) = git_resolve_hashes(["HEAD"]);
+        if (exists $parent_hashes{$head_hash}) {
+            # TODO: after newer merge is implemented, more data is available. Use it
+            print "Merge of " . (join ",", @{$rebase_step->{parents}}) . " became noop or fastforward.\n";
+            print "You would probably want to do now one of the following:\n";
+            print " * force non-fastforward merge\n";
+            print " * merge some other parent instead of the one from history\n";
+            print " * skip the step at all (is it a non-interactive rebase?)\n";
+            print "Then invoke git rebase2 --skip\n";
+            die "Stopped";
+        }
         comment($rebase_step->{comment});
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
