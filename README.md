@@ -1,6 +1,7 @@
 # git-rebase2, advanced rebaser
 
-Done to some usable state. See the TODO.md for missing things.
+Done to some usable state. See _Usage_ section later for reference.
+Bug reports and wishes tracked here: https://github.com/max630/git-rebase2
 
 **SAFETY NOTES**: Note that it is an experimental software. You'd better have a
 backup if you run it at a valuable repository, for example it should be cloned
@@ -23,10 +24,11 @@ The original rebase is a wornderful tool, but it has a list of disadvantages:
 
 ## Features
 
-Features are follows from the list in previous section:
+List of features
 
 * Written in high-level language, with data structures and string manipulation
   without calling external programs.
+* Should work on Windows with msysgit only, without installing additoinal software.
 * As few git calls as possible.
 * Extended language for the todo list.
 * Analysis before editing the todo list, selecting only the interesting path
@@ -37,19 +39,21 @@ Features are follows from the list in previous section:
 Run the script inside of a git repository. If it is in PATH, git will run it
 for you if you use `git rebase2`.
 
-In general, arguments similar to th original rebase's ones.
+In general, arguments similar to the original rebase's ones.
 
 `git rebase2 [options] [--onto <newbase>] <upstream> [<branch>]`
 
-Calculates optimal path from latest common ancestor of `<branch>` and
-`<upstream>`, and apply it to repository, starting from `<newbase>`, or from
-`<branch>`, if --onto is not specified. If `<branch>` is not specified,
-the currently checked-out branch is used. In the end, `<branch>` is reset to
-the top of the resulting commit sequence and checked out.
+Calculates optimal path (see `--through` option description) from latest common
+ancestor of `<branch>` and `<upstream>`, and apply it to repository, starting
+from `<newbase>`, or from `<branch>`, if `--onto` is not specified. If
+`<branch>` is not specified, the currently checked-out branch is used. In the
+end, `<branch>` is reset to the top of the resulting commit sequence and
+checked out.
 
 `git rebase2 --continue`
 
-Retry failed step after resolution.
+Retry failed step after resolution. For some types of step this is not supported.
+Then user have to manually apply the step and use `git rebase2 --skip` to continue.
 
 `git rebase2 --abort`
 
@@ -58,7 +62,7 @@ checked-out.
 
 `git rebase2 --skip`
 
-Skip failed step and go on with next ones.
+Reset all changes and continue rebasing starting with the next step in todo list.
 
 ### Options
 
