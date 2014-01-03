@@ -164,7 +164,7 @@ sub main_parsed($$$$) { my ($dest, $source_to, $onto, $through, $interactive) = 
 
 sub restore_rebase() {
     my $target_ref = read_file("$GIT_DIR/rebase2/target_ref");
-    my $commits = git_parse_commits();
+    my $commits = git_load_commits();
     # TODO: add $unknown_commits  to $commits
     my ($todo, $unknown_commits) = read_todo("$GIT_DIR/rebase2/todo", $commits);
     my $current = 0;
@@ -200,6 +200,7 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
     my ($new_todo, $new_commits) =
         retry {
             run_command($editor . " $tmpname");
+            # TODO: read unknown commits
             my ($new_todo1, $unknown_commits1) = read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
             return ($new_todo1, []);
         } $ok;
@@ -410,7 +411,7 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
     return $commits;
 }
 
-sub git_parse_commits() {
+sub git_load_commits() {
     my $commits = {by_hash => {}, by_ahash => {}};
     open(my $in, "<", "$GIT_DIR/rebase2/commits") or confess("Cannot read commits cache ($GIT_DIR/rebase2/commits): $!");
     while (<$in>) {
