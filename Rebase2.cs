@@ -3,81 +3,82 @@ using System.Collections.Generic;
 
 namespace rebase2 {
     public class Rebase2 {
-        public sealed struct Commits {
-            IDictionary<string, string>
+        public struct Commits {
+            public IDictionary<string, string> byAHash;
+            public IDictionary<string, string> byHash;
         }
 
-        public sealed struct Commit {
-            string ahash;
-            string hash;
-            string subject;
-            IEnumerable<string> parents;
+        public struct Commit {
+            public string ahash;
+            public string hash;
+            public string subject;
+            public IEnumerable<string> parents;
         }
 
         public abstract class Step {
             private sealed class Pick : Step {
-                string ahash;
-                public T Match<T>(
+                internal string ahash;
+                public override T Match<T>(
                     Func<string, T> pick,
                     Func<string, T> fixup,
                     Func<string, T> edit,
                     Func<string, T> comment,
                     Func<string, T> exec,
-                    Func<IEnumerable<string>, string, bool, T> merge) override { return pick(ahash); }
+                    Func<IEnumerable<string>, string, bool, T> merge) { return pick(ahash); }
             }
             private sealed class Fixup : Step {
-                string ahash;
-                public T Match<T>(
+                internal string ahash;
+                public override T Match<T>(
                     Func<string, T> pick,
                     Func<string, T> fixup,
                     Func<string, T> edit,
                     Func<string, T> comment,
                     Func<string, T> exec,
-                    Func<IEnumerable<string>, string, bool, T> merge) override { return fixup(ahash); }
+                    Func<IEnumerable<string>, string, bool, T> merge) { return fixup(ahash); }
             }
             private sealed class Edit : Step {
-                string ahash;
-                public T Match<T>(
+                internal string ahash;
+                public override T Match<T>(
                     Func<string, T> pick,
                     Func<string, T> fixup,
                     Func<string, T> edit,
                     Func<string, T> comment,
                     Func<string, T> exec,
-                    Func<IEnumerable<string>, string, bool, T> merge) override { return edit(ahash); }
+                    Func<IEnumerable<string>, string, bool, T> merge) { return edit(ahash); }
             }
             private sealed class Comment : Step {
-                string _comment;
-                public T Match<T>(
+                internal string _comment;
+                public override T Match<T>(
                     Func<string, T> pick,
                     Func<string, T> fixup,
                     Func<string, T> edit,
                     Func<string, T> comment,
                     Func<string, T> exec,
-                    Func<IEnumerable<string>, string, bool, T> merge) override { return comment(_comment); }
+                    Func<IEnumerable<string>, string, bool, T> merge) { return comment(_comment); }
             }
             private sealed class Exec : Step {
-                string _command;
-                public T Match<T>(
+                internal string _command;
+                public override T Match<T>(
                     Func<string, T> pick,
                     Func<string, T> fixup,
                     Func<string, T> edit,
                     Func<string, T> comment,
                     Func<string, T> exec,
-                    Func<IEnumerable<string>, string, bool, T> merge) override { return exec(_command); }
+                    Func<IEnumerable<string>, string, bool, T> merge) { return exec(_command); }
             }
             private sealed class Merge : Step {
-                IEnumerable<string> _parents;
-                string _comment;
-                bool _ours;
-                public T Match<T>(
+                internal IEnumerable<string> _parents;
+                internal string _comment;
+                internal bool _ours;
+                public override T Match<T>(
                     Func<string, T> pick,
                     Func<string, T> fixup,
                     Func<string, T> edit,
                     Func<string, T> comment,
                     Func<string, T> exec,
-                    Func<IEnumerable<string>, string, bool, T> merge) override
+                    Func<IEnumerable<string>, string, bool, T> merge)
                 { 
-                    return pick(_parents, _comment, _ours);
+                    return merge(_parents, _comment, _ours);
                 }
             }
 
