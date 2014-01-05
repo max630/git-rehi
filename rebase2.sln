@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rebase2", "rebase2.csproj", "{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}"
 EndProject
+Project("{4925A630-B079-445d-BCD4-3A9C94FE9307}") = "fsstuff", "fsstuff\fsstuff.fsproj", "{E393590D-D3F1-4872-96B1-19DFBED4E694}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -13,6 +15,10 @@ Global
 		{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}.Debug|x86.Build.0 = Debug|x86
 		{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}.Release|x86.ActiveCfg = Release|x86
 		{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}.Release|x86.Build.0 = Release|x86
+		{E393590D-D3F1-4872-96B1-19DFBED4E694}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E393590D-D3F1-4872-96B1-19DFBED4E694}.Debug|x86.Build.0 = Debug|Any CPU
+		{E393590D-D3F1-4872-96B1-19DFBED4E694}.Release|x86.ActiveCfg = Release|Any CPU
+		{E393590D-D3F1-4872-96B1-19DFBED4E694}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = rebase2.csproj

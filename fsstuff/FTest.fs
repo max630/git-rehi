@@ -1,4 +1,4 @@
-namespace rebase2
+module rebase2.FTest
 
 let gitResolveHashes refs =
     for ref in refs do

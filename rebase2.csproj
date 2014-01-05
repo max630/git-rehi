@@ -55,6 +55,9 @@
     </MonoDevelop>
   </ProjectExtensions>
   <ItemGroup>
-    <None Include="FTest.fs" />
+    <ProjectReference Include="fsstuff\fsstuff.fsproj">
+      <Project>{E393590D-D3F1-4872-96B1-19DFBED4E694}</Project>
+      <Name>fsstuff</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>
