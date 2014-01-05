@@ -572,7 +572,7 @@ sub default_error($) { my ($msg) = @_;
 sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     my $onSyntaxError = (defined $errorHandler && exists $errorHandler->{onSyntaxError}) ? $errorHandler->{onSyntaxError} : \&default_error ;
     my $todo = [];
-    my $unknown_refs = [];
+    my $unknown_commits = [];
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
     my $comment = "";
@@ -584,17 +584,17 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
             } elsif (/^(f|fixup) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => $2};
                 if (!exists $commits->{by_ahash}->{$2}) {
-                    push @{$unknown_refs}, $2;
+                    push @{$unknown_commits}, $2;
                 }
             } elsif (/^(p|pick) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "pick", ahash => $2};
                 if (!exists $commits->{by_ahash}->{$2}) {
-                    push @{$unknown_refs}, $2;
+                    push @{$unknown_commits}, $2;
                 }
             } elsif (/^(e|edit) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "edit", ahash => $2};
                 if (!exists $commits->{by_ahash}->{$2}) {
-                    push @{$unknown_refs}, $2;
+                    push @{$unknown_commits}, $2;
                 }
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
@@ -639,21 +639,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     if ($mode ne "COMMAND") {
         $onSyntaxError->("Unterminated comment");
     }
-    return ($todo, $unknown_refs);
-}
-
-sub read_todo_and_fill_commits($$;\$) { my ($filename, $commits, $errorHandler) = @_;
-    my $onSyntaxError = (defined $errorHandler && exists $errorHandler->{onSyntaxError}) ? $errorHandler->{onSyntaxError} : \&default_error ;
-    my ($new_todo, $unknown_refs) = read_todo($filename, $commits, $errorHandler);
-    # Plan:
-    # 1. resolve refs
-    # 2. read missing commits
-    # 3. read missing parents' info
-    # 1.
-    my @resolved_unknown_refs{@{$unknown_refs}} = @{git_resolve_hashes($unknown_refs)};
-    # 2.
-    my @unknown_commits = ();
-    foreach my $h (@resolved_unknown_refs)
+    return ($todo, $unknown_commits);
 }
 
 sub with_output_file($$) { my ($filename, $proc) = @_;
