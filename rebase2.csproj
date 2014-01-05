@@ -40,6 +40,7 @@
     <Compile Include="IOUtils.cs" />
     <Compile Include="GitUtils.cs" />
     <Compile Include="Environment.cs" />
+    <Compile Include="Rebase2.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
