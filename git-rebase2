@@ -76,6 +76,22 @@ sub git_verify_clean()
 
 # }}}
 
+# {{{ DOC: Types
+#
+# $commits = {
+#   by_ahash => { $ahash => Entry },
+#   by_hash => { $hash => Entry },
+# }
+#
+# Entry is {
+#   ahash => String,
+#   hash => String[40],
+#   subject => String,
+#   parent => [String[40]],
+# }
+#
+# }}}
+
 sub main ($) { my @argv = @{$_[0]};
     my $interactive = 0;
     my $onto = undef;
