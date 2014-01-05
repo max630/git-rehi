@@ -54,4 +54,7 @@
       </Properties>
     </MonoDevelop>
   </ProjectExtensions>
+  <ItemGroup>
+    <None Include="FTest.fs" />
+  </ItemGroup>
 </Project>
