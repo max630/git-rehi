@@ -45,32 +45,37 @@ public class IOUtils {
 
     public static IEnumerable<string> EnumPopen(string Program, string Args)
     {
-        using (var p = new System.Diagnostics.Process()) {
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.FileName = Program;
-            p.StartInfo.Arguments = Args;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.Start();
-
-            string CurrentString = p.StandardOutput.ReadLine();
-            bool Opened = CurrentString != null;
-
-            return new Enumerablie(){
-                    cbEnumerator = () => new Enumerator() {
-                        cbDispose = () => { Opened = false; },
-                        cbReset = () => { Opened = false; },
+        return new Enumerablie() {
+                cbEnumerator = () => {
+                    var p = new System.Diagnostics.Process();
+                    p.StartInfo.UseShellExecute = false;
+                    p.StartInfo.FileName = Program;
+                    p.StartInfo.Arguments = Args;
+                    p.StartInfo.RedirectStandardOutput = true;
+                    p.Start();
+                    string CurrentString = null;
+                    bool Opened = true;
+                    Action ProcessDispose = () => {
+                        if (Opened) {
+                            p.Dispose();
+                            Opened = false;
+                        }
+                    };
+                    return new Enumerator() {
+                        cbDispose = () => ProcessDispose(),
+                        cbReset = () => { throw new NotImplementedException(); },
                         cbNext = () => {
                             if (Opened) {
                                 string Next = p.StandardOutput.ReadLine();
                                 if(Next == null)
-                                    Opened = false;
+                                    ProcessDispose();
                             }
                             return Opened;
                         },
                         cbCurrent = () => { return CurrentString; }
-                    }
-                };
-        }
+                    };
+                }
+            };
     }
     
     public static void verifyCmdArg(string arg)
