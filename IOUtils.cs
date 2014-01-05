@@ -72,6 +72,10 @@ public class IOUtils {
                 };
         }
     }
+    
+    public static void verifyCmdArg(string arg)
+    {
+    }
 }
 }
 
