@@ -36,8 +36,6 @@
   <ItemGroup>
     <Compile Include="Main.cs" />
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="Utils.cs" />
-    <Compile Include="IOUtils.cs" />
     <Compile Include="GitUtils.cs" />
     <Compile Include="Environment.cs" />
     <Compile Include="Rebase2.cs" />
