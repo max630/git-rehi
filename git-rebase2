@@ -90,6 +90,29 @@ sub git_verify_clean()
 #   parent => [String[40]],
 # }
 #
+# $todo = [ Step ]
+#
+# Step is {
+#   type => String,
+#   ...
+# } is {
+#   type => one of("pick", "fixup", "edit"),
+#   ahash => String
+# } or {
+#   type => "exec",
+#   command => String
+# } or {
+#   type => "comment",
+#   comment => String
+# } or {
+#   type => "merge",
+#   comment => String,
+#   parents => [String],
+#   flags => {
+#       (optional) ours => Int
+#   }
+# }
+#
 # }}}
 
 sub main ($) { my @argv = @{$_[0]};
