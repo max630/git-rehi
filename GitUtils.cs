@@ -27,7 +27,9 @@ public class GitUtils {
     public static IEnumerable<string> resolveHashes(IEnumerable<string> Refs)
     {
         foreach (var Ref in Refs) {
+            IOUtils.verifyCmdArg(Ref);
         }
+        return null;
     }
 }
 }
