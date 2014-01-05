@@ -4,9 +4,9 @@ namespace rebase2
 {
 	public class Utils
 	{
-		public static void Retry<T, Err>(Func<T> func) where Err: Exception
+		public static T Retry<T, Err>(Func<T> func) where Err: Exception
 		{
-			while(1) {
+			while(true) {
 				try {
 					return func();
 				} catch (Err err) {
