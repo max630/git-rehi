@@ -394,7 +394,7 @@ sub git_resolve_hashes($) { my ($refs) = @_;
         s/^\s+|\s+$//g;
         push @result, $_;
     } "git rev-parse $refs_str";
-    confess("Hash number does not match") unless ($#result == $#{$refs});
+    confess("Hash number does not match") unless (scalar @result == scalar @{$refs});
     return @result;
 }
 
