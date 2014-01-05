@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace rebase2 {
@@ -21,6 +22,12 @@ namespace rebase2 {
                 throw new Exception("git-am or rebase in progress");
             if (File.Exists(Path.Combine(Environment.GitDir, "rebase-apply")))
                 throw new Exception("rebase in progress");
+        }
+
+        public static IEnumerable<string> resolveHashes(IEnumerable<string> Refs)
+        {
+            foreach (var Ref in Refs) {
+            }
         }
     }
 }
