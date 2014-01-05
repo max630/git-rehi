@@ -560,6 +560,15 @@ sub default_error($) { my ($msg) = @_;
     confess($msg);
 }
 
+# TODO for caching refs
+# * add to commits aliases (refs, whatever), which map entered aliases to commits
+# * save and restore them to something like rebase2/commit_refs
+# * refer to the refs dictionary in read_todo()
+# * fill missing refs and missing commits in the following function
+# * consider splitting the resolving part; I believe it should be possible to handle all state in todo+commits
+#   * describe the data structure
+# * use git_resolve_hashes() for resolving refs, git show ... for getting info
+
 sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     my $onSyntaxError = (defined $errorHandler && exists $errorHandler->{onSyntaxError}) ? $errorHandler->{onSyntaxError} : \&default_error ;
     my $todo = [];
