@@ -5,7 +5,9 @@ namespace rebase2 {
     public class GitUtils {
         public static bool getNoUncommittedChanges()
         {
-            var p = new System.Diagnostics.Process("git", "diff-index --quiet --ignore-submodules HEAD");
+            var p = new System.Diagnostics.Process();
+            p.StartInfo.FileName = "git";
+            p.StartInfo.Arguments = "diff-index --quiet --ignore-submodules HEAD";
             p.Start();
             p.WaitForExit();
             return p.ExitCode == 0;
