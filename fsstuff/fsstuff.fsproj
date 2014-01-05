@@ -18,6 +18,7 @@
     <ErrorReport>prompt</ErrorReport>
     <ConsolePause>false</ConsolePause>
     <PlatformTarget />
+    <OtherFlags>--nowarn:62</OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -49,4 +50,13 @@
       <Name>csstuff</Name>
     </ProjectReference>
   </ItemGroup>
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Policies>
+          <TextStylePolicy FileWidth="120" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/x-fsharp" />
+        </Policies>
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
 </Project>
