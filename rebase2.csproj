@@ -38,6 +38,8 @@
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="IOUtils.cs" />
+    <Compile Include="GitUtils.cs" />
+    <Compile Include="Environment.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
