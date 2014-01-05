@@ -54,8 +54,8 @@ public class Utils {
 
     public static T getSingle<T>(IEnumerable<T> Items)
     {
-        bool HasOne;
-        T Result = null;
+        bool HasOne = false;
+        T Result = default(T);
         foreach (var Item in Items) {
             if (HasOne)
                 throw new Exception(string.Format("Single element collection is required: {0}", Items));
