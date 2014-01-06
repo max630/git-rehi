@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace rebase2 {
 public class Types {
     public struct Commits {
-        public IDictionary<string, string> byAHash;
-        public IDictionary<string, string> byHash;
+        public IDictionary<string, Commit> byAHash;
+        public IDictionary<string, Commit> byHash;
     }
 
     public struct Commit {
