@@ -108,32 +108,32 @@ public class Types {
             }
         }
 
-        static Step NewPick(string ahash_)
+        public static Step NewPick(string ahash_)
         {
             return new Pick() { ahash = ahash_ };
         }
 
-        static Step NewFixup(string ahash_)
+        public static Step NewFixup(string ahash_)
         {
             return new Fixup() { ahash = ahash_ };
         }
 
-        static Step NewEdit(string ahash_)
+        public static Step NewEdit(string ahash_)
         {
             return new Edit() { ahash = ahash_ };
         }
 
-        static Step NewComment(string comment)
+        public static Step NewComment(string comment)
         {
             return new Comment() { _comment = comment };
         }
 
-        static Step NewExec(string command)
+        public static Step NewExec(string command)
         {
             return new Exec() { _command = command };
         }
 
-        static Step NewMerge(IEnumerable<string> parents, string comment, bool ours)
+        public static Step NewMerge(IEnumerable<string> parents, string comment, bool ours)
         {
             return new Merge() {
                 _parents = parents,
