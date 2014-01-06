@@ -18,6 +18,7 @@ namespace rebase2 {
             Mode mode = Mode.COMMAND;
             string comment = "";
             List<string> merge_parents = null;
+            bool merge_ours = false;
             foreach (var todoLine in File.ReadLines(Filename)) {
                 Match match;
                 if (Regex.IsMatch(todoLine, @"^\s*#"))
@@ -45,9 +46,19 @@ namespace rebase2 {
                             mode = Mode.MERGE_COMMENT;
                             comment = "";
                             merge_parents = new List<string>(Regex.Split(match.Groups [2].Value, @" +"));
+                            merge_ours = !match.Groups[1].Value.Equals("");
+                        } else if (Regex.IsMatch(todoLine, @"^\s*$")) {
+                        } else {
+                            onSyntaxError(String.Format("Unrecognised todo line for mode {0}: {1}", mode, todoLine));
                         }
                         break;
                     case Mode.COMMENT:
+                        if (Regex.IsMatch(todoLine, @"^\.$")) {
+                            mode = Mode.COMMAND;
+                            Todo.Add(Types.Step.NewComment(comment));
+                        } else {
+                            comment = comment + todoLine + "\n";
+                        }
                         break;
                     case Mode.MERGE_COMMENT:
                         break;
