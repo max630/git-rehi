@@ -5,6 +5,11 @@ using System.Collections.Generic;
 
 namespace rebase2 {
     public class Rebase2 {
+        public static void Main(string[] args)
+        {
+            Console.WriteLine("Hello World!");
+        }
+        
         public static void saveTodo(List<Types.Step> Todo, string todoFile, Types.Commits commits)
         {
             using (var Out = File.CreateText(todoFile)) {
