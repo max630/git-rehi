@@ -24,7 +24,7 @@ public class Utils {
         Tuple<int, ISet<string>> cost;
     }
 
-    public static ? FindSequence(Types.Commits commits, string from, string to, IEnumerable<string> throughList)
+    public static IEnumerable<string> FindSequence(Types.Commits commits, string from, string to, IEnumerable<string> throughList)
     {
         // initialize
         var through = new HashSet<string>(throughList);
@@ -32,7 +32,7 @@ public class Utils {
         foreach (var commitItem in commits)
             commitsX.Add(commitItem.Item1, new CommitX() { children_count = 0, children = new ArrayList<string>() });
         commitsX.Add(from, new CommitX() { children_count = 0, children = new ArrayList<string>() });
-        commitsX.Add(to, new CommitX() { children_count = 0, children = new ArrayList<string>(), Tuple.Create(0, new HashSet<string>) });
+        commitsX.Add(to, new CommitX() { children_count = 0, children = new ArrayList<string>(), Tuple.Create(0, new HashSet<string>()) });
         // fill children_count
         foreach (var commitItem in commits)
             foreach (string parent in commitItem.Item2.parents)
@@ -51,7 +51,7 @@ public class Utils {
                         var optimum = FindMinimumCost(from c in commitsX.Item[parent].children select Tuple.Create(commitsX.Item[c].cost, c));
                         commitsX.Item[parent].cost = Tuple.Create(optimum.Item1.Item1 + 1, optimum.Item1.Item2);
                         if (through.Contains(parent))
-                            commitsX.Item[parent].cost.Item2 = commitsX.Item[parent].cost.Item2.Union({parent});
+                            commitsX.Item[parent].cost.Item2 = commitsX.Item[parent].cost.Item2.Union(new {parent});
                         commitsX.Item[parent].sequence_child = optimum.Item2;
                         next_edge.Add(parent);
                     }
