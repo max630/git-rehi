@@ -5,9 +5,9 @@ using System.Collections.Generic;
 
 namespace rebase2 {
     public class Rebase2 {
-        public static void saveTodo(List<Types.Step> Todo, string File, Types.Commits commits)
+        public static void saveTodo(List<Types.Step> Todo, string todoFile, Types.Commits commits)
         {
-            using (var Out = File.CreateText(File)) {
+            using (var Out = File.CreateText(todoFile)) {
                 foreach (var step in Todo) {
                     step.Match<int>(
                         pick: ahash => { Out.WriteLine("pick {0} {1}", ahash, commits.byAHash[ahash].subject); return 0; },
@@ -22,7 +22,7 @@ namespace rebase2 {
                             return 0;
                         },
                         exec: command => {
-                            if (command.Contains('\n'))
+                            if (command.Contains("\n"))
                                 throw new Exception(String.Format("Multiline command cannot be saved: {0}", command));
                             Out.WriteLine("exec {0}", command);
                             return 0;
@@ -48,7 +48,7 @@ namespace rebase2 {
             MERGE_COMMENT,
         }
 
-        public static Tuple<List<Types.Step>, List<string>> readTodo(string Filename, Types.Commits commits, Func<string> onSyntaxError)
+        public static Tuple<List<Types.Step>, List<string>> readTodo(string Filename, Types.Commits commits, Action<string> onSyntaxError)
         {
             var Todo = new List<Types.Step>();
             var unknownCommits = new List<string>();
@@ -109,7 +109,7 @@ namespace rebase2 {
             }
             if (mode != Mode.COMMAND)
                 onSyntaxError("Unterminated comment");
-            Tuple.Create(Todo, unknownCommits);
+            return Tuple.Create(Todo, unknownCommits);
         }
     }
 }
