@@ -22,7 +22,7 @@ public class Utils {
     private class CommitX {
         public int children_count;
         public ICollection<string> children;
-        public Tuple<int, ISet<string>> cost;
+        public Tuple<int, HashSet<string>> cost;
         public String sequence_child;
     }
 
@@ -34,7 +34,7 @@ public class Utils {
         foreach (var commitItem in commits)
             commitsX.Add(commitItem.Key, new CommitX() { children_count = 0, children = new List<string>() });
         commitsX.Add(from, new CommitX() { children_count = 0, children = new List<string>() });
-        commitsX.Add(to, new CommitX() { children_count = 0, children = new List<string>(), cost = Tuple.Create<int, ISet<string>>(0, new HashSet<string>()) });
+        commitsX.Add(to, new CommitX() { children_count = 0, children = new List<string>(), cost = Tuple.Create(0, new HashSet<string>()) });
         // fill children_count
         foreach (var commitItem in commits)
             foreach (string parent in commitItem.Value.parents)
@@ -45,15 +45,17 @@ public class Utils {
         while (edge.Count > 0) {
             var next_edge = new HashSet<string>();
             foreach (var v in edge) {
-                var vertex_cost = commitsX[v].cost;
                 foreach (var parent in commits[v].parents) {
                     commitsX[parent].children.Add(v);
                     if (commitsX[parent].children.Count == commitsX[v].children_count) {
                         // all children are filled, find the best one
                         var optimum = FindMinimumCost(from c in commitsX[parent].children select Tuple.Create(commitsX[c].cost, c));
                         commitsX[parent].cost = Tuple.Create(optimum.Item1.Item1 + 1, optimum.Item1.Item2);
-                        if (through.Contains(parent))
-                            commitsX[parent].cost.Item2 = commitsX[parent].cost.Item2.Union(new {parent});
+                        if (through.Contains(parent)) {
+                            var newThroughs = new HashSet<string>(commitsX[parent].cost.Item2);
+                            newThroughs.Add(parent);
+                            commitsX[parent].cost = Tuple.Create(commitsX[parent].cost.Item1, newThroughs);
+                        }
                         commitsX[parent].sequence_child = optimum.Item2;
                         next_edge.Add(parent);
                     }
@@ -72,10 +74,10 @@ public class Utils {
         return Result;
     }
 
-    public static Tuple<Tuple<int, ISet<string>>, T2> FindMinimumCost<T2>(IEnumerable<Tuple<Tuple<int, ISet<string>>, T2>> Items)
+    public static Tuple<Tuple<int, HashSet<string>>, T2> FindMinimumCost<T2>(IEnumerable<Tuple<Tuple<int, HashSet<string>>, T2>> Items)
     {
         bool HasOne = false;
-        Tuple<Tuple<int, ISet<string>>, T2> Result = null;
+        Tuple<Tuple<int, HashSet<string>>, T2> Result = null;
         foreach (var Item in Items) {
             if (!HasOne) {
                 Result = Item;
