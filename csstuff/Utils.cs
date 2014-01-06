@@ -59,6 +59,15 @@ public class Utils {
             }
             edge = next_edge;
         }
+        var Result = new List<string>();
+        var next = from;
+        while (!next.Equals(to)) {
+            next = commitsX.Item[next].sequence_child;
+            if (commitsX.Item[next].children_count > 1)
+                throw new Exception(string.Format("inner merges not supported yet (found in commit {0})", next));
+            Result.Add(next);
+        }
+        return Result;
     }
 
     public static Tuple<Tuple<int, ISet<string>>, T2> FindMinimumCost<T2>(IEnumerable<Tuple<Tuple<int, ISet<string>>, T2>> Items)
