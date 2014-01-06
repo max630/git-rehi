@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace rebase2 {
@@ -18,41 +19,42 @@ public class Utils {
         }
     }
 
-    private struct CommitX {
-        int children_count;
-        ICollection<string> children;
-        Tuple<int, ISet<string>> cost;
+    private class CommitX {
+        public int children_count;
+        public ICollection<string> children;
+        public Tuple<int, ISet<string>> cost;
+        public String sequence_child;
     }
 
-    public static IEnumerable<string> FindSequence(Types.Commits commits, string from, string to, IEnumerable<string> throughList)
+    public static IEnumerable<string> FindSequence(IDictionary<string, Types.Commit> commits, string from, string to, IEnumerable<string> throughList)
     {
         // initialize
         var through = new HashSet<string>(throughList);
-        var commitsX = new HashMap<string, CommitX>();
+        var commitsX = new Dictionary<string, CommitX>();
         foreach (var commitItem in commits)
-            commitsX.Add(commitItem.Item1, new CommitX() { children_count = 0, children = new ArrayList<string>() });
-        commitsX.Add(from, new CommitX() { children_count = 0, children = new ArrayList<string>() });
-        commitsX.Add(to, new CommitX() { children_count = 0, children = new ArrayList<string>(), Tuple.Create(0, new HashSet<string>()) });
+            commitsX.Add(commitItem.Key, new CommitX() { children_count = 0, children = new List<string>() });
+        commitsX.Add(from, new CommitX() { children_count = 0, children = new List<string>() });
+        commitsX.Add(to, new CommitX() { children_count = 0, children = new List<string>(), cost = Tuple.Create<int, ISet<string>>(0, new HashSet<string>()) });
         // fill children_count
         foreach (var commitItem in commits)
-            foreach (string parent in commitItem.Item2.parents)
-                if (commitsX.Contains(parent))
-                    commitsX.Get(parent).children_count++;
+            foreach (string parent in commitItem.Value.parents)
+                if (commitsX.ContainsKey(parent))
+                    commitsX[parent].children_count++;
         // mark commits
-        var edge = new HashSet<string>(to);
+        var edge = new HashSet<string>() { to };
         while (edge.Count > 0) {
             var next_edge = new HashSet<string>();
             foreach (var v in edge) {
-                var vertex_cost = commitsX.Item[v].cost;
-                foreach (var parent in commits.Item[v].parents) {
-                    commitsX.Item[parent].children.Add(v);
-                    if (commitsX.Item[parent].children.Count == commitsX.Item(v).children_count) {
+                var vertex_cost = commitsX[v].cost;
+                foreach (var parent in commits[v].parents) {
+                    commitsX[parent].children.Add(v);
+                    if (commitsX[parent].children.Count == commitsX[v].children_count) {
                         // all children are filled, find the best one
-                        var optimum = FindMinimumCost(from c in commitsX.Item[parent].children select Tuple.Create(commitsX.Item[c].cost, c));
-                        commitsX.Item[parent].cost = Tuple.Create(optimum.Item1.Item1 + 1, optimum.Item1.Item2);
+                        var optimum = FindMinimumCost(from c in commitsX[parent].children select Tuple.Create(commitsX[c].cost, c));
+                        commitsX[parent].cost = Tuple.Create(optimum.Item1.Item1 + 1, optimum.Item1.Item2);
                         if (through.Contains(parent))
-                            commitsX.Item[parent].cost.Item2 = commitsX.Item[parent].cost.Item2.Union(new {parent});
-                        commitsX.Item[parent].sequence_child = optimum.Item2;
+                            commitsX[parent].cost.Item2 = commitsX[parent].cost.Item2.Union(new {parent});
+                        commitsX[parent].sequence_child = optimum.Item2;
                         next_edge.Add(parent);
                     }
                 }
@@ -62,8 +64,8 @@ public class Utils {
         var Result = new List<string>();
         var next = from;
         while (!next.Equals(to)) {
-            next = commitsX.Item[next].sequence_child;
-            if (commitsX.Item[next].children_count > 1)
+            next = commitsX[next].sequence_child;
+            if (commitsX[next].children_count > 1)
                 throw new Exception(string.Format("inner merges not supported yet (found in commit {0})", next));
             Result.Add(next);
         }
