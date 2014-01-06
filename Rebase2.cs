@@ -5,11 +5,11 @@ using System.Collections.Generic;
 
 namespace rebase2 {
     public class Rebase2 {
-        public static void saveTodo(List<Types.Step> Todo, string File, Commits commits)
+        public static void saveTodo(List<Types.Step> Todo, string File, Types.Commits commits)
         {
             using (var Out = File.CreateText(File)) {
                 foreach (var step in Todo) {
-                    step.Match<void>(
+                    step.Match<int>(
                         pick: ahash => { },
                         fixup: ahash => { },
                         edit: ahash => { },
