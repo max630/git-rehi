@@ -704,6 +704,7 @@ sub read_file($) { my ($filename) = @_;
     return $data;
 }
 
+# there is  an extension method for it
 sub get_single(\@) { my ($array) = @_;
     if (scalar @{$array} != 1) {
         confess ("Should be an array with single element: " . Dumper($array));

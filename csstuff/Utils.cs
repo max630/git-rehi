@@ -103,23 +103,6 @@ public class Utils {
             throw new Exception("Empty sequence not supported");
         return Result;
     }
-
-    public static T getSingle<T>(IEnumerable<T> Items)
-    {
-        bool HasOne = false;
-        T Result = default(T);
-        foreach (var Item in Items) {
-            if (HasOne)
-                throw new Exception(string.Format("Single element collection is required: {0}", Items));
-            HasOne = true;
-            Result = Item;
-        }
-        if (!HasOne)
-            throw new Exception(string.Format("Single element collection is required: {0}", Items));
-        return Result;
-    }
-
-
 }
 }
 
