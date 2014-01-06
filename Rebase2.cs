@@ -10,12 +10,33 @@ namespace rebase2 {
             using (var Out = File.CreateText(File)) {
                 foreach (var step in Todo) {
                     step.Match<int>(
-                        pick: ahash => { },
-                        fixup: ahash => { },
-                        edit: ahash => { },
-                        comment: comment => { },
-                        exec: command => { },
-                        merge: (parents, comment, isOurs) => { }
+                        pick: ahash => { Out.WriteLine("pick {0} {1}", ahash, commits.byAHash[ahash].subject); return 0; },
+                        fixup: ahash => { Out.WriteLine("fixup {0} {1}", ahash, commits.byAHash[ahash].subject); return 0; },
+                        edit: ahash => { Out.WriteLine("edit {0} {1}", ahash, commits.byAHash[ahash].subject); return 0; },
+                        comment: comment => {
+                            Out.WriteLine("comment");
+                            foreach (var line in comment)
+                                if (!line.Equals("."))
+                                    Out.WriteLine("{0}", line);
+                            Out.WriteLine(".");
+                            return 0;
+                        },
+                        exec: command => {
+                            if (command.Contains('\n'))
+                                throw new Exception(String.Format("Multiline command cannot be saved: {0}", command));
+                            Out.WriteLine("exec {0}", command);
+                            return 0;
+                        },
+                        merge: (parents, comment, isOurs) => {
+                            Out.WriteLine("merge{0} {1}",
+                                            isOurs ? " --ours" : "",
+                                            String.Join(" ", parents));
+                            foreach (var line in comment)
+                                if (!line.Equals("."))
+                                    Out.WriteLine("{0}", line);
+                            Out.WriteLine(".");
+                            return 0;
+                        }
                     );
                 }
             }
