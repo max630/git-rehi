@@ -5,6 +5,22 @@ using System.Collections.Generic;
 
 namespace rebase2 {
     public class Rebase2 {
+        public static void saveTodo(List<Types.Step> Todo, string File, Commits commits)
+        {
+            using (var Out = File.CreateText(File)) {
+                foreach (var step in Todo) {
+                    step.Match<void>(
+                        pick: ahash => { },
+                        fixup: ahash => { },
+                        edit: ahash => { },
+                        comment: comment => { },
+                        exec: command => { },
+                        merge: (parents, comment, isOurs) => { }
+                    );
+                }
+            }
+        }
+
         enum Mode {
             COMMAND,
             COMMENT,
