@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace rebase2 {
 public class GitUtils {
@@ -37,7 +38,9 @@ public class GitUtils {
 
     public static string mergeBase(string ref1, string ref2)
     {
-        throw new NotImplementedException();
+        IOUtils.verifyCmdArg(ref1);
+        IOUtils.verifyCmdArg(ref2);
+        return Enumerable.Single<string>(IOUtils.EnumPopen("git", String.Format("merge-base -a {0} {1}", ref1, ref2)));
     }
 }
 }
