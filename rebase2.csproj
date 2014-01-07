@@ -38,12 +38,9 @@
     <Compile Include="GitUtils.cs" />
     <Compile Include="Environment.cs" />
     <Compile Include="Rebase2.cs" />
+    <Compile Include="IOUtils.cs" />
+    <Compile Include="Types.cs" />
+    <Compile Include="Utils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup>
-    <ProjectReference Include="csstuff\csstuff.csproj">
-      <Project>{A41E5034-F3E8-4EE3-B95B-D432D7D1B2CF}</Project>
-      <Name>csstuff</Name>
-    </ProjectReference>
-  </ItemGroup>
 </Project>

@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rebase2", "rebase2.csproj", "{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "csstuff", "csstuff\csstuff.csproj", "{A41E5034-F3E8-4EE3-B95B-D432D7D1B2CF}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -15,10 +13,6 @@ Global
 		{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}.Debug|x86.Build.0 = Debug|x86
 		{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}.Release|x86.ActiveCfg = Release|x86
 		{1A7E72CF-AEBE-4428-B7AA-7D9E301D5D23}.Release|x86.Build.0 = Release|x86
-		{A41E5034-F3E8-4EE3-B95B-D432D7D1B2CF}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A41E5034-F3E8-4EE3-B95B-D432D7D1B2CF}.Debug|x86.Build.0 = Debug|Any CPU
-		{A41E5034-F3E8-4EE3-B95B-D432D7D1B2CF}.Release|x86.ActiveCfg = Release|Any CPU
-		{A41E5034-F3E8-4EE3-B95B-D432D7D1B2CF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = rebase2.csproj
