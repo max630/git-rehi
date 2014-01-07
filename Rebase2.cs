@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 
@@ -7,7 +8,118 @@ namespace rebase2 {
     public class Rebase2 {
         public static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            bool isInteractive = false;
+            string ontoRef = null;
+            var through = new List<string>();
+            int offset = 0;
+            while (offset < args.Length) {
+                if (args[offset].Equals("-i") || args[offset].Equals("--interactive")) {
+                    isInteractive = true;
+                    offset++;
+                } else if (args[offset].Equals("--through")) {
+                    through.Add(args[offset + 1]);
+                    offset += 2;
+                } else if (args[offset].Equals("--onto")) {
+                    if (ontoRef != null)
+                        throw new Exception("--onto doubled");
+                    ontoRef = args[offset + 1];
+                    offset += 2;
+                } else if (args[offset].Equals("--abort")) {
+                    if (offset + 1 < args.Length)
+                        throw new Exception(String.Format("Extra arguments after {0}: {1}", args[offset], String.Join(", ", Enumerable.Skip(args, offset + 1))));
+                    // abortRebase();
+                    return;
+                } else if (args[offset].Equals("--skip")) {
+                    if (offset + 1 < args.Length)
+                        throw new Exception(String.Format("Extra arguments after {0}: {1}", args[offset], String.Join(", ", Enumerable.Skip(args, offset + 1))));
+                    Tuple<List<Types.Step>, Types.Step, Types.Commits, string> Restored = restoreRebase();
+                    if (Restored.Item2 != null) {
+                        IOUtils.Run("git", "reset --hard HEAD");
+                        File.Delete(Path.Combine(Environment.GitDir, "rebase2", "current"));
+                    }
+                    runRebase(Restored.Item1, Restored.Item3, Restored.Item4);
+                    return;
+                } else if (args[offset].Equals("--continue")) {
+                    if (offset + 1 < args.Length)
+                        throw new Exception(String.Format("Extra arguments after {0}: {1}", args[offset], String.Join(", ", Enumerable.Skip(args, offset + 1))));
+                    Tuple<List<Types.Step>, Types.Step, Types.Commits, string> Restored = restoreRebase();
+                    if (Restored.Item2 != null) {
+                        runContinue(Restored.Item2, Restored.Item3);
+                        File.Delete(Path.Combine(Environment.GitDir, "rebase2", "current"));
+                    }
+                    runRebase(Restored.Item1, Restored.Item3, Restored.Item4);
+                    return;
+                } else if (offset + 1 == args.Length) {
+                    GitUtils.verifyClean();
+                    var headRef = IOUtils.ReadPopen("git", "symbolic-ref -q HEAD");
+                    Match match = null;
+                    if ((match = Regex.Match(headRef, @"^/refs/heads/(.*)")).Success)
+                        mainParsed(args[offset], match.Groups[1].Value, ontoRef, through, isInteractive);
+                    else
+                        throw new Exception(String.Format("Unsupported ref checked-out: {0}", headRef));
+                    return;
+                } else if (offset + 2 == args.Length) {
+                    GitUtils.verifyClean();
+                    mainParsed(args[offset], args[offset + 1], ontoRef, through, isInteractive);
+                    return;
+                } else {
+                    throw new Exception(String.Format("Invalid arguments: {0}", String.Join(", ", Enumerable.Skip(args, offset))));
+                }
+            }
+        }
+        
+        public static void mainParsed(string dest, string source_to, string onto, IEnumerable<string> through, bool isInteractive)
+        {
+            var source_from = GitUtils.mergeBase(dest, source_to);
+            var real_dest = (onto != null) ? onto : dest;
+            Tuple<List<Types.Step>, Types.Commits, string, string> InitInfo = initRebase(real_dest, source_from, source_to, through);
+            List<Types.Step> Todo = InitInfo.Item1;
+            if (isInteractive) {
+                bool isOk;
+                Todo = new List<Types.Step>(editTodo(Todo, InitInfo.Item2, out isOk));
+                if (!isOk) {
+                    cleanupSave();
+                    Console.WriteLine("Aborted");
+                    return;
+                }
+            }
+            if (Todo.Count > 0) {
+                IOUtils.Run("git", String.Format("checkout --quiet --detach {0}", InitInfo.Item4));
+                runRebase(Todo, InitInfo.Item2, InitInfo.Item3);
+            } else {
+                cleanupSave();
+                Console.WriteLine("Nothing to do.");
+            }
+        }
+        
+        static Tuple<List<Types.Step>, Types.Step, Types.Commits, string> restoreRebase()
+        {
+            throw new NotImplementedException();
+        }
+        
+        static Tuple<List<Types.Step>, Types.Commits, string, string> initRebase(string dest, string source_from, string source_to, IEnumerable<string> through)
+        {
+            throw new NotImplementedException();
+        }
+        
+        static void cleanupSave()
+        {
+            throw new NotImplementedException();
+        }
+        
+        static void runContinue(Types.Step step, Types.Commits commits)
+        {
+            throw new NotImplementedException();
+        }
+        
+        static void runRebase(IEnumerable<Types.Step> todo, Types.Commits commits, string target_ref)
+        {
+            throw new NotImplementedException();
+        }
+        
+        static IEnumerable<Types.Step> editTodo(IEnumerable<Types.Step> oldTodo, Types.Commits commits, out bool isOk)
+        {
+            throw new NotImplementedException();
         }
         
         public static void saveTodo(List<Types.Step> Todo, string todoFile, Types.Commits commits)

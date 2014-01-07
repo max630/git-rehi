@@ -80,6 +80,17 @@ public class IOUtils {
     
     public static void verifyCmdArg(string arg)
     {
+        throw new NotImplementedException();
+    }
+
+    public static void Run(string command, string args)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static string ReadPopen(string command, string args)
+    {
+        throw new NotImplementedException();
     }
 }
 }

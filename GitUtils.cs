@@ -28,5 +28,10 @@ public class GitUtils {
     {
         return FTest.resolveHashes(Refs);
     }
+    
+    public static string mergeBase(string ref1, string ref2)
+    {
+        throw new NotImplementedException();
+    }
 }
 }
