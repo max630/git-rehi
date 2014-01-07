@@ -24,11 +24,17 @@ public class GitUtils {
             throw new Exception("rebase in progress");
     }
 
-    public static IEnumerable<string> resolveHashes(IEnumerable<string> Refs)
+    IEnumerable<string> resolveHashes(IEnumerable<string> refs)
     {
-        return FTest.resolveHashes(Refs);
+        var refsList = new List<string>(refs);
+        foreach (var rf in refsList)
+            IOUtils.verifyCmdArg(rf);
+        var Result = new List<string>(IOUtils.EnumPopen("git", String.Format("rev-parse {0}", String.Join(" ", refsList))));
+        if (Result.Count != refsList.Count)
+            throw new Exception("Hash number does not match");
+        return Result;
     }
-    
+
     public static string mergeBase(string ref1, string ref2)
     {
         throw new NotImplementedException();
