@@ -144,8 +144,24 @@ namespace rebase2 {
             throw new NotImplementedException();
         }
 
-        static IEnumerable<Types.Step> editTodo(IEnumerable<Types.Step> oldTodo, Types.Commits commits, out bool isOk)
+        class InvalidTodoException : Exception
         {
+            InvalidTodoException(string msg) : base(msg) { }
+        }
+
+        static IEnumerable<Types.Step> editTodo(List<Types.Step> oldTodo, Types.Commits commits, out bool isOk)
+        {
+            var TmpFile = IOUtils.MakeTempFile(".todo.txt");
+            try {
+                saveTodo(oldTodo, TmpFile, commits);
+                var Editor = GitUtils.sequence_editor();
+                var NewData = Utils.Retry(
+                    () => {
+                    }
+                );
+            } finally {
+                File.Delete(TmpFile);
+            }
             throw new NotImplementedException();
         }
 
@@ -154,7 +170,7 @@ namespace rebase2 {
             throw new NotImplementedException();
         }
 
-        public static void saveTodo(List<Types.Step> Todo, string todoFile, Types.Commits commits)
+        public static void saveTodo(IEnumerable<Types.Step> Todo, string todoFile, Types.Commits commits)
         {
             using (var Out = File.CreateText(todoFile)) {
                 foreach (var step in Todo) {
