@@ -94,6 +94,11 @@ namespace rebase2 {
         
         static Tuple<List<Types.Step>, Types.Step, Types.Commits, string> restoreRebase()
         {
+            string targetRef = Enumerable.Single<string>(File.ReadLines(RebasePath("target_ref")));
+            var commits = loadCommits();
+            Tuple<List<Types.Step>, List<string>> TodoTuple = readTodo(RebasePath("target_ref"), commits);
+            Types.Step current = File.Exists(RebasePath("current")) ? Enumerable.Single<Types.Step>(readTodo(RebasePath("current"), commits).Item1) : null;
+
             throw new NotImplementedException();
         }
         
@@ -118,6 +123,11 @@ namespace rebase2 {
         }
         
         static IEnumerable<Types.Step> editTodo(IEnumerable<Types.Step> oldTodo, Types.Commits commits, out bool isOk)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public static Types.Commits loadCommits()
         {
             throw new NotImplementedException();
         }
@@ -165,7 +175,7 @@ namespace rebase2 {
             MERGE_COMMENT,
         }
 
-        public static Tuple<List<Types.Step>, List<string>> readTodo(string Filename, Types.Commits commits, Action<string> onSyntaxError)
+        public static Tuple<List<Types.Step>, List<string>> readTodo(string Filename, Types.Commits commits, Action<string> onSyntaxError = msg => { throw new Exception(msg); })
         {
             var Todo = new List<Types.Step>();
             var unknownCommits = new List<string>();
@@ -227,6 +237,12 @@ namespace rebase2 {
             if (mode != Mode.COMMAND)
                 onSyntaxError("Unterminated comment");
             return Tuple.Create(Todo, unknownCommits);
+        }
+        
+        static string RebasePath(string subpath)
+        {
+            return Path.Combine(Environment.GitDir, "rebase2", subpath);
+        
         }
     }
 }
