@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 
 namespace rebase2 {
@@ -76,6 +77,20 @@ public class IOUtils {
                     };
                 }
             };
+    }
+
+    public static string MakeTempFile(string suffix)
+    {
+        for (int i = 0; true; ++i) {
+            string TmpPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + suffix);
+            try {
+                using (var TmpStream = new StreamWriter(File.Open(TmpPath, FileMode.CreateNew))) { }
+                return TmpPath;
+            } catch (IOException ex) {
+                if (i >= 5)
+                    throw new Exception("Cannot create temporary file", ex);
+            }
+        }
     }
     
     public static void verifyCmdArg(string arg)
