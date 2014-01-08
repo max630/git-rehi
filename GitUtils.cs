@@ -25,7 +25,7 @@ public class GitUtils {
             throw new Exception("rebase in progress");
     }
 
-    IEnumerable<string> resolveHashes(IEnumerable<string> refs)
+    public static IEnumerable<string> resolveHashes(IEnumerable<string> refs)
     {
         var refsList = new List<string>(refs);
         foreach (var rf in refsList)

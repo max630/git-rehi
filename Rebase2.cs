@@ -103,6 +103,29 @@ namespace rebase2 {
 
         static Tuple<List<Types.Step>, Types.Commits, string, string> initRebase(string dest, string source_from, string source_to, IEnumerable<string> through)
         {
+            string targetRef = source_to;
+            var resolvedList = new List<string>(GitUtils.resolveHashes(new List<string> { dest, source_from, source_to }));
+            Utils.Assert(resolvedList.Count, Tuple.Create(resolvedList, " has length 3"));
+            var Hashes = new { dest = resolvedList[0], source_from = resolvedList[1], source_to = resolvedList[2] };
+            var throughHashes = new List<string>(GitUtils.resolveHashes(through));
+            initSave(throughHashes);
+            var commits = fetchCommits(source_from, source_to);
+            var todo = build_rebase_sequence(commits, Hashes.source_from, Hashes.source_to, Hashes.source_to, throughHashes);
+            throw new NotImplementedException();
+        }
+
+        static List<Types.Step> build_rebase_sequence(Types.Commits commits, string source_from, string source_to, ICollection<string> throughHashes)
+        {
+            throw new NotImplementedException();
+        }
+
+        static Types.Commits fetchCommits(string source_from, string source_to)
+        {
+            throw new NotImplementedException();
+        }
+
+        static void initSave(string throughHashes)
+        {
             throw new NotImplementedException();
         }
 

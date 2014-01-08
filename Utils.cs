@@ -107,6 +107,12 @@ public class Utils {
             throw new Exception("Empty sequence not supported");
         return Result;
     }
+
+    public static void Assert<T>(bool Condition, T Message)
+    {
+        if (!Condition)
+            throw new Exception(String.Format("Assertion failed: {0}", Message));
+    }
 }
 }
 
