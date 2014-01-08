@@ -36,6 +36,11 @@ public class GitUtils {
         return Result;
     }
 
+    public static string sequence_editor()
+    {
+        throw new NotImplementedException();
+    }
+
     public static string mergeBase(string ref1, string ref2)
     {
         IOUtils.verifyCmdArg(ref1);
