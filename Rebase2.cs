@@ -67,7 +67,7 @@ namespace rebase2 {
                 }
             }
         }
-        
+
         public static void mainParsed(string dest, string source_to, string onto, IEnumerable<string> through, bool isInteractive)
         {
             var source_from = GitUtils.mergeBase(dest, source_to);
@@ -91,7 +91,7 @@ namespace rebase2 {
                 Console.WriteLine("Nothing to do.");
             }
         }
-        
+
         static Tuple<List<Types.Step>, Types.Step, Types.Commits, string> restoreRebase()
         {
             string targetRef = Enumerable.Single<string>(File.ReadLines(RebasePath("target_ref")));
@@ -101,37 +101,37 @@ namespace rebase2 {
 
             throw new NotImplementedException();
         }
-        
+
         static Tuple<List<Types.Step>, Types.Commits, string, string> initRebase(string dest, string source_from, string source_to, IEnumerable<string> through)
         {
             throw new NotImplementedException();
         }
-        
+
         static void cleanupSave()
         {
             throw new NotImplementedException();
         }
-        
+
         static void runContinue(Types.Step step, Types.Commits commits)
         {
             throw new NotImplementedException();
         }
-        
+
         static void runRebase(IEnumerable<Types.Step> todo, Types.Commits commits, string target_ref)
         {
             throw new NotImplementedException();
         }
-        
+
         static IEnumerable<Types.Step> editTodo(IEnumerable<Types.Step> oldTodo, Types.Commits commits, out bool isOk)
         {
             throw new NotImplementedException();
         }
-        
+
         public static Types.Commits loadCommits()
         {
             throw new NotImplementedException();
         }
-        
+
         public static void saveTodo(List<Types.Step> Todo, string todoFile, Types.Commits commits)
         {
             using (var Out = File.CreateText(todoFile)) {
@@ -238,11 +238,11 @@ namespace rebase2 {
                 onSyntaxError("Unterminated comment");
             return Tuple.Create(Todo, unknownCommits);
         }
-        
+
         static string RebasePath(string subpath)
         {
             return Path.Combine(Environment.GitDir, "rebase2", subpath);
-        
+
         }
     }
 }
