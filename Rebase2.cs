@@ -174,7 +174,12 @@ namespace rebase2 {
             MERGE_COMMENT,
         }
 
-        public static Tuple<List<Types.Step>, List<string>> readTodo(string Filename, Types.Commits commits, Action<string> onSyntaxError = msg => { throw new Exception(msg); })
+        public static Tuple<List<Types.Step>, List<string>> readTodo(string Filename, Types.Commits commits)
+        {
+            return readTodo(Filename, commits, msg => { throw new Exception(msg); });
+        }
+
+        public static Tuple<List<Types.Step>, List<string>> readTodo(string Filename, Types.Commits commits, Action<string> onSyntaxError)
         {
             var Todo = new List<Types.Step>();
             var unknownCommits = new List<string>();
