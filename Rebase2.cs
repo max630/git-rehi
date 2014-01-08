@@ -110,7 +110,7 @@ namespace rebase2 {
             var throughHashes = new List<string>(GitUtils.resolveHashes(through));
             initSave(throughHashes);
             var commits = fetchCommits(source_from, source_to);
-            var todo = build_rebase_sequence(commits, Hashes.source_from, Hashes.source_to, Hashes.source_to, throughHashes);
+            var todo = build_rebase_sequence(commits, Hashes.source_from, Hashes.source_to, throughHashes);
             throw new NotImplementedException();
         }
 
@@ -124,7 +124,7 @@ namespace rebase2 {
             throw new NotImplementedException();
         }
 
-        static void initSave(string throughHashes)
+        static void initSave(IEnumerable<string> throughHashes)
         {
             throw new NotImplementedException();
         }
