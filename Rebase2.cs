@@ -98,8 +98,7 @@ namespace rebase2 {
             var commits = loadCommits();
             Tuple<List<Types.Step>, List<string>> TodoTuple = readTodo(RebasePath("target_ref"), commits);
             Types.Step current = File.Exists(RebasePath("current")) ? Enumerable.Single<Types.Step>(readTodo(RebasePath("current"), commits).Item1) : null;
-
-            throw new NotImplementedException();
+            return Tuple.Create(TodoTuple.Item1, current, commits, targetRef);
         }
 
         static Tuple<List<Types.Step>, Types.Commits, string, string> initRebase(string dest, string source_from, string source_to, IEnumerable<string> through)
