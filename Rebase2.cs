@@ -72,7 +72,7 @@ namespace rebase2 {
         {
             var source_from = GitUtils.mergeBase(dest, source_to);
             var real_dest = (onto != null) ? onto : dest;
-            Tuple<List<Types.Step>, Types.Commits, string, string> InitInfo = initRebase(real_dest, source_from, source_to, through);
+            Tuple<List<Types.Step>, Types.Commits, string, string> InitInfo = init_rebase(real_dest, source_from, source_to, through);
             List<Types.Step> Todo = InitInfo.Item1;
             if (isInteractive) {
                 bool isOk;
@@ -101,7 +101,7 @@ namespace rebase2 {
             return Tuple.Create(TodoTuple.Item1, current, commits, targetRef);
         }
 
-        static Tuple<List<Types.Step>, Types.Commits, string, string> initRebase(string dest, string source_from, string source_to, IEnumerable<string> through)
+        static Tuple<List<Types.Step>, Types.Commits, string, string> init_rebase(string dest, string source_from, string source_to, IEnumerable<string> through)
         {
             Console.Error.WriteLine("initRebase: {0}, {1}, {2}, {3}", dest, source_from, source_to, through);
             string targetRef = source_to;
