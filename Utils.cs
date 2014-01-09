@@ -107,6 +107,67 @@ public class Utils {
             throw new Exception("Empty sequence not supported");
         return Result;
     }
+    
+    static List<A> PrepareLet<A>(IEnumerable<A> input, int length)
+    {
+        var inputC = new List<A>(input);
+        Assert(inputC.Count == 3, String.Format("Must be length {0}: ", length, inputC));
+        return inputC;
+    }
+    
+    public static T Let<T, A>(IEnumerable<A> input, Func<A, A, A, T> handler)
+    {
+        var inputC = PrepareLet(input, 3);
+        return handler(inputC[0], inputC[1], inputC[2]);
+    }
+    
+    public static void Let<A>(IEnumerable<A> input, Action<A, A, A> handler)
+    {
+        var inputC = PrepareLet(input, 3);
+        handler(inputC[0], inputC[1], inputC[2]);
+    }
+
+    public static T Let<T, A>(IEnumerable<A> input, Func<A, A, T> handler)
+    {
+        var inputC = PrepareLet(input, 2);
+        return handler(inputC[0], inputC[1]);
+    }
+
+    public static void Let<A>(IEnumerable<A> input, Action<A, A> handler)
+    {
+        var inputC = PrepareLet(input, 2);
+        handler(inputC[0], inputC[1]);
+    }
+
+    public static T Let<T, A1, A2>(Tuple<A1, A2> input, Func<A1, A2, T> handler)
+    {
+        return handler(input.Item1, input.Item2);
+    }
+
+    public static T Let<T, A1, A2, A3>(Tuple<A1, A2, A3> input, Func<A1, A2, A3, T> handler)
+    {
+        return handler(input.Item1, input.Item2, input.Item3);
+    }
+
+    public static T Let<T, A1, A2, A3, A4>(Tuple<A1, A2, A3, A4> input, Func<A1, A2, A3, A4, T> handler)
+    {
+        return handler(input.Item1, input.Item2, input.Item3, input.Item4);
+    }
+
+    public static void Let<A1, A2>(Tuple<A1, A2> input, Action<A1, A2> handler)
+    {
+        handler(input.Item1, input.Item2);
+    }
+
+    public static void Let<A1, A2, A3>(Tuple<A1, A2, A3> input, Action<A1, A2, A3> handler)
+    {
+        handler(input.Item1, input.Item2, input.Item3);
+    }
+
+    public static void Let<A1, A2, A3, A4>(Tuple<A1, A2, A3, A4> input, Action<A1, A2, A3, A4> handler)
+    {
+        handler(input.Item1, input.Item2, input.Item3, input.Item4);
+    }
 
     public static void Assert<T>(bool Condition, T Message)
     {

@@ -42,12 +42,14 @@ namespace rebase2 {
                 } else if (args[offset].Equals("--continue")) {
                     if (offset + 1 < args.Length)
                         throw new Exception(String.Format("Extra arguments after {0}: {1}", args[offset], String.Join(", ", Enumerable.Skip(args, offset + 1))));
-                    Tuple<List<Types.Step>, Types.Step, Types.Commits, string> Restored = restoreRebase();
-                    if (Restored.Item2 != null) {
-                        runContinue(Restored.Item2, Restored.Item3);
-                        File.Delete(Path.Combine(Environment.GitDir, "rebase2", "current"));
-                    }
-                    runRebase(Restored.Item1, Restored.Item3, Restored.Item4);
+                    Utils.Let(
+                        restoreRebase(),
+                        (todo, current, commits, target_ref) => {
+                            if (current != null) {
+                                runContinue(current, commits);
+                                File.Delete(RebasePath("current"));
+                            }
+                            runRebase(todo, commits, target_ref); });
                     return;
                 } else if (offset + 1 == args.Length) {
                     GitUtils.verifyClean();
@@ -105,14 +107,15 @@ namespace rebase2 {
         {
             Console.Error.WriteLine("initRebase: {0}, {1}, {2}, {3}", dest, source_from, source_to, through);
             string targetRef = source_to;
-            var resolvedList = new List<string>(GitUtils.resolveHashes(new List<string> { dest, source_from, source_to }));
-            Utils.Assert(resolvedList.Count == 3, Tuple.Create(resolvedList, " has length 3"));
-            var Hashes = new { dest = resolvedList[0], source_from = resolvedList[1], source_to = resolvedList[2] };
-            var throughHashes = new List<string>(GitUtils.resolveHashes(through));
-            initSave(throughHashes);
-            var commits = fetch_commits(source_from, source_to);
-            var todo = build_rebase_sequence(commits, Hashes.source_from, Hashes.source_to, throughHashes);
-            return Tuple.Create(todo, commits, targetRef, Hashes.dest);
+            return Utils.Let(GitUtils.resolveHashes(
+                         new List<string> { dest, source_from, source_to }),
+                         (dest_hash, source_from_hash, source_to_hash) => {
+                            var throughHashes = new List<string>(GitUtils.resolveHashes(through));
+                            initSave(throughHashes);
+                            var commits = fetch_commits(source_from, source_to);
+                            var todo = build_rebase_sequence(commits, source_from_hash, source_to_hash, throughHashes);
+                            return Tuple.Create(todo, commits, targetRef, dest_hash);
+                         });
         }
 
         static List<Types.Step> build_rebase_sequence(Types.Commits commits, string source_from, string source_to, ICollection<string> throughHashes)
