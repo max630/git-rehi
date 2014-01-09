@@ -25,6 +25,11 @@ public class GitUtils {
             throw new Exception("rebase in progress");
     }
 
+    public static void verify_hash(string hash)
+    {
+        throw new NotImplementedException();
+    }
+
     public static IEnumerable<string> resolveHashes(IEnumerable<string> refs)
     {
         var refsList = new List<string>(refs);

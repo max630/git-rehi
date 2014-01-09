@@ -121,7 +121,30 @@ namespace rebase2 {
 
         static Types.Commits fetch_commits(string source_from, string source_to)
         {
-            throw new NotImplementedException();
+            IOUtils.verify_cmdarg(source_from);
+            IOUtils.verify_cmdarg(source_to);
+            var commits = new Types.Commits();
+            foreach (var line in IOUtils.EnumPopen("git", String.Format("log --ancestry-path --pretty=format:%H:%h:%P:%s {0}..{1}", source_from, source_to))) {
+                parse_commit_line(commits, line);
+            }
+            return commits;
+        }
+
+        static void parse_commit_line(Types.Commits commits, string line)
+        {
+            Match match = Regex.Match(line, @"^([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$");
+            if (!match.Success)
+                throw new Exception(String.Format("Invalid commit line: {0}", line));
+            var commit = new Types.Commit() {
+                hash = match.Groups[1].Value,
+                ahash = match.Groups[2].Value,
+                subject = match.Groups[4],
+                parents = Regex.Split(match.Groups[3].Value, " ") };
+            GitUtils.verify_hash(commit.hash);
+            if (commits.byAHash.ContainsKey(commit.ahash) || commits.byHash.ContainsKey(commit.hash))
+                throw new Exception(String.Format("Diplicated commit: {0} ({1})", commit.hash, commit.ahash));
+            commits.byAHash.Add(commit.ahash, commit);
+            commits.byHash.Add(commit.hash, commit);
         }
 
         static void initSave(IEnumerable<string> throughHashes)
