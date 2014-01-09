@@ -29,7 +29,7 @@ public class GitUtils {
     {
         var refsList = new List<string>(refs);
         foreach (var rf in refsList)
-            IOUtils.verifyCmdArg(rf);
+            IOUtils.verify_cmdarg(rf);
         var Result = new List<string>(IOUtils.EnumPopen("git", String.Format("rev-parse {0}", String.Join(" ", refsList))));
         if (Result.Count != refsList.Count)
             throw new Exception("Hash number does not match");
@@ -43,8 +43,8 @@ public class GitUtils {
 
     public static string mergeBase(string ref1, string ref2)
     {
-        IOUtils.verifyCmdArg(ref1);
-        IOUtils.verifyCmdArg(ref2);
+        IOUtils.verify_cmdarg(ref1);
+        IOUtils.verify_cmdarg(ref2);
         return Enumerable.Single<string>(IOUtils.EnumPopen("git", String.Format("merge-base -a {0} {1}", ref1, ref2)));
     }
 }
