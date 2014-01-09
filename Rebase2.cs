@@ -146,23 +146,28 @@ namespace rebase2 {
 
         class InvalidTodoException : Exception
         {
-            InvalidTodoException(string msg) : base(msg) { }
+            public InvalidTodoException(string msg) : base(msg) { }
         }
 
         static IEnumerable<Types.Step> editTodo(List<Types.Step> oldTodo, Types.Commits commits, out bool isOk)
         {
             var TmpFile = IOUtils.MakeTempFile(".todo.txt");
+            isOk = false;
             try {
                 saveTodo(oldTodo, TmpFile, commits);
                 var Editor = GitUtils.sequence_editor();
-                var NewData = Utils.Retry(
+                var NewData = Utils.Retry<List<Types.Step>, InvalidTodoException>(
                     () => {
+                        IOUtils.Run(Editor, TmpFile);
+                        var Read = readTodo(TmpFile, commits, msg => { throw new InvalidTodoException(msg); });
+                        return Read.Item1;
                     }
                 );
+                isOk = true;
+                return NewData;
             } finally {
                 File.Delete(TmpFile);
             }
-            throw new NotImplementedException();
         }
 
         public static Types.Commits loadCommits()
