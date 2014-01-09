@@ -138,7 +138,7 @@ namespace rebase2 {
             var commit = new Types.Commit() {
                 hash = match.Groups[1].Value,
                 ahash = match.Groups[2].Value,
-                subject = match.Groups[4],
+                subject = match.Groups[4].Value,
                 parents = Regex.Split(match.Groups[3].Value, " ") };
             GitUtils.verify_hash(commit.hash);
             if (commits.byAHash.ContainsKey(commit.ahash) || commits.byHash.ContainsKey(commit.hash))
