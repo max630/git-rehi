@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace rebase2 {
 public class IOUtils {
@@ -95,7 +96,8 @@ public class IOUtils {
     
     public static void verify_cmdarg(string arg)
     {
-        throw new NotImplementedException();
+        if (Regex.IsMatch(arg, @"[""'\\\(\)#]|[\x00- ]"))
+            throw new Exception(String.Format("Invalid cmdarg: `{0}'", arg));
     }
 
     public static void Run(string command, string args)
