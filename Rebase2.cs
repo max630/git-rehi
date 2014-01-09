@@ -53,7 +53,7 @@ namespace rebase2 {
                     GitUtils.verifyClean();
                     var headRef = IOUtils.ReadPopen("git", "symbolic-ref -q HEAD");
                     Match match = null;
-                    if ((match = Regex.Match(headRef, @"^/refs/heads/(.*)")).Success)
+                    if ((match = Regex.Match(headRef, @"^refs/heads/(.*)")).Success)
                         mainParsed(args[offset], match.Groups[1].Value, ontoRef, through, isInteractive);
                     else
                         throw new Exception(String.Format("Unsupported ref checked-out: {0}", headRef));
