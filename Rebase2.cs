@@ -109,7 +109,7 @@ namespace rebase2 {
             var Hashes = new { dest = resolvedList[0], source_from = resolvedList[1], source_to = resolvedList[2] };
             var throughHashes = new List<string>(GitUtils.resolveHashes(through));
             initSave(throughHashes);
-            var commits = fetchCommits(source_from, source_to);
+            var commits = fetch_commits(source_from, source_to);
             var todo = build_rebase_sequence(commits, Hashes.source_from, Hashes.source_to, throughHashes);
             return Tuple.Create(todo, commits, targetRef, Hashes.dest);
         }
@@ -119,7 +119,7 @@ namespace rebase2 {
             throw new NotImplementedException();
         }
 
-        static Types.Commits fetchCommits(string source_from, string source_to)
+        static Types.Commits fetch_commits(string source_from, string source_to)
         {
             throw new NotImplementedException();
         }
