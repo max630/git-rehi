@@ -50,7 +50,9 @@ public class GitUtils {
     {
         IOUtils.verify_cmdarg(ref1);
         IOUtils.verify_cmdarg(ref2);
-        return Enumerable.Single<string>(IOUtils.EnumPopen("git", String.Format("merge-base -a {0} {1}", ref1, ref2)));
+        var Res = Enumerable.Single<string>(IOUtils.EnumPopen("git", String.Format("merge-base -a {0} {1}", ref1, ref2)));
+        Console.Error.WriteLine("DEBUG: mergeBase: {0}, {1} --> {2}", ref1, ref2, Res);
+        return Res;
     }
 }
 }
