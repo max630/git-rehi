@@ -68,8 +68,8 @@ public class IOUtils {
                         cbReset = () => { throw new NotImplementedException(); },
                         cbNext = () => {
                             if (Opened) {
-                                string Next = p.StandardOutput.ReadLine();
-                                if(Next == null)
+                                CurrentString = p.StandardOutput.ReadLine();
+                                if(CurrentString == null)
                                     ProcessDispose();
                             }
                             return Opened;
