@@ -100,12 +100,31 @@ public class IOUtils {
 
     public static void Run(string command, string args)
     {
-        throw new NotImplementedException();
+        using (var p = new System.Diagnostics.Process()) {
+            p.StartInfo.FileName = command;
+            p.StartInfo.Arguments = args;
+            p.StartInfo.UseShellExecute = false;
+            p.Start();
+            p.WaitForExit();
+            if (p.ExitCode != 0)
+                throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
+        }
     }
 
     public static string ReadPopen(string command, string args)
     {
-        throw new NotImplementedException();
+        using (var p = new System.Diagnostics.Process()) {
+            p.StartInfo.FileName = command;
+            p.StartInfo.Arguments = args;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.Start();
+            var Output = p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+            if (p.ExitCode != 0)
+                throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
+            return Output;
+        }
     }
 }
 }
