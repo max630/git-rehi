@@ -38,7 +38,7 @@ namespace rebase2 {
                         restoreRebase(),
                         (todo, current, commits, target_ref) => {
                             if (current != null) {
-                                IOUtils.Run("git", "reset --hard HEAD");
+                                IOUtils.Run("git reset --hard HEAD");
                                 File.Delete(Path.Combine(Environment.GitDir, "rebase2", "current"));
                             }
                             run_rebase(todo, commits, target_ref); });
@@ -91,7 +91,7 @@ namespace rebase2 {
                         }
                     }
                     if (todo.Count > 0) {
-                        IOUtils.Run("git", String.Format("checkout --quiet --detach {0}", dest_hash));
+                        IOUtils.Run(String.Format("git checkout --quiet --detach {0}", dest_hash));
                         run_rebase(todo, commits, target_ref);
                     } else {
                         cleanup_save();
@@ -167,10 +167,9 @@ namespace rebase2 {
         static void cleanup_save()
         {
             // TODO: properly make run (should accept exactly one argument)
-            IOUtils.Run("/bin/sh", "-c "
-                                    + "git rev-parse --verify HEAD >/dev/null"
-                                    + " && git update-index --ignore-submodules --refresh"
-                                    + " && git diff-files --quiet --ignore-submodules");
+            IOUtils.Run("git rev-parse --verify HEAD >/dev/null"
+                        + " && git update-index --ignore-submodules --refresh"
+                        + " && git diff-files --quiet --ignore-submodules");
             throw new NotImplementedException();
         }
 
@@ -198,7 +197,8 @@ namespace rebase2 {
                 var Editor = GitUtils.sequence_editor();
                 var NewData = Utils.Retry<List<Types.Step>, InvalidTodoException>(
                     () => {
-                        IOUtils.Run(Editor, TmpFile);
+                        // TODO: here could be older approach useful
+                        IOUtils.Run(Editor + " " + TmpFile);
                         return readTodo(TmpFile, commits, msg => { throw new InvalidTodoException(msg); }).Item1;
                     }
                 );

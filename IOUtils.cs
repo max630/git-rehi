@@ -100,11 +100,21 @@ public class IOUtils {
             throw new Exception(String.Format("Invalid cmdarg: `{0}'", arg));
     }
 
-    public static void Run(string command, string args)
+    public static void Run(string command)
     {
         using (var p = new System.Diagnostics.Process()) {
-            p.StartInfo.FileName = command;
-            p.StartInfo.Arguments = args;
+            p.StartInfo.FileName = "/bin/sh";
+            // same as g_escape_shell
+            var args = new System.Text.StringBuilder();
+            args.Append(@"-c '");
+            foreach (var c in command) {
+                if (c == '\'')
+                    args.Append(@"'\''");
+                else
+                    args.Append(c);
+            }
+            args.Append(@"'");
+            p.StartInfo.Arguments = args.ToString();
             p.StartInfo.UseShellExecute = false;
             p.Start();
             p.WaitForExit();
@@ -112,6 +122,13 @@ public class IOUtils {
                 throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
         }
     }
+    
+    #if false
+    public static void Run(string command, string aaa)
+    {
+        throw new NotImplementedException();
+    }
+    #endif
 
     public static string ReadPopen(string command, string args)
     {
