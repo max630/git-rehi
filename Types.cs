@@ -136,10 +136,10 @@ namespace rebase2 {
             public static Step NewMerge(IEnumerable<string> parents, string comment, bool ours)
             {
                 return new Merge() {
-                _parents = parents,
-                _comment = comment,
-                _ours = ours
-            };
+                    _parents = parents,
+                    _comment = comment,
+                    _ours = ours
+                };
             }
 
             public abstract T Match<T>(
@@ -149,6 +149,23 @@ namespace rebase2 {
                 Func<string, T> comment,
                 Func<string, T> exec,
                 Func<IEnumerable<string>, string, bool, T> merge);
+
+            public void Match(
+                Action<string> pick,
+                Action<string> fixup,
+                Action<string> edit,
+                Action<string> comment,
+                Action<string> exec,
+                Action<IEnumerable<string>, string, bool> merge)
+            {
+                Match<int>(
+                    pick: x => { pick(x); return 0; },
+                    edit: x => { edit(x); return 0; },
+                    fixup: x => { fixup(x); return 0; },
+                    comment: x => { comment(x); return 0; },
+                    exec: x => { exec(x); return 0; },
+                    merge: (x,y,z) => { merge(x,y,z); return 0; });
+            }
         }
     }
 }
