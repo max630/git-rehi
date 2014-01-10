@@ -133,12 +133,6 @@ namespace rebase2 {
         public static void Run(string command)
         {
             if (System.Environment.OSVersion.Platform == PlatformID.Unix) {
-                #if false
-                var mono = System.Reflection.Assembly.Load("Mono.Posix.dll");
-                var stdlib = mono.GetType("Mono.Unix.Native.Stdlib", true);
-                var system = stdlib.GetMethod("system");
-                var result = system.Invoke(null, new object[] { command });
-                #endif
                 var result = MonoFuncs.Instance.system(command);
                 if (result != 0)
                     throw new Exception(String.Format("Command failed (exit code = {0}): {1}", result, command));
