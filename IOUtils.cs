@@ -4,50 +4,50 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace rebase2 {
-public class IOUtils {
-    private class Enumerablie : IEnumerable<string> {
-        public Func<IEnumerator<string>> cbEnumerator;
+    public class IOUtils {
+        private class Enumerablie : IEnumerable<string> {
+            public Func<IEnumerator<string>> cbEnumerator;
 
-        IEnumerator<string> IEnumerable<string>.GetEnumerator()
-        {
-            return cbEnumerator();
+            IEnumerator<string> IEnumerable<string>.GetEnumerator()
+            {
+                return cbEnumerator();
+            }
+
+            public System.Collections.IEnumerator GetEnumerator()
+            {
+                return cbEnumerator();
+            }
         }
 
-        public System.Collections.IEnumerator GetEnumerator()
-        {
-            return cbEnumerator();
+        private class Enumerator : IEnumerator<string> {
+            public Action cbDispose;
+            public Func<string> cbCurrent;
+            public Func<Boolean> cbNext;
+            public Action cbReset;
+
+            void IDisposable.Dispose()
+            {
+                cbDispose();
+            }
+
+            bool System.Collections.IEnumerator.MoveNext()
+            {
+                return cbNext();
+            }
+
+            void System.Collections.IEnumerator.Reset()
+            {
+                cbReset();
+            }
+
+            string IEnumerator<string>.Current { get { return cbCurrent(); } }
+
+            object System.Collections.IEnumerator.Current { get { return cbCurrent(); } }
         }
-    }
 
-    private class Enumerator : IEnumerator<string> {
-        public Action cbDispose;
-        public Func<string> cbCurrent;
-        public Func<Boolean> cbNext;
-        public Action cbReset;
-
-        void IDisposable.Dispose()
+        public static IEnumerable<string> EnumPopen(string Program, string Args)
         {
-            cbDispose();
-        }
-
-        bool System.Collections.IEnumerator.MoveNext()
-        {
-            return cbNext();
-        }
-
-        void System.Collections.IEnumerator.Reset()
-        {
-            cbReset();
-        }
-
-        string IEnumerator<string>.Current { get { return cbCurrent(); } }
-
-        object System.Collections.IEnumerator.Current { get { return cbCurrent(); } }
-    }
-
-    public static IEnumerable<string> EnumPopen(string Program, string Args)
-    {
-        return new Enumerablie() {
+            return new Enumerablie() {
                 cbEnumerator = () => {
                     var p = new System.Diagnostics.Process();
                     p.StartInfo.UseShellExecute = false;
@@ -78,83 +78,84 @@ public class IOUtils {
                     };
                 }
             };
-    }
+        }
 
-    public static string MakeTempFile(string suffix)
-    {
-        for (int i = 0; true; ++i) {
-            string TmpPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + suffix);
-            try {
-                using (var TmpStream = new StreamWriter(File.Open(TmpPath, FileMode.CreateNew))) { }
-                return TmpPath;
-            } catch (IOException ex) {
-                if (i >= 5)
-                    throw new Exception("Cannot create temporary file", ex);
+        public static string MakeTempFile(string suffix)
+        {
+            for (int i = 0; true; ++i) {
+                string TmpPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + suffix);
+                try {
+                    using (var TmpStream = new StreamWriter(File.Open(TmpPath, FileMode.CreateNew))) {
+                    }
+                    return TmpPath;
+                } catch (IOException ex) {
+                    if (i >= 5)
+                        throw new Exception("Cannot create temporary file", ex);
+                }
             }
         }
-    }
     
-    public static void verify_cmdarg(string arg)
-    {
-        if (Regex.IsMatch(arg, @"[""'\\\(\)#]|[\x00- ]"))
-            throw new Exception(String.Format("Invalid cmdarg: `{0}'", arg));
-    }
+        public static void verify_cmdarg(string arg)
+        {
+            if (Regex.IsMatch(arg, @"[""'\\\(\)#]|[\x00- ]"))
+                throw new Exception(String.Format("Invalid cmdarg: `{0}'", arg));
+        }
 
-    public static void Run(string command)
-    {
-        if(System.Environment.OSVersion.Platform == PlatformID.Unix) {
-            var mono = System.Reflection.Assembly.Load("Mono.Posix.dll");
-            var stdlib = mono.GetType("Mono.Unix.Native.Stdlib", true);
-            var system = stdlib.GetMethod("system");
-            var result = system.Invoke(null, new object[] { command });
-            if ((Int32)result != 0)
-                throw new Exception(String.Format("Command failed (exit code = {0}): {1}", result, command));
-        } else {
-            using (var p = new System.Diagnostics.Process()) {
-                throw new NotImplementedException("pick proper shell and other stuff");
-                p.StartInfo.FileName = "/bin/sh";
-                // same as g_escape_shell
-                var args = new System.Text.StringBuilder();
-                args.Append(@"-c '");
-                foreach (var c in command) {
-                    if (c == '\'')
-                        args.Append(@"'\''");
-                    else
-                        args.Append(c);
+        public static void Run(string command)
+        {
+            if (System.Environment.OSVersion.Platform == PlatformID.Unix) {
+                var mono = System.Reflection.Assembly.Load("Mono.Posix.dll");
+                var stdlib = mono.GetType("Mono.Unix.Native.Stdlib", true);
+                var system = stdlib.GetMethod("system");
+                var result = system.Invoke(null, new object[] { command });
+                if ((Int32)result != 0)
+                    throw new Exception(String.Format("Command failed (exit code = {0}): {1}", result, command));
+            } else {
+                using (var p = new System.Diagnostics.Process()) {
+                    throw new NotImplementedException("pick proper shell and other stuff");
+                    p.StartInfo.FileName = "/bin/sh";
+                    // same as g_escape_shell
+                    var args = new System.Text.StringBuilder();
+                    args.Append(@"-c '");
+                    foreach (var c in command) {
+                        if (c == '\'')
+                            args.Append(@"'\''");
+                        else
+                            args.Append(c);
+                    }
+                    args.Append(@"'");
+                    p.StartInfo.Arguments = args.ToString();
+                    p.StartInfo.UseShellExecute = false;
+                    p.Start();
+                    p.WaitForExit();
+                    if (p.ExitCode != 0)
+                        throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
                 }
-                args.Append(@"'");
-                p.StartInfo.Arguments = args.ToString();
+            }
+        }
+    
+        #if false
+        public static void Run(string command, string aaa)
+        {
+            throw new NotImplementedException();
+        }
+        #endif
+
+        public static string ReadPopen(string command, string args)
+        {
+            using (var p = new System.Diagnostics.Process()) {
+                p.StartInfo.FileName = command;
+                p.StartInfo.Arguments = args;
                 p.StartInfo.UseShellExecute = false;
+                p.StartInfo.RedirectStandardOutput = true;
                 p.Start();
+                var Output = p.StandardOutput.ReadToEnd();
                 p.WaitForExit();
                 if (p.ExitCode != 0)
                     throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
+                return Output;
             }
         }
     }
-    
-    #if false
-    public static void Run(string command, string aaa)
-    {
-        throw new NotImplementedException();
-    }
-    #endif
-
-    public static string ReadPopen(string command, string args)
-    {
-        using (var p = new System.Diagnostics.Process()) {
-            p.StartInfo.FileName = command;
-            p.StartInfo.Arguments = args;
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.Start();
-            var Output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-            if (p.ExitCode != 0)
-                throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
-            return Output;
-        }
-    }
-}
 }
 
