@@ -164,19 +164,40 @@ namespace rebase2 {
 
         static void cleanup_save()
         {
-            // TODO: properly make run (should accept exactly one argument)
-            IOUtils.Run("git rev-parse --verify HEAD >/dev/null"
-                        + " && git update-index --ignore-submodules --refresh"
-                        + " && git diff-files --quiet --ignore-submodules");
-            throw new NotImplementedException();
+            Directory.Delete(RebaseDir(), true);
         }
 
         static void run_continue(Types.Step step, Types.Commits commits)
         {
+            IOUtils.Run("git rev-parse --verify HEAD >/dev/null"
+                        + " && git update-index --ignore-submodules --refresh"
+                        + " && git diff-files --quiet --ignore-submodules");
+            step.Match(
+                pick: hash => {
+                    if (!GitUtils.getNoUncommittedChanges())
+                        IOUtils.Run(String.Format("git commit -c {0}", hash));
+                },
+                edit: hash => {
+                    if (!GitUtils.getNoUncommittedChanges())
+                        throw new Exception("No unstaged changes should be after 'edit'");
+                },
+                fixup: hash => {
+                    if (!GitUtils.getNoUncommittedChanges())
+                        IOUtils.Run("git commit --amend");
+                },
+                comment: comment => { do_comment(comment); },
+                exec: command => { throw new Exception(String.Format("Cannot continue 'exec {0}'; resolve it manually, then skip or abort", command)); },
+                merge: (parents, comment, isOurs) => { throw new Exception("Merge continuation not implemented"); }
+                );
             throw new NotImplementedException();
         }
 
         static void run_rebase(IEnumerable<Types.Step> todo, Types.Commits commits, string target_ref)
+        {
+            throw new NotImplementedException();
+        }
+
+        static void do_comment(object comment)
         {
             throw new NotImplementedException();
         }
