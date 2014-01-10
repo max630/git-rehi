@@ -164,6 +164,11 @@ namespace rebase2 {
 
         static void cleanup_save()
         {
+            // TODO: properly make run (should accept exactly one argument)
+            IOUtils.Run("/bin/sh", "-c "
+                                    + "git rev-parse --verify HEAD >/dev/null"
+                                    + " && git update-index --ignore-submodules --refresh"
+                                    + " && git diff-files --quiet --ignore-submodules");
             throw new NotImplementedException();
         }
 
