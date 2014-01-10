@@ -102,24 +102,31 @@ public class IOUtils {
 
     public static void Run(string command)
     {
-        using (var p = new System.Diagnostics.Process()) {
-            p.StartInfo.FileName = "/bin/sh";
-            // same as g_escape_shell
-            var args = new System.Text.StringBuilder();
-            args.Append(@"-c '");
-            foreach (var c in command) {
-                if (c == '\'')
-                    args.Append(@"'\''");
-                else
-                    args.Append(c);
-            }
-            args.Append(@"'");
-            p.StartInfo.Arguments = args.ToString();
-            p.StartInfo.UseShellExecute = false;
-            p.Start();
-            p.WaitForExit();
-            if (p.ExitCode != 0)
+        if(System.Environment.OSVersion.Platform == PlatformID.Unix) {
+            var result = Mono.Unix.Native.Stdlib.system(command);
+            if (result != 0)
                 throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
+        } else {
+            using (var p = new System.Diagnostics.Process()) {
+                throw new NotImplementedException("pick proper shell and other stuff");
+                p.StartInfo.FileName = "/bin/sh";
+                // same as g_escape_shell
+                var args = new System.Text.StringBuilder();
+                args.Append(@"-c '");
+                foreach (var c in command) {
+                    if (c == '\'')
+                        args.Append(@"'\''");
+                    else
+                        args.Append(c);
+                }
+                args.Append(@"'");
+                p.StartInfo.Arguments = args.ToString();
+                p.StartInfo.UseShellExecute = false;
+                p.Start();
+                p.WaitForExit();
+                if (p.ExitCode != 0)
+                    throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
+            }
         }
     }
     
