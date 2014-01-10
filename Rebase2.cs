@@ -110,15 +110,15 @@ namespace rebase2 {
         static Tuple<List<Types.Step>, Types.Commits, string, string> init_rebase(string dest, string source_from, string source_to, IEnumerable<string> through)
         {
             Console.Error.WriteLine("initRebase: {0}, {1}, {2}, {3}", dest, source_from, source_to, through);
-            string targetRef = source_to;
+            string target_ref = source_to;
             return Utils.Let(
                 GitUtils.resolveHashes(new List<string> { dest, source_from, source_to }),
                 (dest_hash, source_from_hash, source_to_hash) => {
                     var throughHashes = new List<string>(GitUtils.resolveHashes(through));
-                    init_save(throughHashes);
+                    init_save(target_ref);
                     var commits = fetch_commits(source_from, source_to);
                     var todo = build_rebase_sequence(commits, source_from_hash, source_to_hash, throughHashes);
-                    return Tuple.Create(todo, commits, targetRef, dest_hash); });
+                    return Tuple.Create(todo, commits, target_ref, dest_hash); });
         }
 
         static List<Types.Step> build_rebase_sequence(Types.Commits commits, string source_from, string source_to, ICollection<string> throughHashes)
@@ -154,9 +154,12 @@ namespace rebase2 {
             commits.byHash.Add(commit.hash, commit);
         }
 
-        static void init_save(IEnumerable<string> throughHashes)
+        static void init_save(string target_ref)
         {
-            throw new NotImplementedException();
+            if(File.Exists(RebaseDir()))
+                throw new Exception("already in progress?");
+            Directory.CreateDirectory(RebaseDir());
+            File.WriteAllText(RebasePath("target_ref"), target_ref);
         }
 
         static void cleanup_save()
@@ -316,10 +319,14 @@ namespace rebase2 {
             return Tuple.Create(Todo, unknownCommits);
         }
 
+        static string RebaseDir()
+        {
+            return Path.Combine(Environment.GitDir, "rebase2");
+        }
+
         static string RebasePath(string subpath)
         {
-            return Path.Combine(Environment.GitDir, "rebase2", subpath);
-
+            return Path.Combine(RebaseDir(), subpath);
         }
     }
 }
