@@ -4,16 +4,20 @@ using System.IO;
 using System.Linq;
 
 namespace rebase2 {
-public class GitUtils {
-    public static bool getNoUncommittedChanges()
-    {
-        var p = new System.Diagnostics.Process();
-        p.StartInfo.FileName = "git";
-        p.StartInfo.Arguments = "diff-index --quiet --ignore-submodules HEAD";
-        p.Start();
-        p.WaitForExit();
-        return p.ExitCode == 0;
-    }
+    public class GitUtils {
+        public static bool getNoUncommittedChanges()
+        {
+            IOUtils.Run("git diff-index --quiet --ignore-submodules HEAD");
+            return true;
+            #if false
+            var p = new System.Diagnostics.Process();
+            p.StartInfo.FileName = "git";
+            p.StartInfo.Arguments = "diff-index --quiet --ignore-submodules HEAD";
+            p.Start();
+            p.WaitForExit();
+            return p.ExitCode == 0;
+            #endif
+        }
 
     public static void verifyClean()
     {
