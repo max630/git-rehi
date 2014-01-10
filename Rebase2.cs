@@ -32,12 +32,14 @@ namespace rebase2 {
                 } else if (args[offset].Equals("--skip")) {
                     if (offset + 1 < args.Length)
                         throw new Exception(String.Format("Extra arguments after {0}: {1}", args[offset], String.Join(", ", Enumerable.Skip(args, offset + 1))));
-                    Tuple<List<Types.Step>, Types.Step, Types.Commits, string> Restored = restoreRebase();
-                    if (Restored.Item2 != null) {
-                        IOUtils.Run("git", "reset --hard HEAD");
-                        File.Delete(Path.Combine(Environment.GitDir, "rebase2", "current"));
-                    }
-                    runRebase(Restored.Item1, Restored.Item3, Restored.Item4);
+                    Utils.Let(
+                        restoreRebase(),
+                        (todo, current, commits, target_ref) => {
+                            if (current != null) {
+                                IOUtils.Run("git", "reset --hard HEAD");
+                                File.Delete(Path.Combine(Environment.GitDir, "rebase2", "current"));
+                            }
+                            runRebase(todo, commits, target_ref); });
                     return;
                 } else if (args[offset].Equals("--continue")) {
                     if (offset + 1 < args.Length)
@@ -74,48 +76,49 @@ namespace rebase2 {
         {
             var source_from = GitUtils.mergeBase(dest, source_to);
             var real_dest = (onto != null) ? onto : dest;
-            Tuple<List<Types.Step>, Types.Commits, string, string> InitInfo = init_rebase(real_dest, source_from, source_to, through);
-            List<Types.Step> Todo = InitInfo.Item1;
-            if (isInteractive) {
-                bool isOk;
-                Todo = new List<Types.Step>(editTodo(Todo, InitInfo.Item2, out isOk));
-                if (!isOk) {
-                    cleanupSave();
-                    Console.WriteLine("Aborted");
-                    return;
-                }
-            }
-            if (Todo.Count > 0) {
-                IOUtils.Run("git", String.Format("checkout --quiet --detach {0}", InitInfo.Item4));
-                runRebase(Todo, InitInfo.Item2, InitInfo.Item3);
-            } else {
-                cleanupSave();
-                Console.WriteLine("Nothing to do.");
-            }
+            Utils.Let(
+                init_rebase(real_dest, source_from, source_to, through),
+                (todo, commits, target_ref, dest_hash) => {
+                    if (isInteractive) {
+                        bool isOk;
+                        todo = new List<Types.Step>(editTodo(todo, commits, out isOk));
+                        if (!isOk) {
+                            cleanupSave();
+                            Console.WriteLine("Aborted");
+                            return;
+                        }
+                    }
+                    if (todo.Count > 0) {
+                        IOUtils.Run("git", String.Format("checkout --quiet --detach {0}", dest_hash));
+                        runRebase(todo, commits, target_ref);
+                    } else {
+                        cleanupSave();
+                        Console.WriteLine("Nothing to do.");
+                    }
+                });
         }
 
         static Tuple<List<Types.Step>, Types.Step, Types.Commits, string> restoreRebase()
         {
             string targetRef = Enumerable.Single<string>(File.ReadLines(RebasePath("target_ref")));
             var commits = loadCommits();
-            Tuple<List<Types.Step>, List<string>> TodoTuple = readTodo(RebasePath("target_ref"), commits);
+            var todo = readTodo(RebasePath("target_ref"), commits).Item1;
             Types.Step current = File.Exists(RebasePath("current")) ? Enumerable.Single<Types.Step>(readTodo(RebasePath("current"), commits).Item1) : null;
-            return Tuple.Create(TodoTuple.Item1, current, commits, targetRef);
+            return Tuple.Create(todo, current, commits, targetRef);
         }
 
         static Tuple<List<Types.Step>, Types.Commits, string, string> init_rebase(string dest, string source_from, string source_to, IEnumerable<string> through)
         {
             Console.Error.WriteLine("initRebase: {0}, {1}, {2}, {3}", dest, source_from, source_to, through);
             string targetRef = source_to;
-            return Utils.Let(GitUtils.resolveHashes(
-                         new List<string> { dest, source_from, source_to }),
-                         (dest_hash, source_from_hash, source_to_hash) => {
-                            var throughHashes = new List<string>(GitUtils.resolveHashes(through));
-                            initSave(throughHashes);
-                            var commits = fetch_commits(source_from, source_to);
-                            var todo = build_rebase_sequence(commits, source_from_hash, source_to_hash, throughHashes);
-                            return Tuple.Create(todo, commits, targetRef, dest_hash);
-                         });
+            return Utils.Let(
+                GitUtils.resolveHashes(new List<string> { dest, source_from, source_to }),
+                (dest_hash, source_from_hash, source_to_hash) => {
+                    var throughHashes = new List<string>(GitUtils.resolveHashes(through));
+                    initSave(throughHashes);
+                    var commits = fetch_commits(source_from, source_to);
+                    var todo = build_rebase_sequence(commits, source_from_hash, source_to_hash, throughHashes);
+                    return Tuple.Create(todo, commits, targetRef, dest_hash); });
         }
 
         static List<Types.Step> build_rebase_sequence(Types.Commits commits, string source_from, string source_to, ICollection<string> throughHashes)
@@ -186,8 +189,7 @@ namespace rebase2 {
                 var NewData = Utils.Retry<List<Types.Step>, InvalidTodoException>(
                     () => {
                         IOUtils.Run(Editor, TmpFile);
-                        var Read = readTodo(TmpFile, commits, msg => { throw new InvalidTodoException(msg); });
-                        return Read.Item1;
+                        return readTodo(TmpFile, commits, msg => { throw new InvalidTodoException(msg); }).Item1;
                     }
                 );
                 isOk = true;
