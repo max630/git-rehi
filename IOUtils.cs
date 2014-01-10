@@ -101,14 +101,43 @@ namespace rebase2 {
                 throw new Exception(String.Format("Invalid cmdarg: `{0}'", arg));
         }
 
+        class MonoFuncs
+        {
+            static MonoFuncs _instance = null;
+            private MonoFuncs() { }
+
+            public static MonoFuncs Instance {
+                get {
+                    if (_instance == null) {
+                        var new_instance = new MonoFuncs();
+                        var mono = System.Reflection.Assembly.Load("Mono.Posix.dll");
+                        var stdlib = mono.GetType("Mono.Unix.Native.Stdlib", true);
+                        new_instance._system = stdlib.GetMethod("system");
+                        _instance = new_instance;
+                    }
+                    return _instance;
+                }
+            }
+
+            System.Reflection.MethodInfo _system;
+
+            public int system(string command)
+            {
+                return (Int32)(_system.Invoke(null, new object[] { command }));
+            }
+        }
+
         public static void Run(string command)
         {
             if (System.Environment.OSVersion.Platform == PlatformID.Unix) {
+                #if false
                 var mono = System.Reflection.Assembly.Load("Mono.Posix.dll");
                 var stdlib = mono.GetType("Mono.Unix.Native.Stdlib", true);
                 var system = stdlib.GetMethod("system");
                 var result = system.Invoke(null, new object[] { command });
-                if ((Int32)result != 0)
+                #endif
+                var result = MonoFuncs.Instance.system(command);
+                if (result != 0)
                     throw new Exception(String.Format("Command failed (exit code = {0}): {1}", result, command));
             } else {
                 using (var p = new System.Diagnostics.Process()) {
