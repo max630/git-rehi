@@ -39,7 +39,7 @@ namespace rebase2 {
                                 IOUtils.Run("git", "reset --hard HEAD");
                                 File.Delete(Path.Combine(Environment.GitDir, "rebase2", "current"));
                             }
-                            runRebase(todo, commits, target_ref); });
+                            run_rebase(todo, commits, target_ref); });
                     return;
                 } else if (args[offset].Equals("--continue")) {
                     if (offset + 1 < args.Length)
@@ -48,10 +48,10 @@ namespace rebase2 {
                         restoreRebase(),
                         (todo, current, commits, target_ref) => {
                             if (current != null) {
-                                runContinue(current, commits);
+                                run_continue(current, commits);
                                 File.Delete(RebasePath("current"));
                             }
-                            runRebase(todo, commits, target_ref); });
+                            run_rebase(todo, commits, target_ref); });
                     return;
                 } else if (offset + 1 == args.Length) {
                     GitUtils.verifyClean();
@@ -83,16 +83,16 @@ namespace rebase2 {
                         bool isOk;
                         todo = new List<Types.Step>(editTodo(todo, commits, out isOk));
                         if (!isOk) {
-                            cleanupSave();
+                            cleanup_save();
                             Console.WriteLine("Aborted");
                             return;
                         }
                     }
                     if (todo.Count > 0) {
                         IOUtils.Run("git", String.Format("checkout --quiet --detach {0}", dest_hash));
-                        runRebase(todo, commits, target_ref);
+                        run_rebase(todo, commits, target_ref);
                     } else {
-                        cleanupSave();
+                        cleanup_save();
                         Console.WriteLine("Nothing to do.");
                     }
                 });
@@ -115,7 +115,7 @@ namespace rebase2 {
                 GitUtils.resolveHashes(new List<string> { dest, source_from, source_to }),
                 (dest_hash, source_from_hash, source_to_hash) => {
                     var throughHashes = new List<string>(GitUtils.resolveHashes(through));
-                    initSave(throughHashes);
+                    init_save(throughHashes);
                     var commits = fetch_commits(source_from, source_to);
                     var todo = build_rebase_sequence(commits, source_from_hash, source_to_hash, throughHashes);
                     return Tuple.Create(todo, commits, targetRef, dest_hash); });
@@ -154,22 +154,22 @@ namespace rebase2 {
             commits.byHash.Add(commit.hash, commit);
         }
 
-        static void initSave(IEnumerable<string> throughHashes)
+        static void init_save(IEnumerable<string> throughHashes)
         {
             throw new NotImplementedException();
         }
 
-        static void cleanupSave()
+        static void cleanup_save()
         {
             throw new NotImplementedException();
         }
 
-        static void runContinue(Types.Step step, Types.Commits commits)
+        static void run_continue(Types.Step step, Types.Commits commits)
         {
             throw new NotImplementedException();
         }
 
-        static void runRebase(IEnumerable<Types.Step> todo, Types.Commits commits, string target_ref)
+        static void run_rebase(IEnumerable<Types.Step> todo, Types.Commits commits, string target_ref)
         {
             throw new NotImplementedException();
         }
