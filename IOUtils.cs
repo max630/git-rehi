@@ -110,9 +110,12 @@ namespace rebase2 {
                 get {
                     if (_instance == null) {
                         var new_instance = new MonoFuncs();
-                        var mono = System.Reflection.Assembly.Load("Mono.Posix.dll");
+                        // I don't like using Load with full name insted of LoadWIthPartialName, but otherwise error is not thrown and null is returned
+                        // let's play their game
+                        var mono = System.Reflection.Assembly.Load("Mono.Posix, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756");
                         var stdlib = mono.GetType("Mono.Unix.Native.Stdlib", true);
                         new_instance._system = stdlib.GetMethod("system");
+                        Utils.Assert(new_instance._system != null, "method Mono.Unix.Native.Stdlib.system not found");
                         _instance = new_instance;
                     }
                     return _instance;
