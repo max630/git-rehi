@@ -103,9 +103,12 @@ public class IOUtils {
     public static void Run(string command)
     {
         if(System.Environment.OSVersion.Platform == PlatformID.Unix) {
-            var result = Mono.Unix.Native.Stdlib.system(command);
-            if (result != 0)
-                throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
+            var mono = System.Reflection.Assembly.Load("Mono.Posix.dll");
+            var stdlib = mono.GetType("Mono.Unix.Native.Stdlib", true);
+            var system = stdlib.GetMethod("system");
+            var result = system.Invoke(null, new object[] { command });
+            if ((Int32)result != 0)
+                throw new Exception(String.Format("Command failed (exit code = {0}): {1}", result, command));
         } else {
             using (var p = new System.Diagnostics.Process()) {
                 throw new NotImplementedException("pick proper shell and other stuff");
