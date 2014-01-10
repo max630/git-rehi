@@ -8,8 +8,6 @@ namespace rebase2 {
     public class Rebase2 {
         public static void Main(string[] args)
         {
-            IOUtils.Run("git status", "");
-            return;
             bool isInteractive = false;
             string ontoRef = null;
             var through = new List<string>();
