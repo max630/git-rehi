@@ -6,6 +6,8 @@ use Data::Dumper;
 use B::Deparse;
 use Carp;
 
+use Test::More;
+
 my $TEST_NAME = "";
 
 sub assert(&) { my ($code) = @_;
@@ -13,7 +15,18 @@ sub assert(&) { my ($code) = @_;
     die("$TEST_NAME failed at " . $deparse->coderef2text($code) =~ s/\n//gr) unless $code->();
 }
 
+assert { chdir("test-repo/"); };
+
+sub reset() {
+    assert { system("git checkout -f --no-track -B master origin/master") == 0; };
+    assert { system("git clean -f -x -d") == 0; };
+}
+
 {
     $TEST_NAME = "smoke";
-    #assert { 0; };
+    reset();
+    assert { system("git reset --hard origin/b2") == 0; };
+    assert { system("../git-rebase2 origin/b1") == 0; };
+    assert { system("git diff --quiet origin/master") == 0; };
 }
+
