@@ -1,5 +1,7 @@
 #!/usr/bin/env perl
 
+# git clone ../rebase2-test-repo test-repo
+
 use strict;
 
 use Data::Dumper;
