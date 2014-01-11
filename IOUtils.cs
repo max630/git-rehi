@@ -139,6 +139,7 @@ namespace rebase2 {
             } else {
                 using (var p = new System.Diagnostics.Process()) {
                     throw new NotImplementedException("pick proper shell and other stuff");
+                    #if false
                     p.StartInfo.FileName = "/bin/sh";
                     // same as g_escape_shell
                     var args = new System.Text.StringBuilder();
@@ -156,6 +157,7 @@ namespace rebase2 {
                     p.WaitForExit();
                     if (p.ExitCode != 0)
                         throw new Exception(String.Format("Command failed (exit code = {0}): {1} {2}", p.ExitCode, command, args));
+                    #endif
                 }
             }
         }
