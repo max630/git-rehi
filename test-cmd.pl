@@ -17,14 +17,14 @@ sub assert(&) { my ($code) = @_;
 
 assert { chdir("test-repo/"); };
 
-sub reset() {
+sub reset_repo() {
     assert { system("git checkout -f --no-track -B master origin/master") == 0; };
     assert { system("git clean -f -x -d") == 0; };
 }
 
 {
     $TEST_NAME = "smoke";
-    reset();
+    reset_repo();
     assert { system("git reset --hard origin/b2") == 0; };
     assert { system("../git-rebase2 origin/b1") == 0; };
     assert { system("git diff --quiet origin/master") == 0; };
