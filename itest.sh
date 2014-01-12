@@ -20,7 +20,7 @@ git diff --quiet origin/master
 # SMOKE EDIT
 reset_repo
 git reset --hard origin/b2
-env GIT_SEQUENCE_EDITOR=: "$DIR/git-rebase2" -i origin/b1
+env GIT_SEQUENCE_EDITOR=/bin/true "$DIR/git-rebase2" -i origin/b1
 git diff --quiet origin/master
 
 echo ALL PASSED
