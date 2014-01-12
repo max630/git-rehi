@@ -193,7 +193,7 @@ sub main_parsed($$$$) { my ($dest, $source_to, $onto, $through, $interactive) = 
         }
     }
     if (scalar @{$todo} > 0) {
-        run_command("git checkout --quiet --detach $dest_hash");
+        run_command("git checkout --quiet $dest_hash");
         run_rebase($todo, $commits, $target_ref);
     } else {
         cleanup_save();
@@ -291,7 +291,8 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
         unlink("$GIT_DIR/rebase2/current");
     }
     # TODO: make proper reflog
-    run_command("git checkout -B $target_ref");
+    run_command("git branch -f $target_ref");
+    run_command("git checkout -f $target_ref");
     cleanup_save();
 }
 
@@ -313,7 +314,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         ${$pause} = 1;
     } elsif ($rebase_step->{type} eq "fixup") {
         print "Fixup: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
-        run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
+        run_command("git cherry-pick --no-commit $rebase_step->{ahash} "
                     . "&& git commit --amend --no-edit");
     } elsif ($rebase_step->{type} eq "exec") {
         run_command($rebase_step->{command})
@@ -381,7 +382,7 @@ sub find_only ($\@) { my ($needle, $items) = @_;
 
 sub pick($) { my ($hash) = @_;
     # TODO: clear out all details
-    run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash");
+    run_command("git cherry-pick --ff $hash");
 }
 
 sub comment($) { my ($comment) = @_;
