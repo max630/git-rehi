@@ -305,15 +305,15 @@ sub abort_rebase() {
 
 sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
     if ($rebase_step->{type} eq "pick") {
-        print "Apply: commits_get_subject($commits, $rebase_step->{ahash})\n";
+        print "Apply: " . commits_get_subject($commits, $rebase_step->{ahash}) . "\n";
         pick($rebase_step->{ahash});
     } elsif ($rebase_step->{type} eq "edit") {
-        print "Apply: commits_get_subject($commits, $rebase_step->{ahash})\n";
+        print "Apply: " . commits_get_subject($commits, $rebase_step->{ahash}) . "\n";
         pick($rebase_step->{ahash});
         print "Amend the commit and run \"git rebase2 --continue\"\n";
         ${$pause} = 1;
     } elsif ($rebase_step->{type} eq "fixup") {
-        print "Fixup: commits_get_subject($commits, $rebase_step->{ahash})\n";
+        print "Fixup: " . commits_get_subject($commits, $rebase_step->{ahash}). "\n";
         run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
                     . "&& git commit --amend --no-edit");
     } elsif ($rebase_step->{type} eq "exec") {
