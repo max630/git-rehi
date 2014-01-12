@@ -205,11 +205,10 @@ sub restore_rebase() {
     my $target_ref = read_file("$GIT_DIR/rebase2/target_ref");
     my $commits = git_load_commits();
     # TODO: add $unknown_commits  to $commits
-    my ($todo, $unknown_commits) = read_todo("$GIT_DIR/rebase2/todo", $commits);
+    my $todo = read_todo("$GIT_DIR/rebase2/todo", $commits);
     my $current = 0;
     if (-e "$GIT_DIR/rebase2/current") {
-        my @current_todo = read_todo("$GIT_DIR/rebase2/current", $commits);
-        $current = get_single($current_todo[0]);
+        $current = get_single(read_todo("$GIT_DIR/rebase2/current", $commits));
     }
     return ($todo, $current, $commits, $target_ref);
 }
@@ -236,12 +235,11 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
     close($tmpfh) or confess ("Unable to close the tmpfile");
     save_todo($old_todo, $tmpname, $commits);
     my $editor = git_sequence_editor();
-    my ($new_todo, $new_commits) =
+    my $new_todo =
         retry {
             run_command($editor . " $tmpname");
             # TODO: read unknown commits
-            my ($new_todo1, $unknown_commits1) = read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
-            return ($new_todo1, []);
+            return read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
         } $ok;
     return $new_todo;
 }
@@ -678,7 +676,8 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     if ($mode ne "COMMAND") {
         $onSyntaxError->("Unterminated comment");
     }
-    return ($todo, $unknown_commits);
+    # TODO: resolve the $unknown_commits
+    return $todo;
 }
 
 sub with_output_file($$) { my ($filename, $proc) = @_;
