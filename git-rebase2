@@ -1,5 +1,7 @@
 #!/usr/bin/env perl
 
+# vim: foldmethod=marker
+
 use strict;
 
 use Data::Dumper;
