@@ -79,7 +79,7 @@ sub git_verify_clean()
 # {{{ DOC: Types
 #
 # $commits = {
-#   ref => $hash,
+#   refs => { $ref => $hash },
 #   by_hash => { $hash => Entry },
 # }
 # ref is ahash or symbolic ref
@@ -305,15 +305,15 @@ sub abort_rebase() {
 
 sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
     if ($rebase_step->{type} eq "pick") {
-        print "Apply: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
+        print "Apply: commits_get_subject($commits, $rebase_step->{ahash})\n";
         pick($rebase_step->{ahash});
     } elsif ($rebase_step->{type} eq "edit") {
-        print "Apply: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
+        print "Apply: commits_get_subject($commits, $rebase_step->{ahash})\n";
         pick($rebase_step->{ahash});
         print "Amend the commit and run \"git rebase2 --continue\"\n";
         ${$pause} = 1;
     } elsif ($rebase_step->{type} eq "fixup") {
-        print "Fixup: $commits->{by_ahash}->{$rebase_step->{ahash}}->{subject}\n";
+        print "Fixup: commits_get_subject($commits, $rebase_step->{ahash})\n";
         run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
                     . "&& git commit --amend --no-edit");
     } elsif ($rebase_step->{type} eq "exec") {
@@ -441,7 +441,7 @@ sub git_resolve_hashes($) { my ($refs) = @_;
 sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
-    my $commits = {by_hash => {}, by_ahash => {}};
+    my $commits = {by_hash => {}, refs => {}};
     open(my $in, ">", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     iterate_popen {
         git_parse_commit_line($commits, $_);
@@ -452,7 +452,7 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
 }
 
 sub git_load_commits() {
-    my $commits = {by_hash => {}, by_ahash => {}};
+    my $commits = {by_hash => {}, refs => {}};
     open(my $in, "<", "$GIT_DIR/rebase2/commits") or confess("Cannot read commits cache ($GIT_DIR/rebase2/commits): $!");
     while (<$in>) {
         git_parse_commit_line($commits, $_);
@@ -469,12 +469,17 @@ sub git_parse_commit_line($$) { my ($commits, $line) = @_;
         my $subject = $4;
         verify_hash($hash);
         foreach my $p (@parents) { verify_hash($p); }
-        if (exists $commits->{by_hash}->{$hash} || exists $commits->{by_ahash}->{$ahash}) {
-            confess "Duplicated commit: $hash ($ahash)";
+        if (!exists $commits->{by_hash}->{$hash}) {
+            my $obj = {parents => \@parents, subject => $subject, hash => $hash, ahash => $ahash};
+            $commits->{by_hash}->{$hash} = $obj;
         }
-        my $obj = {parents => \@parents, subject => $subject, hash => $hash, ahash => $ahash};
-        $commits->{by_hash}->{$hash} = $obj;
-        $commits->{by_ahash}->{$ahash} = $obj;
+        if (exists $commits->{refs}->{$ahash}) {
+            if ($commits->{refs}->{$ahash} ne $hash) {
+                confess("duplicated ref with different hash: $ahash => $hash, $commits->{refs}->{$ahash}");
+            }
+        } else {
+            $commits->{refs}->{$ahash} = $hash;
+        }
     } else {
         confess("Could not parse line: $line");
     }
@@ -553,15 +558,27 @@ sub cleanup_save() {
     rmtree("$GIT_DIR/rebase2");
 }
 
+sub commits_get_subject($$) { my ($commits, $ref) = @_;
+    # TODO: not existing keys be assertions as soon as reading of unknown commits is imlemented
+    if (!exists $commits->{refs}->{$ref}) {
+        return "???";
+    }
+    my $hash = $commits->{refs}->{$ref};
+    if (!exists $commits->{by_hash}->{$hash}) {
+        return "???";
+    }
+    return $commits->{by_hash}->{$hash}->{subject};
+}
+
 sub save_todo($$$) { my ($todo, $file, $commits) = @_;
     with_output_file($file, sub { my ($out) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
-                print $out "pick $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
+                print $out "pick $step->{ahash} " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "edit") {
-                print $out "edit $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
+                print $out "edit $step->{ahash} " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "fixup") {
-                print $out "fixup $step->{ahash} $commits->{by_ahash}->{$step->{ahash}}->{subject}\n";
+                print $out "fixup $step->{ahash} " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "exec") {
                 if ($step->{command} =~ /\n/) {
                     confess "multiline command cannot be saved";
@@ -612,7 +629,6 @@ sub default_error($) { my ($msg) = @_;
 sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     my $onSyntaxError = (defined $errorHandler && exists $errorHandler->{onSyntaxError}) ? $errorHandler->{onSyntaxError} : \&default_error ;
     my $todo = [];
-    my $unknown_commits = [];
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
     my $comment = "";
@@ -623,19 +639,10 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
             if (/^#.*$/) {
             } elsif (/^(f|fixup) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => $2};
-                if (!exists $commits->{by_ahash}->{$2}) {
-                    push @{$unknown_commits}, $2;
-                }
             } elsif (/^(p|pick) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "pick", ahash => $2};
-                if (!exists $commits->{by_ahash}->{$2}) {
-                    push @{$unknown_commits}, $2;
-                }
             } elsif (/^(e|edit) ([0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "edit", ahash => $2};
-                if (!exists $commits->{by_ahash}->{$2}) {
-                    push @{$unknown_commits}, $2;
-                }
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
             } elsif (/^comment\b/) {
