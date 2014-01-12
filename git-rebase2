@@ -79,9 +79,12 @@ sub git_verify_clean()
 # {{{ DOC: Types
 #
 # $commits = {
-#   by_ahash => { $ahash => Entry },
+#   ref => $hash,
 #   by_hash => { $hash => Entry },
 # }
+# ref is ahash or symbolic ref
+# TODO: save, read, make, use...
+# 1. what is bad in dupicated ahash?
 #
 # Entry is {
 #   ahash => String,
