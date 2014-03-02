@@ -197,12 +197,16 @@ sub parse_cli($) { my @argv = @{$_[0]};
 
 sub main_run($$$$) { my ($dest, $target_ref, $onto, $through, $interactive) = @_;
     my $source_from = git_merge_base($dest, $target_ref);
+    my $source_to = undef;
     # I'm not sure I understang original rebase logic here
     # trying to reproduce it
     if (defined $onto) {
         $dest = ${$onto};
     }
-    my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, undef, $target_ref);
+    if (!defined $source_to) {
+        $source_to = $target_ref;
+    }
+    my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, $source_to, $target_ref);
     if ($interactive) {
         my $ok;
         $todo = edit_todo($todo, $commits, \$ok);
@@ -234,9 +238,6 @@ sub restore_rebase() {
 }
 
 sub init_rebase($$$$) { my ($dest, $source_from, $through, $source_to, $target_ref) = @_;
-    if (!defined $source_to) {
-        $source_to = $target_ref;
-    }
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
     my ($dest_hash, $source_from_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_from, $source_to]);
