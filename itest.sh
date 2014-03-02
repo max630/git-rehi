@@ -22,14 +22,14 @@ else
 fi
 
 reset_repo() {
-    git checkout -f --no-track -B master origin/master
+    git checkout -f --no-track -B master origin/master1
     git clean -f -x -d
 }
 
 # SMOKE
 git reset --hard origin/b2
 testee origin/b1
-git diff --quiet origin/master
+git diff --quiet origin/master1
 
 # SMOKE EDIT
 reset_repo
@@ -38,7 +38,7 @@ git reset --hard origin/b2
     export GIT_SEQUENCE_EDITOR=/bin/true
     testee -i origin/b1
 )
-git diff --quiet origin/master
+git diff --quiet origin/master1
 
 # SMOKE EDIT B2 --> B1
 reset_repo
@@ -47,6 +47,6 @@ git reset --hard origin/b1
     export GIT_SEQUENCE_EDITOR="$DIR/itest-edit.sh"
     testee -i HEAD
 )
-git diff --quiet origin/master
+git diff --quiet origin/master1
 
 echo ALL PASSED
