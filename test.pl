@@ -78,5 +78,6 @@ is_deeply (parse_cli(['a', '..d', 'c']), ['RUN', 'a', '', [], 'd', 'c', 0]);
 is_deeply (parse_cli(['a', 'b..e..d', 'c']), ['RUN', 'a', 'b', ['e'], 'd', 'c', 0]);
 
 isnt (do { eval { parse_cli(['a', 'b...d', 'c']) }; $@ }, '');
+isnt (do { eval { parse_cli(['a', 'b....d', 'c']) }; $@ }, '');
 
 done_testing();
