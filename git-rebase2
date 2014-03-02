@@ -190,6 +190,8 @@ sub parse_cli($) { my @argv = @{$_[0]};
                 my $re_ref = '(?:[^\.]|\.(?<=\.))*';
                 if ($argv[1] eq "") {
                     (undef, undef, undef);
+                } elsif ($argv[1] =~ /\.\.\./) {
+                    confess("'...' in the source spec: $argv[1]");
                 } elsif ($argv[1] =~ /^($re_ref)\.\.((?:$re_ref\.\.)*)($re_ref)$/x) {
                     print Dumper($1, $2, $3);
                     ($1, undef, $3);
