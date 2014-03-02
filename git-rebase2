@@ -138,12 +138,9 @@ sub main($) { my ($argv) = @_;
         }
         run_rebase($todo, $commits, $target_ref);
     } elsif ($parsed->[0] eq "RUN") {
-        my ($tag, $dest, $source_to, $onto, $through, $interactive) = @{$parsed};
+        my ($tag, $dest, $target, $onto, $through, $interactive) = @{$parsed};
         git_verify_clean();
-        $target = undef;
-        if (defined $source_to) {
-            $target = $source_to;
-        } else {
+        if ($target eq "") {
             my $head_path = read_popen("git symbolic-ref -q HEAD");
             if ($head_path =~ /refs\/heads\/(.*)/) {
                 $target = $1;
@@ -200,10 +197,10 @@ sub main_run($$$$) { my ($dest, $target_ref, $onto, $through, $interactive) = @_
     my $source_to = undef;
     # I'm not sure I understang original rebase logic here
     # trying to reproduce it
-    if (defined $onto) {
+    if ($onto ne "") {
         $dest = ${$onto};
     }
-    if (!defined $source_to) {
+    if ($source_to eq "") {
         $source_to = $target_ref;
     }
     my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, $source_to, $target_ref);
