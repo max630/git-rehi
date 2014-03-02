@@ -68,4 +68,12 @@ is_deeply (find_sequence({ 1 => {parents => [2, 5]},
                            7 => {parents => [4]},
                           }, 4, 1, [7]),
                         [7,6,5,1]);
+
+is_deeply (parse_cli(['a']), ['RUN_OLD', 'a', undef, undef, [], 0]);
+is_deeply (parse_cli(['a', 'c']), ['RUN_OLD', 'a', 'c', undef, [], 0]);
+
+is_deeply (parse_cli(['a', 'b..d', 'c']), ['RUN', 'a', 'b', [], 'd', 'c', 0]);
+
+isnt (do { eval { parse_cli(['a', 'b...d', 'c']) }; $@ }, '');
+
 done_testing();
