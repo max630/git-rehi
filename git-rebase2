@@ -202,7 +202,7 @@ sub main_run($$$$) { my ($dest, $target_ref, $onto, $through, $interactive) = @_
     if (defined $onto) {
         $dest = ${$onto};
     }
-    my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $target_ref, $through);
+    my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, undef, $target_ref);
     if ($interactive) {
         my $ok;
         $todo = edit_todo($todo, $commits, \$ok);
@@ -233,8 +233,10 @@ sub restore_rebase() {
     return ($todo, $current, $commits, $target_ref);
 }
 
-sub init_rebase($$$$) { my ($dest, $source_from, $target_ref, $through) = @_;
-    my $source_to = $target_ref;
+sub init_rebase($$$$) { my ($dest, $source_from, $through, $source_to, $target_ref) = @_;
+    if (!defined $source_to) {
+        $source_to = $target_ref;
+    }
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
     my ($dest_hash, $source_from_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_from, $source_to]);
