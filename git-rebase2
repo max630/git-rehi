@@ -140,12 +140,12 @@ sub main($) { my ($argv) = @_;
     } elsif ($parsed->[0] eq "RUN_OLD") {
         my ($tag, $dest_arg, $target_arg, $onto, $through, $interactive) = @{$parsed};
         git_verify_clean();
-        my ($dest, $source_from, $source_to, $target_arg) = main_resolve_cli_args($dest_arg, $target_arg, $onto);
+        my ($dest, $source_from, $source_to, $target) = main_resolve_cli_args($dest_arg, $target_arg, $onto);
         main_run($dest, $source_from, $through, $source_to, $target, $interactive);
     } elsif ($parsed->[0] eq "RUN") {
         my ($tag, $dest_arg, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
         git_verify_clean();
-        my ($dest, $source_from, $source_to, $target_arg) = main_resolve_cli_args($dest_arg, $target_arg, undef);
+        my ($dest, $source_from, $source_to, $target) = main_resolve_cli_args($dest_arg, $target_arg, undef);
         main_run($dest, $source_from, $through, $source_to, $target, $interactive);
     } else {
         confess("Unexpected: " . Data::Dumper($parsed));
