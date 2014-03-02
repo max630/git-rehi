@@ -186,7 +186,17 @@ sub parse_cli($) { my @argv = @{$_[0]};
             return ['RUN_OLD', $argv[0], $argv[1], $onto, \@through, $interactive];
         } elsif (scalar @argv == 3) {
             confess "New-style arguments should not be used together with --onto or --through" if (defined $onto || scalar @through > 0);
-            confess "Source spec is not yet supported" if ($argv[1] ne "");
+            my ($source_from, $through, $source_to) = do {
+                my $re_ref = '(?:[^\.]|\.(?<=\.))*';
+                if ($argv[1] eq "") {
+                    (undef, undef, undef);
+                } elsif ($argv[1] =~ /^($re_ref)\.\.((?:$re_ref\.\.)*)($re_ref)$/x) {
+                    print Dumper($1, $2, $3);
+                    (undef, undef, undef);
+                } else {
+                    confess("Invalid source spec: $argv[1]");
+                }
+            };
             return ['RUN', $argv[0], undef, undef, undef, $argv[2], $interactive];
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
