@@ -195,14 +195,14 @@ sub parse_cli($) { my @argv = @{$_[0]};
     }
 }
 
-sub main_run($$$$) { my ($dest, $source_to, $onto, $through, $interactive) = @_;
-    my $source_from = git_merge_base($dest, $source_to);
+sub main_run($$$$) { my ($dest, $target_ref, $onto, $through, $interactive) = @_;
+    my $source_from = git_merge_base($dest, $target_ref);
     # I'm not sure I understang original rebase logic here
     # trying to reproduce it
     if (defined $onto) {
         $dest = ${$onto};
     }
-    my ($todo, $commits, $target_ref, $dest_hash) = init_rebase($dest, $source_from, $source_to, $through);
+    my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $target_ref, $through);
     if ($interactive) {
         my $ok;
         $todo = edit_todo($todo, $commits, \$ok);
@@ -233,8 +233,8 @@ sub restore_rebase() {
     return ($todo, $current, $commits, $target_ref);
 }
 
-sub init_rebase($$$$) { my ($dest, $source_from, $source_to, $through) = @_;
-    my $target_ref = $source_to;
+sub init_rebase($$$$) { my ($dest, $source_from, $target_ref, $through) = @_;
+    my $source_to = $target_ref;
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
     my ($dest_hash, $source_from_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_from, $source_to]);
@@ -246,7 +246,7 @@ sub init_rebase($$$$) { my ($dest, $source_from, $source_to, $through) = @_;
     my $commits = git_fetch_commits($source_from, $source_to);
     my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
     # TODO: edit if interactive
-    return ($todo, $commits, $target_ref, $dest_hash);
+    return ($todo, $commits, $dest_hash);
 }
 
 sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
