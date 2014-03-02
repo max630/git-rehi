@@ -195,7 +195,7 @@ sub parse_cli($) { my @argv = @{$_[0]};
 }
 
 sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg, $onto) = @_;
-    my $target_ref =
+    my $target_ref = do {
         if ($target_arg eq "") {
             my $head_path = read_popen("git symbolic-ref -q HEAD");
             if ($head_path =~ /refs\/heads\/(.*)/) {
@@ -205,10 +205,11 @@ sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg, $onto) = @_;
             }
         } else {
             $target_arg;
-        };
+        }
+    };
     my $source_from = git_merge_base($dest_arg, $target_ref);
-    my $dest = if ($onto ne "") { ${$onto}; } else { $dest_arg; };
-    my $source_to = if ($source_to_arg ne "") { $source_to_arg; } else { $target_ref };
+    my $dest = do { if ($onto ne "") { ${$onto}; } else { $dest_arg; } };
+    my $source_to = $target_ref;
     return ($dest, $source_from, $source_to, $target_ref);
 }
 
