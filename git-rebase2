@@ -143,10 +143,12 @@ sub main($) { my ($argv) = @_;
         my ($dest, $source_from, $source_to, $target) = main_resolve_cli_args($dest_arg, $target_arg, $onto);
         main_run($dest, $source_from, $through, $source_to, $target, $interactive);
     } elsif ($parsed->[0] eq "RUN") {
-        my ($tag, $dest_arg, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
+        my ($tag, $dest, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
         git_verify_clean();
-        my ($dest, $source_from, $source_to, $target) = main_resolve_cli_args($dest_arg, $target_arg, undef);
-        main_run($dest, $source_from, $through, $source_to, $target, $interactive);
+        my $target_ref = cli_resolve_target($target_arg);
+        my $source_to = do { if ($source_to_arg ne "") { $source_to_arg } else { $target_ref }};
+        my $source_from = do { if ($source_from_arg ne "") { $source_from_arg } else { git_merge_base($source_to, $dest); }};
+        main_run($dest, $source_from, $through, $source_to, $target_ref, $interactive);
     } else {
         confess("Unexpected: " . Data::Dumper($parsed));
     }
@@ -209,19 +211,23 @@ sub parse_cli($) { my @argv = @{$_[0]};
     }
 }
 
-sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg, $onto) = @_;
-    my $target_ref = do {
-        if ($target_arg eq "") {
+sub cli_resolve_target($) { my ($target_arg) = @_;
+    return do {
+        if ($target_arg ne "") {
+            $target_arg;
+        } else {
             my $head_path = read_popen("git symbolic-ref -q HEAD");
             if ($head_path =~ /refs\/heads\/(.*)/) {
                 $1;
             } else {
                 confess("Unsupported ref checked-out: $head_path");
             }
-        } else {
-            $target_arg;
         }
     };
+}
+
+sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg, $onto) = @_;
+    my $target_ref = cli_resolve_target($target_arg);
     my $source_from = git_merge_base($dest_arg, $target_ref);
     my $dest = do { if ($onto ne "") { ${$onto}; } else { $dest_arg; } };
     my $source_to = $target_ref;
