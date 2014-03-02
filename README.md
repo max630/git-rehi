@@ -41,14 +41,21 @@ for you if you use `git rebase2`.
 
 In general, arguments similar to the original rebase's ones.
 
-`git rebase2 [options] [--onto <newbase>] <upstream> [<branch>]`
+`git rebase2 [options] <dest> [[<source_from>]..[<through1>..<through2>]..[<source_to>]] [<target>]`
 
-Calculates optimal path (see `--through` option description) from latest common
-ancestor of `<branch>` and `<upstream>`, and apply it to repository, starting
-from `<newbase>`, or from `<branch>`, if `--onto` is not specified. If
-`<branch>` is not specified, the currently checked-out branch is used. In the
-end, `<branch>` is reset to the top of the resulting commit sequence and
-checked out.
+Calculates the shortest path from `<source_from>` to `<source_to>`, and apply
+it to repository, starting from `<dest>`. In the end, `<target>` branch is
+reset to the top of the resulting commit sequence and checked out.
+
+Optionally between `<source_from>` and `<source_to>` can be one or more
+`<through>` revisions. Then the source path is adjusted so that is contains all
+of these revisions.
+
+If `<source_from>` is omitted, the latest common ancestor of `<dest>` and
+`<source_to>` is used instead.  If `<source_to>` is omitted, `<target>` is used
+instead.  If `<target>` is omitted, the currently checked-out branch is used.
+If the whole source argument `<from>.. ..<to>` is omitted, it is equivalent to
+specification "`..`".
 
 `git rebase2 --continue`
 
@@ -69,12 +76,6 @@ Reset all changes and continue rebasing starting with the next step in todo list
 `--interactive`
 
 Allows user to edit step list before starting applying them.
-
-`--through <ref>`
-
-By default, `git-rebase2` looks for the shortest path from `<upstream>` to
-`<base>`.  This option can be used to affect the path, specifying the commit
-which it should contain. Can be used several times, specifying several commits.
 
 ### Steps
 
