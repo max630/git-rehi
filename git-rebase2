@@ -192,12 +192,12 @@ sub parse_cli($) { my @argv = @{$_[0]};
                     (undef, undef, undef);
                 } elsif ($argv[1] =~ /^($re_ref)\.\.((?:$re_ref\.\.)*)($re_ref)$/x) {
                     print Dumper($1, $2, $3);
-                    (undef, undef, undef);
+                    ($1, undef, $3);
                 } else {
                     confess("Invalid source spec: $argv[1]");
                 }
             };
-            return ['RUN', $argv[0], undef, undef, undef, $argv[2], $interactive];
+            return ['RUN', $argv[0], $source_from, [], $source_to, $argv[2], $interactive];
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
         }
