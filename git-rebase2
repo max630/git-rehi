@@ -187,21 +187,22 @@ sub parse_cli($) { my @argv = @{$_[0]};
         } elsif (scalar @argv == 3) {
             confess "New-style arguments should not be used together with --onto or --through" if (defined $onto || scalar @through > 0);
             my ($source_from, $through, $source_to) = do {
-                my $re_ref0 = '(?:[^\.]|(?<!\.)\.)*';
-                my $re_ref1 = '(?:[^\.]|(?<!\.)\.)+';
-                my $re_sep = '(?<!\.)\.\.';
+                my $re_ref0 = qr/(?:[^\.]|(?<!\.)\.)*/;
+                my $re_ref1 = qr/(?:[^\.]|(?<!\.)\.)+/;
+                my $re_sep = qr/(?<!\.)\.\./;
                 if ($argv[1] eq "") {
                     (undef, undef, undef);
                 #} elsif ($argv[1] =~ /\.\.\./) {
                 #    confess("'...' in the source spec: $argv[1]");
                 } elsif ($argv[1] =~ /^($re_ref0)$re_sep((?:$re_ref1$re_sep)*)($re_ref0)$/x) {
-                    print Dumper($1, $2, $3);
-                    ($1, undef, $3);
+                    my ($source_from, $source_to) = ($1, $3);
+                    my @through_arr = $2 =~ m/($re_ref1)$re_sep/g;
+                    ($source_from, \@through_arr, $source_to);
                 } else {
                     confess("Invalid source spec: $argv[1]");
                 }
             };
-            return ['RUN', $argv[0], $source_from, [], $source_to, $argv[2], $interactive];
+            return ['RUN', $argv[0], $source_from, $through, $source_to, $argv[2], $interactive];
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
         }
