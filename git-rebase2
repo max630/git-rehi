@@ -137,10 +137,15 @@ sub main($) { my ($argv) = @_;
             unlink("$GIT_DIR/rebase2/current");
         }
         run_rebase($todo, $commits, $target_ref);
-    } elsif ($parsed->[0] eq "RUN") {
+    } elsif ($parsed->[0] eq "RUN_OLD") {
         my ($tag, $dest_arg, $target_arg, $onto, $through, $interactive) = @{$parsed};
         git_verify_clean();
-        my ($dest, $source_from, $source_to, $target_arg) = main_resolve_cli_args($dest_arg, $target_arg);
+        my ($dest, $source_from, $source_to, $target_arg) = main_resolve_cli_args($dest_arg, $target_arg, $onto);
+        main_run($dest, $source_from, $through, $source_to, $target, $interactive);
+    } elsif ($parsed->[0] eq "RUN") {
+        my ($tag, $dest_arg, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
+        git_verify_clean();
+        my ($dest, $source_from, $source_to, $target_arg) = main_resolve_cli_args($dest_arg, $target_arg, undef);
         main_run($dest, $source_from, $through, $source_to, $target, $interactive);
     } else {
         confess("Unexpected: " . Data::Dumper($parsed));
@@ -176,16 +181,20 @@ sub parse_cli($) { my @argv = @{$_[0]};
             confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
             return ['CONTINUE'];
         } elsif (scalar @argv == 1) {
-            return ['RUN', $argv[0], undef, $onto, \@through, $interactive];
+            return ['RUN_OLD', $argv[0], undef, $onto, \@through, $interactive];
         } elsif (scalar @argv == 2) {
-            return ['RUN', $argv[0], $argv[1], $onto, \@through, $interactive];
+            return ['RUN_OLD', $argv[0], $argv[1], $onto, \@through, $interactive];
+        } elsif (scalar @argv == 3) {
+            confess "New-style arguments should not be used together with --onto or --through" if (defined $onto || scalar @through > 0);
+            confess "Source spec is not yet supported" if ($argv[1] ne "");
+            return ['RUN', $argv[0], undef, undef, undef, $argv[2], $interactive];
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
         }
     }
 }
 
-sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg) = @_;
+sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg, $onto) = @_;
     my $target_ref =
         if ($target_arg eq "") {
             my $head_path = read_popen("git symbolic-ref -q HEAD");
