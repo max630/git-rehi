@@ -138,17 +138,10 @@ sub main($) { my ($argv) = @_;
         }
         run_rebase($todo, $commits, $target_ref);
     } elsif ($parsed->[0] eq "RUN") {
-        my ($tag, $dest, $target, $onto, $through, $interactive) = @{$parsed};
+        my ($tag, $dest_arg, $target_arg, $onto, $through, $interactive) = @{$parsed};
         git_verify_clean();
-        if ($target eq "") {
-            my $head_path = read_popen("git symbolic-ref -q HEAD");
-            if ($head_path =~ /refs\/heads\/(.*)/) {
-                $target = $1;
-            } else {
-                confess("Unsupported ref checked-out: $head_path");
-            }
-        }
-        main_run($dest, $target, $onto, $through, $interactive);
+        my ($dest, $source_from, $source_to, $target_arg) = main_resolve_cli_args($dest_arg, $target_arg);
+        main_run($dest, $source_from, $through, $source_to, $target, $interactive);
     } else {
         confess("Unexpected: " . Data::Dumper($parsed));
     }
@@ -192,17 +185,25 @@ sub parse_cli($) { my @argv = @{$_[0]};
     }
 }
 
-sub main_run($$$$) { my ($dest, $target_ref, $onto, $through, $interactive) = @_;
-    my $source_from = git_merge_base($dest, $target_ref);
-    my $source_to = undef;
-    # I'm not sure I understang original rebase logic here
-    # trying to reproduce it
-    if ($onto ne "") {
-        $dest = ${$onto};
-    }
-    if ($source_to eq "") {
-        $source_to = $target_ref;
-    }
+sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg) = @_;
+    my $target_ref =
+        if ($target_arg eq "") {
+            my $head_path = read_popen("git symbolic-ref -q HEAD");
+            if ($head_path =~ /refs\/heads\/(.*)/) {
+                $1;
+            } else {
+                confess("Unsupported ref checked-out: $head_path");
+            }
+        } else {
+            $target_arg;
+        };
+    my $source_from = git_merge_base($dest_arg, $target_ref);
+    my $dest = if ($onto ne "") { ${$onto}; } else { $dest_arg; };
+    my $source_to = if ($source_to_arg ne "") { $source_to_arg; } else { $target_ref };
+    return ($dest, $source_from, $source_to, $target_ref);
+}
+
+sub main_run($$$$$$) { my ($dest, $source_from, $through, $source_to, $target_ref, $interactive) = @_;
     my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, $source_to, $target_ref);
     if ($interactive) {
         my $ok;
