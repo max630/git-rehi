@@ -11,7 +11,7 @@ testee() {
     false
 }
 
-if [ -n $GITREBASE2_TEST_SYSTEM ]; then
+if [ -n "$GITREBASE2_TEST_SYSTEM" ]; then
     testee() {
         git rebase2 "$@"
     }
