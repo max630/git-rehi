@@ -26,6 +26,15 @@ reset_repo() {
     git clean -f -x -d
 }
 
+fail() {
+    echo "FAIL: $@"
+    false
+}
+
+test_loud() {
+    test "$@" || fail "test $@"
+}
+
 # SMOKE
 git reset --hard origin/b2
 testee origin/b1
@@ -48,5 +57,21 @@ git reset --hard origin/b1
     testee -i HEAD
 )
 git diff --quiet origin/master1
+
+# gh-17 Abort checks out old dest_to, should checkout out older HEAD if they are different
+reset_repo
+git reset --hard origin/b1
+git branch -f tmp origin/b2
+(
+    export GIT_SEQUENCE_EDITOR="$DIR/itest-edit.sh"
+    export GIT_SEQUENCE_EDITOR_CASE="fail"
+    old_master=`git show --quiet --pretty=format:%h master`
+    ! testee -i HEAD tmp
+    testee --abort
+    head=`git symbolic-ref HEAD`
+    new_master=`git show --quiet --pretty=format:%h master`
+    test_loud "$head" = refs/heads/master
+    test_loud "$old_master" = "$new_master"
+)
 
 echo ALL PASSED
