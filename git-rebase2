@@ -183,9 +183,9 @@ sub parse_cli($) { my @argv = @{$_[0]};
             confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
             return ['CONTINUE'];
         } elsif (scalar @argv == 1) {
-            return ['RUN_OLD', $argv[0], undef, $onto, \@through, $interactive];
+            return ['RUN', $argv[0], undef, [], undef, undef, $interactive];
         } elsif (scalar @argv == 2) {
-            return ['RUN_OLD', $argv[0], $argv[1], $onto, \@through, $interactive];
+            return ['RUN', $argv[0], undef, [], undef, $argv[2], $interactive];
         } elsif (scalar @argv == 3) {
             confess "New-style arguments should not be used together with --onto or --through" if (defined $onto || scalar @through > 0);
             my ($source_from, $through, $source_to) = do {
