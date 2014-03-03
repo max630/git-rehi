@@ -58,6 +58,17 @@ git reset --hard origin/b1
 )
 git diff --quiet origin/master1
 
+# rebase with explicit target
+reset_repo
+git reset --hard origin/b1
+git branch -f tmp origin/b2
+(
+    testee HEAD tmp
+    head=`git symbolic-ref HEAD`
+    test_loud "$head" = refs/heads/tmp
+    git diff --quiet origin/master1 || fail "git diff --quiet origin/master1"
+)
+
 # gh-17 Abort checks out old dest_to, should checkout out older HEAD if they are different
 reset_repo
 git reset --hard origin/b1
