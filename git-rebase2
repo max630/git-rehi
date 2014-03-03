@@ -168,7 +168,7 @@ sub parse_cli($) { my @argv = @{$_[0]};
         } elsif (scalar @argv == 1) {
             return ['RUN', $argv[0], undef, [], undef, undef, $interactive];
         } elsif (scalar @argv == 2) {
-            return ['RUN', $argv[0], undef, [], undef, $argv[2], $interactive];
+            return ['RUN', $argv[0], undef, [], undef, $argv[1], $interactive];
         } elsif (scalar @argv == 3) {
             my ($source_from, $through, $source_to) = do {
                 my $re_ref0 = qr/(?:[^\.]|(?<!\.)\.)*/;
