@@ -76,6 +76,16 @@ sub git_verify_clean()
     confess "rebase in progress" if -e "$GIT_DIR/rebase-merge";
 }
 
+sub git_get_checkedout_branch()
+{
+    my $head_path = read_popen("git symbolic-ref -q HEAD");
+    if ($head_path =~ /refs\/heads\/(.*)/) {
+        return $1;
+    } else {
+        confess("Unsupported ref checked-out: $head_path");
+    }
+}
+
 # }}}
 
 # {{{ DOC: Types
@@ -140,10 +150,11 @@ sub main($) { my ($argv) = @_;
     } elsif ($parsed->[0] eq "RUN") {
         my ($tag, $dest, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
         git_verify_clean();
-        my $target_ref = cli_resolve_target($target_arg);
+        my $initial_branch = git_get_checkedout_branch();
+        my $target_ref = do { if ($target_arg ne "") { $target_arg; } else { $initial_branch }};
         my $source_to = do { if ($source_to_arg ne "") { $source_to_arg } else { $target_ref }};
         my $source_from = do { if ($source_from_arg ne "") { $source_from_arg } else { git_merge_base($source_to, $dest); }};
-        main_run($dest, $source_from, $through, $source_to, $target_ref, $interactive);
+        main_run($dest, $source_from, $through, $source_to, $target_ref, $initial_branch, $interactive);
     } else {
         confess("Unexpected: " . Data::Dumper($parsed));
     }
@@ -191,23 +202,8 @@ sub parse_cli($) { my @argv = @{$_[0]};
     }
 }
 
-sub cli_resolve_target($) { my ($target_arg) = @_;
-    return do {
-        if ($target_arg ne "") {
-            $target_arg;
-        } else {
-            my $head_path = read_popen("git symbolic-ref -q HEAD");
-            if ($head_path =~ /refs\/heads\/(.*)/) {
-                $1;
-            } else {
-                confess("Unsupported ref checked-out: $head_path");
-            }
-        }
-    };
-}
-
-sub main_run($$$$$$) { my ($dest, $source_from, $through, $source_to, $target_ref, $interactive) = @_;
-    my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, $source_to, $target_ref);
+sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_ref, $initial_branch, $interactive) = @_;
+    my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, $source_to, $target_ref, $initial_branch);
     if ($interactive) {
         my $ok;
         $todo = edit_todo($todo, $commits, \$ok);
@@ -238,7 +234,7 @@ sub restore_rebase() {
     return ($todo, $current, $commits, $target_ref);
 }
 
-sub init_rebase($$$$) { my ($dest, $source_from, $through, $source_to, $target_ref) = @_;
+sub init_rebase($$$$$) { my ($dest, $source_from, $through, $source_to, $target_ref, $initial_branch) = @_;
     #print Dumper($dest, $source_from, $source_to, $target_ref);
     #TODO: resolve all arguments
     my ($dest_hash, $source_from_hash, $source_to_hash) = git_resolve_hashes([$dest, $source_from, $source_to]);
@@ -246,7 +242,7 @@ sub init_rebase($$$$) { my ($dest, $source_from, $through, $source_to, $target_r
     if (scalar @{$through} > 0) {
         @through_hashes = git_resolve_hashes($through);
     }
-    init_save($target_ref);
+    init_save($target_ref, $initial_branch);
     my $commits = git_fetch_commits($source_from, $source_to);
     my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
     # TODO: edit if interactive
@@ -318,9 +314,9 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
 }
 
 sub abort_rebase() {
-    my $target_ref = read_file("$GIT_DIR/rebase2/target_ref");
-    run_command("git reset --hard $target_ref");
-    run_command("git checkout -f $target_ref");
+    my $initial_branch = read_file("$GIT_DIR/rebase2/initial_branch");
+    run_command("git reset --hard $initial_branch");
+    run_command("git checkout -f $initial_branch");
     cleanup_save();
 }
 
@@ -566,12 +562,13 @@ sub verify_cmdarg($) { my ($str) = @_;
     }
 }
 
-sub init_save($) { my ($target_ref) = @_;
+sub init_save($$) { my ($target_ref, $initial_branch) = @_;
     if (-e "$GIT_DIR/rebase2") {
         confess "already in progress?";
     }
     mkdir("$GIT_DIR/rebase2") or confess "Mkdir $GIT_DIR/rebase2 failed: $!";
     write_file("$GIT_DIR/rebase2/target_ref", $target_ref);
+    write_file("$GIT_DIR/rebase2/initial_branch", $initial_branch);
 }
 
 sub cleanup_save() {
