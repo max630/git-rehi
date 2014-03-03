@@ -36,6 +36,7 @@ test_loud() {
 }
 
 # SMOKE
+reset_repo
 git reset --hard origin/b2
 testee origin/b1
 git diff --quiet origin/master1
