@@ -137,11 +137,6 @@ sub main($) { my ($argv) = @_;
             unlink("$GIT_DIR/rebase2/current");
         }
         run_rebase($todo, $commits, $target_ref);
-    } elsif ($parsed->[0] eq "RUN_OLD") {
-        my ($tag, $dest_arg, $target_arg, $onto, $through, $interactive) = @{$parsed};
-        git_verify_clean();
-        my ($dest, $source_from, $source_to, $target) = main_resolve_cli_args($dest_arg, $target_arg, $onto);
-        main_run($dest, $source_from, $through, $source_to, $target, $interactive);
     } elsif ($parsed->[0] eq "RUN") {
         my ($tag, $dest, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
         git_verify_clean();
@@ -156,22 +151,10 @@ sub main($) { my ($argv) = @_;
 
 sub parse_cli($) { my @argv = @{$_[0]};
     my $interactive = 0;
-    my $onto = undef;
-    my @through;
     while (1) {
         if (0) {
         } elsif ($argv[0] eq "-i" || $argv[0] eq "--interactive") {
             $interactive = 1;
-            shift @argv;
-        } elsif ($argv[0] eq "--through") {
-            push @through, $argv[1];
-            shift @argv;
-            shift @argv;
-        } elsif ($argv[0] eq "--onto") {
-            confess("--onto doubled") if (defined $onto);
-            my $onto_val = $argv[1];
-            $onto = \$onto_val;
-            shift @argv;
             shift @argv;
         } elsif ($argv[0] eq "--abort") { # TODO: make them a very specific
             confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
@@ -187,7 +170,6 @@ sub parse_cli($) { my @argv = @{$_[0]};
         } elsif (scalar @argv == 2) {
             return ['RUN', $argv[0], undef, [], undef, $argv[2], $interactive];
         } elsif (scalar @argv == 3) {
-            confess "New-style arguments should not be used together with --onto or --through" if (defined $onto || scalar @through > 0);
             my ($source_from, $through, $source_to) = do {
                 my $re_ref0 = qr/(?:[^\.]|(?<!\.)\.)*/;
                 my $re_ref1 = qr/(?:[^\.]|(?<!\.)\.)+/;
@@ -224,14 +206,6 @@ sub cli_resolve_target($) { my ($target_arg) = @_;
             }
         }
     };
-}
-
-sub main_resolve_cli_args($$$) { my ($dest_arg, $target_arg, $onto) = @_;
-    my $target_ref = cli_resolve_target($target_arg);
-    my $source_from = git_merge_base($dest_arg, $target_ref);
-    my $dest = do { if ($onto ne "") { ${$onto}; } else { $dest_arg; } };
-    my $source_to = $target_ref;
-    return ($dest, $source_from, $source_to, $target_ref);
 }
 
 sub main_run($$$$$$) { my ($dest, $source_from, $through, $source_to, $target_ref, $interactive) = @_;
