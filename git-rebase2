@@ -178,9 +178,7 @@ sub parse_cli($) { my @argv = @{$_[0]};
             return ['CONTINUE'];
         } elsif (scalar @argv == 1) {
             return ['RUN', $argv[0], undef, [], undef, undef, $interactive];
-        } elsif (scalar @argv == 2) {
-            return ['RUN', $argv[0], undef, [], undef, $argv[1], $interactive];
-        } elsif (scalar @argv == 3) {
+        } elsif (scalar @argv == 3 || scalar @argv == 2 && $argv[1] =~ /\.\./) {
             my ($source_from, $through, $source_to) = do {
                 my $re_ref0 = qr/(?:[^\.]|(?<!\.)\.)*/;
                 my $re_ref1 = qr/(?:[^\.]|(?<!\.)\.)+/;
@@ -196,6 +194,8 @@ sub parse_cli($) { my @argv = @{$_[0]};
                 }
             };
             return ['RUN', $argv[0], $source_from, $through, $source_to, $argv[2], $interactive];
+        } elsif (scalar @argv == 2) {
+            return ['RUN', $argv[0], undef, [], undef, $argv[1], $interactive];
         } else {
             confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
         }
