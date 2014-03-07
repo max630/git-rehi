@@ -89,7 +89,7 @@ git branch -f tmp origin/b2
 (
     reset_repo
     git reset --hard origin/master1
-    git rebase -i base ..origin/b1..
+    testee origin/base ..origin/b1..
     git diff --quiet origin/master1 || fail "git diff --quiet origin/master1"
 )
 
