@@ -86,4 +86,11 @@ git branch -f tmp origin/b2
     test_loud "$old_master" = "$new_master"
 )
 
+(
+    reset_repo
+    git reset --hard origin/master1
+    git rebase -i base ..origin/b1..
+    git diff --quiet origin/master1 || fail "git diff --quiet origin/master1"
+)
+
 echo ALL PASSED
