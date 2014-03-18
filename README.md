@@ -39,8 +39,6 @@ List of features
 Run the script inside of a git repository. If it is in PATH, git will run it
 for you if you use `git rebase2`.
 
-In general, arguments similar to the original rebase's ones.
-
 `git rebase2 [options] <dest> [[<source_from>]..[<through1>..<through2>]..[<source_to>]] [<target>]`
 
 Calculates the shortest path from `<source_from>` to `<source_to>`, and apply
@@ -48,7 +46,7 @@ it to repository, starting from `<dest>`. In the end, `<target>` branch is
 reset to the top of the resulting commit sequence and checked out.
 
 Optionally between `<source_from>` and `<source_to>` can be one or more
-`<through>` revisions. Then the source path is adjusted so that is contains all
+`<through>` revisions. Then the source path is adjusted so that it contains all
 of these revisions.
 
 If `<source_from>` is omitted, the latest common ancestor of `<dest>` and
@@ -64,12 +62,11 @@ Then user have to manually apply the step and use `git rebase2 --skip` to contin
 
 `git rebase2 --abort`
 
-Aborts whole rebase. `<branch>` returns to where it was before starting and is
-checked-out.
+Aborts whole rebase. The originally checked-out branch is checked out back.
 
 `git rebase2 --skip`
 
-Reset all changes and continue rebasing starting with the next step in todo list.
+Reset all uncommitted changes and continue rebasing starting with the next step in todo list.
 
 ### Options
 
@@ -79,7 +76,7 @@ Allows user to edit step list before starting applying them.
 
 ### Steps
 
-Types of step, which `git-rebase2` recognize and which can be used in todo list.
+Types of step, which `git-rebase2` recognizes and which can be used in todo list.
 
 `pick <ahash> [<subject>]`
 
@@ -101,7 +98,7 @@ A line containing single "." marks the end of message.
 
 Merge latest commit with others. Order of parents will be exactly the same as
 specified in the command. Exactly one of the `parentN` should be literal
-"`HEAD`" (without qquotes). If `--ours` is specified, merge will be performed
+"`HEAD`" (without quotes). If `--ours` is specified, merge will be performed
 with strategy `ours` (that is, is will copy the `parent1`, just marking others
 as merged and ignoring their contents).
 
