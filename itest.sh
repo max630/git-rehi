@@ -105,4 +105,13 @@ git branch -f tmp origin/b2
     test "$body" = merge || fail "commit message"
 )
 
+(
+    # make sure fastforward merge fails
+    export GIT_SEQUENCE_EDITOR="$DIR/itest-edit.sh"
+    export GIT_SEQUENCE_EDITOR_CASE="merge-c"
+    reset_repo
+    git reset --hard origin/master1
+    ! testee -i origin/b1 || fail "Fastforward should fail!"
+)
+
 echo ALL PASSED
