@@ -345,7 +345,12 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         # to merge as non-first child:
         # 1. get the current position
         # 2. reset to the first child
-        my $command = "git merge --no-edit";
+        my $command = "git merge";
+        if (exists $rebase_step->{ahash}) {
+            $command .= " --no-commit";
+        } else {
+            $command .= " --no-edit";
+        }
         if ($rebase_step->{flags}->{ours}) {
             $command .= " --strategy=ours";
         }
@@ -374,7 +379,11 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             print "Then invoke git rebase2 --skip\n";
             die "Stopped";
         }
-        comment($rebase_step->{comment});
+        if (exists $rebase_step->{ahash}) {
+            run_command("git commit -C $rebase_step->{ahash} --reset-author");
+        } else {
+            comment($rebase_step->{comment});
+        }
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
