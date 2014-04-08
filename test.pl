@@ -94,4 +94,28 @@ is_deeply (read_todo(\<<End, []), [{ type => "merge", parents => ["HEAD", "12345
 merge -c 93845345 HEAD 12345
 End
 
+is (do { my $out; save_todo([{ type => "merge", parents => ["HEAD", "12345"], flags => {}, comment => "Test merge\n"}], \$out, {}); $out; }, <<End);
+merge HEAD 12345
+Test merge
+.
+End
+is (do { my $out;
+         save_todo([{ type => "pick",  ahash => "12345"}],
+                   \$out,
+                   { refs => { "12345" => "12345ddd" },
+                     by_hash => { "12345ddd" => { subject => "Test comment" } } });
+         $out; },
+    <<End);
+pick 12345 Test comment
+End
+is (do { my $out;
+         save_todo([{ type => "merge", parents => ["HEAD", "12345"], flags => {}, ahash => "93845345"}],
+                   \$out,
+                   { refs => { "93845345" => "93845345aaa" },
+                     by_hash => { "93845345aaa" => { subject => "Test comment" } } });
+         $out; },
+    <<End);
+merge -c 93845345 HEAD 12345 Test comment
+End
+
 done_testing();

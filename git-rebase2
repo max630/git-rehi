@@ -613,8 +613,13 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                     $flags_str .= " --ours"
                 }
                 my $parents_str = join " ", @{$step->{parents}};
-                print $out "merge$flags_str $parents_str\n";
-                write_todo_comment($out, $step->{comment});
+                if (exists $step->{ahash}) {
+                    $flags_str .= " -c $step->{ahash}";
+                    print $out "merge$flags_str $parents_str " . commits_get_subject($commits, $step->{ahash}) . "\n";
+                } else {
+                    print $out "merge$flags_str $parents_str\n";
+                    write_todo_comment($out, $step->{comment});
+                }
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -723,10 +728,17 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
 }
 
 sub with_output_file($$) { my ($filename, $proc) = @_;
-    open(my $out, ">", $filename + ".new") or confess "Cannot open file $filename.new: $!";
-    $proc->($out);
-    close($out) or confess "Cannot close output file $filename.new: $!";
-    rename($filename + ".new", $filename) or "Cannot replace output file $filename: $!";
+    if (ref $filename eq "") {
+        open(my $out, ">", $filename + ".new") or confess "Cannot open file $filename.new: $!";
+        $proc->($out);
+        close($out) or confess "Cannot close output file $filename.new: $!";
+        rename($filename + ".new", $filename) or "Cannot replace output file $filename: $!";
+    } else {
+        # for testing
+        open(my $out, ">", $filename) or confess "Cannot open file $filename: $!";
+        $proc->($out);
+        close($out) or confess "Cannot close output file $filename.new: $!";
+    }
 }
 
 sub write_file($$) { my ($filename, $str) = @_;
