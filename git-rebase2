@@ -621,11 +621,12 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 if ($step->{flags}->{ours}) {
                     $flags_str .= " --ours"
                 }
-                my $parents_str = join " ", @{$step->{parents}};
                 if (exists $step->{ahash}) {
+                    my $parents_str2 = join ",", @{$step->{parents}};
                     $flags_str .= " -c $step->{ahash}";
-                    print $out "merge$flags_str $parents_str " . commits_get_subject($commits, $step->{ahash}) . "\n";
+                    print $out "merge$flags_str $parents_str2 " . commits_get_subject($commits, $step->{ahash}) . "\n";
                 } else {
+                    my $parents_str = join " ", @{$step->{parents}};
                     print $out "merge$flags_str $parents_str\n";
                     write_todo_comment($out, $step->{comment});
                 }
@@ -683,7 +684,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 $mode = "COMMENT";
                 $comment = "";
             } elsif (/^merge( --ours| -c [0-9a-f]+)* (.+[^\n\r ])$/) {
-                $merge_parents = [split / +/, $2];
+                my $pos_string = $2;
                 # TODO: verify as refs
                 my $ahash = undef;
                 $merge_flags = {};
@@ -698,10 +699,13 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                     }
                 }
                 if (defined $ahash) {
+                    my @pos_args = split / +/, $pos_string, 2;
+                    $merge_parents = [split /,/, $pos_args[0]];
                     push @{$todo}, {type => "merge", ahash => $ahash, parents => $merge_parents, flags => $merge_flags};
                 } else {
-                    $mode = "MERGE_COMMENT";
+                    $merge_parents = [split / +/, $2];
                     $comment = "";
+                    $mode = "MERGE_COMMENT";
                 }
             } elsif (/^[[:space:]]*$/) {
             } else {

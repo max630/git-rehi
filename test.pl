@@ -91,7 +91,10 @@ Test merge
 .
 End
 is_deeply (read_todo(\<<End, []), [{ type => "merge", parents => ["HEAD", "12345"], flags => {}, ahash => "93845345"}]);
-merge -c 93845345 HEAD 12345
+merge -c 93845345 HEAD,12345 Test merge comment
+End
+is_deeply (read_todo(\<<End, []), [{ type => "merge", parents => ["HEAD", "12345"], flags => {}, ahash => "93845345"}]);
+merge -c 93845345 HEAD,12345
 End
 
 is (do { my $out; save_todo([{ type => "merge", parents => ["HEAD", "12345"], flags => {}, comment => "Test merge\n"}], \$out, {}); $out; }, <<End);
@@ -115,7 +118,7 @@ is (do { my $out;
                      by_hash => { "93845345aaa" => { subject => "Test comment" } } });
          $out; },
     <<End);
-merge -c 93845345 HEAD 12345 Test comment
+merge -c 93845345 HEAD,12345 Test comment
 End
 
 done_testing();

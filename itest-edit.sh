@@ -12,9 +12,9 @@ cat >"$file" <<EOF
 x false
 EOF
 ;;
-merge-c-nocomment)
+merge-c)
 cat >"$file" <<EOF
-merge -c 3a5191091 HEAD 608a449bb2
+merge -c 3a5191091 HEAD,608a449bb2 Test merge subject
 EOF
 ;;
 *)
