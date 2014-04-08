@@ -22,6 +22,7 @@ else
 fi
 
 reset_repo() {
+    git rebase2 --abort || true
     git checkout -f --no-track -B master origin/master1
     git clean -f -x -d
 }
