@@ -95,7 +95,7 @@ git branch -f tmp origin/b2
 
 (
     export GIT_SEQUENCE_EDITOR="$DIR/itest-edit.sh"
-    export GIT_SEQUENCE_EDITOR_CASE="merge-c"
+    export GIT_SEQUENCE_EDITOR_CASE="merge-c-nocomment"
     reset_repo
     git reset --hard origin/master1
     testee -i origin/b2
