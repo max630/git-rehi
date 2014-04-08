@@ -105,6 +105,13 @@ as merged and ignoring their contents).
 Message for the merge commit follows the command, terminated with ".", like for
 the `comment` command.
 
+`merge [--ours] -c <ahash> <parent1>,<parent2>,... [<subject>]`
+
+Alternative way of specifying merge. Unlike the other format, it must not be
+followed by commit message. So it looks like `pick` and others. The commit
+message is taken from `ahash` commit. This is the future way, which will deprecate
+the previous one.
+
 `edit <ahash> [<subject>]`
 
 Like `pick`, but stops after that, allowing user to make some manual changes.
