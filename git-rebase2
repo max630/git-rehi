@@ -651,7 +651,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     my $todo = [];
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
-    my $comment = "";
+    my $comment = undef;
     my $merge_flags = undef;
     my $merge_parents = undef;
     while (<$in>) {
@@ -668,14 +668,26 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
             } elsif (/^comment\b/) {
                 $mode = "COMMENT";
                 $comment = "";
-            } elsif (/^merge( --ours)? (.+[^\n\r ])$/) {
-                $mode = "MERGE_COMMENT";
-                $comment = "";
+            } elsif (/^merge( --ours| -c [0-9a-f]+)* (.+[^\n\r ])$/) {
                 $merge_parents = [split / +/, $2];
                 # TODO: verify as refs
+                my $ahash = undef;
                 $merge_flags = {};
-                if ($1) {
-                    $merge_flags->{ours} = 1;
+                my @options = split / +/,$1;
+                while (scalar @options > 0) {
+                    if (shift @options eq "--ours") {
+                        $merge_flags->{ours} = 1;
+                    } elsif (scalar @options > 1 && shift @options eq "-c") {
+                        $ahash = shift @options;
+                    } else {
+                        onSyntaxError->("Unexpected merge options: " . join @options);
+                    }
+                }
+                if (defined $ahash) {
+                    push @{$todo}, {type => "merge", ahash => $ahash, parents => $merge_parents, flags => $merge_flags};
+                } else {
+                    $mode = "MERGE_COMMENT";
+                    $comment = "";
                 }
             } elsif (/^[[:space:]]*$/) {
             } else {
