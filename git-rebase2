@@ -447,11 +447,8 @@ sub make_merge_steps($$\%) { my ($step_hash, $prev_hash, $commits) = @_;
         $merge_flags{ours} = 1;
     }
     $parents_ahashes[$head_idx] = "HEAD";
-    my $comment = "";
-    iterate_popen {
-        $comment .= $_;
-    } "git log --max-count=1 --pretty=format:%B $step_hash";
-    return { type => "merge", comment => $comment, parents => \@parents_ahashes, flags => \%merge_flags };
+    my $ahash = $commits->{by_hash}->{$step_hash}->{ahash};
+    return { type => "merge", ahash => $ahash, parents => \@parents_ahashes, flags => \%merge_flags };
 }
 
 sub git_resolve_hashes($) { my ($refs) = @_;
