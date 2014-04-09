@@ -120,8 +120,7 @@ sub git_get_checkedout_branch()
 # } or {
 #   type => "merge",
 #   # at least one of ahash or comment should be
-#   (optional) ahash => String,
-#   (optional) comment => String,
+#   ahash => String,
 #   parents => [String],
 #   flags => {
 #       (optional) ours => Int
@@ -345,12 +344,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         # to merge as non-first child:
         # 1. get the current position
         # 2. reset to the first child
-        my $command = "git merge";
-        if (exists $rebase_step->{ahash}) {
-            $command .= " --no-commit";
-        } else {
-            $command .= " --no-edit";
-        }
+        my $command = "git merge --no-commit";
         if ($rebase_step->{flags}->{ours}) {
             $command .= " --strategy=ours";
         }
@@ -369,21 +363,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         }
         run_command($command);
         my ($head_hash) = git_resolve_hashes(["HEAD"]);
-        if (exists $rebase_step->{ahash}) {
-            run_command("git commit -C $rebase_step->{ahash} --reset-author");
-        } else {
-            if (exists $parent_hashes{$head_hash}) {
-                # TODO: after newer merge is implemented, more data is available. Use it
-                print "Merge of " . (join ",", @{$rebase_step->{parents}}) . " became noop or fastforward: $head_hash.\n";
-                print "You would probably want to do now one of the following:\n";
-                print " * force non-fastforward merge\n";
-                print " * merge some other parent instead of the one from history\n";
-                print " * skip the step at all (is it a non-interactive rebase?)\n";
-                print "Then invoke git rebase2 --skip\n";
-                die "Stopped";
-            }
-            comment($rebase_step->{comment});
-        }
+        run_command("git commit -C $rebase_step->{ahash} --reset-author");
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
@@ -618,15 +598,9 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 if ($step->{flags}->{ours}) {
                     $flags_str .= " --ours"
                 }
-                if (exists $step->{ahash}) {
-                    my $parents_str2 = join ",", @{$step->{parents}};
-                    $flags_str .= " -c $step->{ahash}";
-                    print $out "merge$flags_str $parents_str2 " . commits_get_subject($commits, $step->{ahash}) . "\n";
-                } else {
-                    my $parents_str = join " ", @{$step->{parents}};
-                    print $out "merge$flags_str $parents_str\n";
-                    write_todo_comment($out, $step->{comment});
-                }
+                my $parents_str2 = join ",", @{$step->{parents}};
+                $flags_str .= " -c $step->{ahash}";
+                print $out "merge$flags_str $parents_str2 " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -664,8 +638,6 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
     my $comment = undef;
-    my $merge_flags = undef;
-    my $merge_parents = undef;
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
@@ -684,26 +656,23 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 my $pos_string = $2;
                 # TODO: verify as refs
                 my $ahash = undef;
-                $merge_flags = {};
+                my $flags = {};
                 my @options = split / +/,$1;
                 while (scalar @options > 0) {
                     if (shift @options eq "--ours") {
-                        $merge_flags->{ours} = 1;
+                        $flags->{ours} = 1;
                     } elsif (scalar @options > 1 && shift @options eq "-c") {
                         $ahash = shift @options;
                     } else {
                         onSyntaxError->("Unexpected merge options: " . join @options);
                     }
                 }
-                if (defined $ahash) {
-                    my @pos_args = split / +/, $pos_string, 2;
-                    $merge_parents = [split /,/, $pos_args[0]];
-                    push @{$todo}, {type => "merge", ahash => $ahash, parents => $merge_parents, flags => $merge_flags};
-                } else {
-                    $merge_parents = [split / +/, $2];
-                    $comment = "";
-                    $mode = "MERGE_COMMENT";
+                if (!defined $ahash) {
+                    $onSyntaxError->("Missing -c option for merge");
                 }
+                my @pos_args = split / +/, $pos_string, 2;
+                my $parents = [split /,/, $pos_args[0]];
+                push @{$todo}, {type => "merge", ahash => $ahash, parents => $parents, flags => $flags};
             } elsif (/^[[:space:]]*$/) {
             } else {
                 s/\n//;
@@ -714,14 +683,6 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
             } elsif (/^\.$/) {
                 $mode = "COMMAND";
                 push @{$todo}, {type => "comment", comment => $comment};
-            } else {
-                $comment = $comment . $_;
-            }
-        } elsif ($mode eq "MERGE_COMMENT") {
-            if (/^#.*$/) {
-            } elsif (/^\.$/) {
-                $mode = "COMMAND";
-                push @{$todo}, {type => "merge", comment => $comment, parents => $merge_parents, flags => $merge_flags};
             } else {
                 $comment = $comment . $_;
             }

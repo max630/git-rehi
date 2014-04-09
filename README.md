@@ -104,11 +104,6 @@ as merged and ignoring their contents).
 
 Message for commit is taken from the `ahash` commit. `subject` is ignored.
 
-`merge [--ours] <parent1> <parent2> ...`
-
-Older way of specifying merge. Message for the merge commit follows the
-command, terminated with ".", like for the `comment` command.
-
 `edit <ahash> [<subject>]`
 
 Like `pick`, but stops after that, allowing user to make some manual changes.
