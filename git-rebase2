@@ -270,7 +270,7 @@ sub run_continue($$) { my ($current, $commits) = @_;
                 . " && git update-index --ignore-submodules --refresh"
                 . " && git diff-files --quiet --ignore-submodules");
     # TODO: restore proper rebase-like behavior
-    if ($current->{type} eq "pick") {
+    if ($current->{type} eq "pick" || $current->{type} eq "merge") {
         if (git_no_uncommitted_changes()) {
             # commited already
         } else {

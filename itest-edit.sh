@@ -17,6 +17,11 @@ cat >"$file" <<EOF
 merge -c 3a5191091 HEAD,608a449bb2 Test merge subject
 EOF
 ;;
+merge-resolved)
+cat >"$file" <<EOF
+Merge origin/b2 with resolving conflict (test)
+EOF
+;;
 *)
 cat >"$file" <<EOF
 pick 76dee8a19ec

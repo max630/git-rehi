@@ -114,4 +114,19 @@ git branch -f tmp origin/b2
     ! testee -i origin/b1 || fail "Fastforward should fail!"
 )
 
+(
+    reset_repo
+    git reset --hard origin/b2b3
+    ! testee origin/base ..origin/b3.. || fail "Should conflict"
+    ! testee --continue || fail "Should not allow continue without resolving"
+    git checkout origin/b2b3 -- file1
+    git add file1
+    export GIT_EDITOR="$DIR/itest-edit.sh"
+    export GIT_SEQUENCE_EDITOR_CASE="merge-resolved"
+    testee --continue
+    git diff --quiet origin/b2b3 || fail "git diff --quiet origin/b2b3"
+    body=`git log --pretty=format:%B -1`
+    test "$body" = "Merge origin/b2 with resolving conflict (test)" || fail "incorrect commit message"
+)
+
 echo ALL PASSED
