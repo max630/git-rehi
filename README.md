@@ -94,7 +94,7 @@ Can be abbreviated to `f`.
 Change the message of the latest commit. Following lines are the message contents.
 A line containing single "." marks the end of message.
 
-`merge [--ours] <parent1> <parent2> ...`
+`merge [--ours] -c <ahash> <parent1>,<parent2>,... [<subject>]`
 
 Merge latest commit with others. Order of parents will be exactly the same as
 specified in the command. Exactly one of the `parentN` should be literal
@@ -102,15 +102,12 @@ specified in the command. Exactly one of the `parentN` should be literal
 with strategy `ours` (that is, is will copy the `parent1`, just marking others
 as merged and ignoring their contents).
 
-Message for the merge commit follows the command, terminated with ".", like for
-the `comment` command.
+Message for commit is taken from the `ahash` commit. `subject` is ignored.
 
-`merge [--ours] -c <ahash> <parent1>,<parent2>,... [<subject>]`
+`merge [--ours] <parent1> <parent2> ...`
 
-Alternative way of specifying merge. Unlike the other format, it must not be
-followed by commit message. So it looks like `pick` and others. The commit
-message is taken from `ahash` commit. This is the future way, which will deprecate
-the previous one.
+Older way of specifying merge. Message for the merge commit follows the
+command, terminated with ".", like for the `comment` command.
 
 `edit <ahash> [<subject>]`
 
