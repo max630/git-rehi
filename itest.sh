@@ -129,4 +129,11 @@ git branch -f tmp origin/b2
     test "$body" = "Merge origin/b2 with resolving conflict (test)" || fail "incorrect commit message"
 )
 
+(
+    reset_repo
+    git reset --hard origin/b2b3
+    ! testee origin/base ..origin/b3..
+    test -f ".git/rebase2/todo.backup"
+)
+
 echo ALL PASSED

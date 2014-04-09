@@ -216,6 +216,7 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
     }
     if (scalar @{$todo} > 0) {
         run_command("git checkout --quiet --detach $dest_hash");
+        save_todo($todo, "$GIT_DIR/rebase2/todo.backup", $commits);
         run_rebase($todo, $commits, $target_ref);
     } else {
         cleanup_save();
