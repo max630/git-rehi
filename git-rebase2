@@ -672,20 +672,20 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
-            } elsif (/^(f|fixup) (\@?[0-9a-f]+)( (.*))?$/) {
+            } elsif (/^(f|fixup) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => expand_ahash($2)};
-            } elsif (/^(p|pick) (\@?[0-9a-f]+)( (.*))?$/) {
+            } elsif (/^(p|pick) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
                 push @{$todo}, {type => "pick", ahash => expand_ahash($2)};
-            } elsif (/^(e|edit) (\@?[0-9a-f]+)( (.*))?$/) {
+            } elsif (/^(e|edit) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
                 push @{$todo}, {type => "edit", ahash => expand_ahash($2)};
-            } elsif (/^(reset) (\@?[0-9a-f]+)?$/) {
+            } elsif (/^(reset) (\@?[0-9a-zA-Z_\/]+)?$/) {
                 push @{$todo}, {type => "reset", ahash => expand_ahash($2)};
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
             } elsif (/^comment\b/) {
                 $mode = "COMMENT";
                 $comment = "";
-            } elsif (/^merge( --ours| -c \@?[0-9a-f]+)* (.+[^\n\r ])$/) {
+            } elsif (/^merge( --ours| -c \@?[0-9a-zA-Z_\/]+)* (.+[^\n\r ])$/) {
                 my $pos_string = $2;
                 # TODO: verify as refs
                 my $ahash = undef;
