@@ -299,10 +299,6 @@ sub run_continue($$) { my ($current, $commits) = @_;
         confess "Cannot continue 'exec $current->{command}'; resolve it manually, then skip or abort";
     } elsif ($current->{type} eq "comment") {
         comment($current->{comment});
-    } elsif ($current->{type} eq "mark") {
-        run_command("git update-ref refs/rebase2/$current->{name}");
-    } elsif ($current->{type} eq "reset") {
-        run_command("git reset --hard $current->{ahash}");
     } else {
         confess "Type $current->{type} is unknown or not implemented";
     }
@@ -345,11 +341,15 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         print "Fixup: " . commits_get_subject($commits, $rebase_step->{ahash}). "\n";
         run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
                     . "&& git commit --amend --no-edit");
+    } elsif ($rebase_step->{type} eq "reset") {
+        run_command("git reset --hard $rebase_step->{ahash}");
     } elsif ($rebase_step->{type} eq "exec") {
         run_command($rebase_step->{command})
     } elsif ($rebase_step->{type} eq "comment") {
         print "Updating comment\n";
         comment($rebase_step->{comment});
+    } elsif ($rebase_step->{type} eq "mark") {
+        run_command("git update-ref refs/rebase2/$rebase_step->{name} HEAD");
     } elsif ($rebase_step->{type} eq "merge") {
         print "Merging\n";
         # to merge as non-first child:
