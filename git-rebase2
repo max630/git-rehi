@@ -128,6 +128,9 @@ sub git_get_checkedout_branch()
 # } or {
 #   type => "mark"
 #   name => String
+# } or {
+#   type => "reset"
+#   ahash => String
 # }
 #
 # }}}
@@ -298,6 +301,8 @@ sub run_continue($$) { my ($current, $commits) = @_;
         comment($current->{comment});
     } elsif ($current->{type} eq "mark") {
         run_command("git update-ref refs/rebase2/$current->{name}");
+    } elsif ($current->{type} eq "reset") {
+        run_command("git reset --hard $current->{ahash}");
     } else {
         confess "Type $current->{type} is unknown or not implemented";
     }
@@ -599,6 +604,8 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 print $out "edit " . encode_ahash($step->{ahash}) . " " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "fixup") {
                 print $out "fixup " . encode_ahash($step->{ahash}) . " " . commits_get_subject($commits, $step->{ahash}) . "\n";
+            } elsif ($step->{type} eq "reset") {
+                print $out "reset " . encode_ahash($step->{ahash}) . "\n";
             } elsif ($step->{type} eq "exec") {
                 if ($step->{command} =~ /\n/) {
                     confess "multiline command cannot be saved";
@@ -671,6 +678,8 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 push @{$todo}, {type => "pick", ahash => expand_ahash($2)};
             } elsif (/^(e|edit) (\@?[0-9a-f]+)( (.*))?$/) {
                 push @{$todo}, {type => "edit", ahash => expand_ahash($2)};
+            } elsif (/^(reset) (\@?[0-9a-f]+)?$/) {
+                push @{$todo}, {type => "reset", ahash => expand_ahash($2)};
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
             } elsif (/^comment\b/) {

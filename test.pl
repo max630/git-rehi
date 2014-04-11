@@ -96,12 +96,14 @@ sub { is_deeply (read_todo($_[0], []),
                     {type => "pick",  ahash => "refs/rebase2/12345"},
                     {type => "fixup",  ahash => "refs/rebase2/12345"},
                     {type => "edit",  ahash => "refs/rebase2/12345"},
+                    {type => "reset",  ahash => "refs/rebase2/12345"},
                     {type => "merge",  ahash => "refs/rebase2/12345", flags => {}, parents => ["HEAD", "45876", "refs/rebase2/ffeee12"]}]);
     }->(\<<End);
 : 12345
 pick \@12345 Test comment
 fixup \@12345 Test comment
 edit \@12345 Test comment
+reset \@12345
 merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
 End
 
@@ -128,6 +130,7 @@ is (do { my $out;
                     {type => "pick",  ahash => "refs/rebase2/12345"},
                     {type => "fixup",  ahash => "refs/rebase2/12345"},
                     {type => "edit",  ahash => "refs/rebase2/12345"},
+                    {type => "reset",  ahash => "refs/rebase2/12345"},
                     {type => "merge",  ahash => "refs/rebase2/12345", flags => {}, parents => ["HEAD", "45876", "refs/rebase2/ffeee12"]}],
                    \$out,
                    { refs => { "refs/rebase2/12345" => "12345ddd" },
@@ -138,6 +141,7 @@ is (do { my $out;
 pick \@12345 Test comment
 fixup \@12345 Test comment
 edit \@12345 Test comment
+reset \@12345
 merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
 End
 
