@@ -142,6 +142,11 @@ git branch -f tmp origin/b2
     export GIT_EDITOR="$DIR/itest-edit.sh"
     export GIT_SEQUENCE_EDITOR_CASE="merge-inner"
     testee -i origin/base~1 ..origin/base
+    git diff --quiet origin/master1 || fail "git diff --quiet origin/master1"
+    has_master1=`git branch -r --merged=HEAD origin/master1`
+    has_b1=`git branch -r --merged=HEAD origin/b1`
+    has_b2=`git branch -r --merged=HEAD origin/b2`
+    test "$has_master1$has_b1$has_b2" = "" || fail "source branches should not be merged"
 )
 
 echo ALL PASSED

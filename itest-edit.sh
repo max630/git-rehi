@@ -30,6 +30,7 @@ pick origin/base
 pick origin/b1
 : tmp2
 reset @tmp1
+pick origin/b2
 merge -c origin/master1 HEAD,@tmp2
 EOF
 ;;
