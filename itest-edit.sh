@@ -22,6 +22,17 @@ cat >"$file" <<EOF
 Merge origin/b2 with resolving conflict (test)
 EOF
 ;;
+merge-inner)
+cat >"$file" <<EOF
+x git commit --allow-empty -m UPDATE
+pick origin/base
+: tmp1
+pick origin/b1
+: tmp2
+reset @tmp1
+merge -c origin/master1 HEAD,@tmp2
+EOF
+;;
 *)
 cat >"$file" <<EOF
 pick 76dee8a19ec

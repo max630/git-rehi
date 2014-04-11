@@ -136,4 +136,12 @@ git branch -f tmp origin/b2
     test -f ".git/rebase2/todo.backup"
 )
 
+(
+    reset_repo
+    git reset --hard origin/master1
+    export GIT_EDITOR="$DIR/itest-edit.sh"
+    export GIT_SEQUENCE_EDITOR_CASE="merge-inner"
+    testee -i origin/base~1 ..origin/base
+)
+
 echo ALL PASSED
