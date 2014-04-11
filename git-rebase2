@@ -640,7 +640,7 @@ sub default_error($) { my ($msg) = @_;
 }
 
 sub expand_ahash($) { my ($ahash) = @_;
-    if ($ahash =~ /^\@[a-z0-9_]+$/i) {
+    if ($ahash =~ /^\@([a-z0-9_]+)$/i) {
         return "refs/rebase2/$1";
     } else {
         return $ahash;
