@@ -776,6 +776,7 @@ sub get_single(\@) { my ($array) = @_;
 
 
 # $commits : { $hash => { parents => [ $hash ] } }
+# returns: [ $hash ]
 sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # TODO:
     # + through
@@ -787,55 +788,84 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # initialize data
     my %through_hash = ();
     @through_hash{@{$through_list}} = ();
-    my %commitsX = ();
+
+    # deep-first search algorithm
+    # 1. go to next yet unused parent, marking it as used
+    # 2. if reached $from, return with success
+    #    if has more than one child - fail (inner merge), goto 4 (TODO: change this)
+    #    if no parent known - fail (parent of outer merge, don't go here), goto 4
+    #    if reached $from, but through is not known - fail (wrong path), goto 4
+    #    otherwise,
+    # 3. continue with 1 from the current position.
+    # 4. return to some(*) position when there were remaining parents and continue with 1
+    # (*) it probbaly should depend on the failure type. for example,
+    #     for no parent it definitely should be the latest one, but for other might be something else
+
+    # coroutine-based approach
+    # fun X($v)
+    #  do in loop:
+    #   if $v == $from - stop and return the sequence (**)
+    #   if 0 parents - stop
+    #   if >1 children - pause and wait until all children are processed.
+    #    add their output to the end of the sequence and continue
+    #   if >1 children and you are not 1st - mark the children you came by as processed and store your sequence (*), then stop
+    #   otherwise add the current to sequence
+    #   if >1 parents - fork itself for each parent, continuing the sequence
+    #   go to the parent
+    # (*) store only the portion which is not yet in the sequence. Looks like it should be enough just to filter it
+    # (**) here several returns should be sorted out
+
+    # thread info (unfinished):
+    # { state => "READY" | "WAIT_CHILDREN" | "DONE",
+    #   current => String,
+    #   todo => [ String ] }
+    # should be copied while forking
+    # children_waiters = { $ahash => { todo_index => { String => () }, children_left => num, thread => ref to thread } }
+    # children_num => { $ahash => num }
+
+    # NOTE: splice function
+
+    my %children_num = ();
     foreach my $h (keys %{$commits}) {
-        $commitsX{$h} = { children_count => 0, children => [] };
+        $children_num{$h} = 0;
     }
-    $commitsX{$from} = { children_count => 0, children => [] };
-    $commitsX{$to} = { children_count => 0, children => [], cost => [0, {}] };
-    # fill children_count for each commit
+    $children_num{$from} = 0;
+    $children_num{$to} = 0;
+    # fill children_total for each commit
     foreach my $h (keys %{$commits}) {
         foreach my $p (@{$commits->{$h}->{parents}}) {
             if (exists $commitsX{$p}) {
-                $commitsX{$p}->{children_count}++;
+                $children_num{$p}++;
             }
         }
     }
-    # main step - mark each commit with cost and best child
-    my %edge = ($to => 1);
-    while (scalar %edge) {
-        my %next_edge = ();
-        foreach my $v (keys %edge) {
-            my $vertex_cost = $commitsX{$v}->{cost};
-            foreach my $p (@{$commits->{$v}->{parents}}) {
-                push(@{$commitsX{$p}->{children}}, $v);
-                if (scalar @{$commitsX{$p}->{children}} == $commitsX{$p}->{children_count}) {
-                    # all children are filled, find the best one
-                    my ($min_cost, $min_child) = find_minimal_cost(map { [$commitsX{$_}->{cost}, $_] } @{$commitsX{$p}->{children}});
-                    $commitsX{$p}->{cost} = [$min_cost->[0] + 1, $min_cost->[1]];
-                    if (exists $through_hash{$p}) {
-                        my %new_set = %{$commitsX{$p}->{cost}->[1]};
-                        $new_set{$p} = ();
-                        $commitsX{$p}->{cost}->[1] = \%new_set;
-                    }
-                    $commitsX{$p}->{sequence_child} = $min_child;
-                    $next_edge{$p} = 1;
-                }
-            }
+    my @schedule = ({ state => "READY", current => $to, todo => []});
+
+    while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
+        my $i = 0;
+        while ($schedule[$i]->{state} ne "READY") {
+            confess("No thread is READY") if ($i >= scalar $schedule);
+            ++$i;
         }
-        %edge = %next_edge;
-    }
-    # collect the path by child marks
-    my @res = ();
-    my $next = $from;
-    while ($next ne $to) {
-        $next = $commitsX{$next}->{sequence_child};
-        if ($commitsX{$next}->{children_count} > 1) {
-            confess("inner merges not supported yet (found in commit $next)");
+
+        my $ahash = $schedule[$i]->{current};
+        if ($ahash eq $from) {
+            $schedule[$i]->{state} = "DONE";
+            # TODO: check thoughts and review schedule - maybe it's time to return
+        } elsif ($children_num{$ahash} > 1) {
+            # TODO: initiate waiting or resolve waiting other thread
+        } else {
+            push @{$schedule[$i]->{todo}}, $ahash;
+            my @new_tasks = map {
+                { state => [ "READY" ], current => $_, todo => [ @{$schedule[$i]->{todo}} ] };
+            } $commits->{$ahash}->{parents};
+            splice @schedule, $i, 1, @new_tasks;
         }
-        push @res, $next;
     }
-    return \@res;
+
+    if (scalar @schedule > 0) {
+        return @schedule[0]->{todo};
+    }
 }
 
 sub find_minimal_cost(@) {
