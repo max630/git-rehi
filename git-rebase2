@@ -883,8 +883,8 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         } else {
             push @{$schedule[$i]->{todo}}, $ahash;
             my @new_tasks = map {
-                { state => [ "READY" ], current => $_, todo => [ @{$schedule[$i]->{todo}} ] };
-            } $commits->{$ahash}->{parents};
+                { state => "READY", current => $_, todo => [ @{$schedule[$i]->{todo}} ] };
+            } @{$commits->{$ahash}->{parents}};
             splice @schedule, $i, 1, @new_tasks;
         }
     }
