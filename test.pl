@@ -9,10 +9,17 @@ use Test::More;
 
 do 'git-rebase2';
 
+is_deeply (find_sequence({ 1 => {parents => [2]},
+                           2 => {parents => [3]},
+                           3 => {parents => [4]},},
+                           4, 1, []),
+                        [3, 2, 1]);
+
 is_deeply (find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [3,5]}  },
                            2, 1, []),
                         [1]);
+
 # 1 --- 2 --- 6
 #  \        /
 #   3 ---- 4
