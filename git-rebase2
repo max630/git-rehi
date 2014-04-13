@@ -785,10 +785,6 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     #  * interface
     #  * extraction
 
-    # initialize data
-    my %through_hash = ();
-    @through_hash{@{$through_list}} = ();
-
     # deep-first search algorithm
     # 1. go to next yet unused parent, marking it as used
     # 2. if reached $from, return with success
@@ -857,6 +853,10 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         if ($hash eq $from) {
             $schedule[$i]->{state} = "DONE";
             # TODO: check throughs and review schedule - maybe it's time to return
+            my %todo_index = ( @{$schedule[$i]->{todo}} => () );
+            if ((grep { !exists $todo_index{$_}; } @{$through_list}) > 0) {
+                splice @schedule, $i, 1, ();
+            }
         } elsif ($children_num{$hash} > 1 || (exists $children_waiters{$hash} && $children_waiters{$hash}->{left} == 0)) {
             if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
@@ -887,6 +887,8 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
 
     if (scalar @schedule > 0) {
         return [ reverse @{$schedule[0]->{todo}} ];
+    } else {
+        confess("No path found");
     }
 }
 
