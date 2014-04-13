@@ -857,9 +857,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         if ($ahash eq $from) {
             $schedule[$i]->{state} = "DONE";
             # TODO: check throughs and review schedule - maybe it's time to return
-            my @res = @{$schedule[$i]->{todo}};
-            reverse @res;
-            return \@res;
+            return [ reverse @{$schedule[$i]->{todo}} ];
         } elsif ($children_num{$ahash} > 1) {
             if (exists $children_waiters{$ahash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
