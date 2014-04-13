@@ -847,8 +847,6 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # FIXME: very slow, just to make it work
     # non-branching regions should be recorded without recreating
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
-        print Dumper(\@schedule);
-        sleep 1;
         my $i = 0;
         while ($schedule[$i]->{state} ne "READY") {
             confess("No thread is READY") if ($i >= scalar @schedule);
