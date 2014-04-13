@@ -820,7 +820,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     #   current => String,
     #   todo => [ String ] }
     # should be copied while forking
-    # children_waiters = { $ahash => { todo_index => { String => () }, children_left => num, thread => ref to thread } }
+    # children_waiters = { $ahash => { todo_index => { String => () }, left => num, thread => ref to thread } }
     # children_num => { $ahash => num }
 
     # NOTE: splice function
@@ -839,6 +839,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             }
         }
     }
+    my %children_waiters = ();
     my @schedule = ({ state => "READY", current => $to, todo => []});
 
     # FIXME: very slow, just to make it work
@@ -855,7 +856,25 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             $schedule[$i]->{state} = "DONE";
             # TODO: check throughs and review schedule - maybe it's time to return
         } elsif ($children_num{$ahash} > 1) {
-            # TODO: initiate waiting or resolve waiting other thread
+            if (exists $children_waiters{$ahash}) {
+                foreach my $step (@{$schedule[$i]->{todo}}) {
+                    if (!exists $children_waiters{$ahash}->{todo_index}->{$step}) {
+                        push @{$children_waiters{$ahash}->{thread}->{todo}}, $step;
+                        $children_waiters{$ahash}->{todo_index}->{$step} = undef;
+                    }
+                }
+                $children_waiters{$ahash}->{left}--;
+                if ($children_waiters{$ahash}->{left} == 0) {
+                    $children_waiters{$ahash}->{thread}->{state} = "READY";
+                    delete $children_waiters{$ahash};
+                }
+                splice @schedule, $i, 1, ();
+            } else {
+                $children_waiters{$ahash} = { todo_index => { @{$schedule[$i]->{todo}} => () },
+                                              left => $children_num{$ahash} - 1,
+                                              thread => $schedule[$i] };
+                $schedule[$i]->{state} = "WAIT_CHILDREN";
+            }
         } else {
             push @{$schedule[$i]->{todo}}, $ahash;
             my @new_tasks = map {
