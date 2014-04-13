@@ -841,6 +841,8 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     }
     my @schedule = ({ state => "READY", current => $to, todo => []});
 
+    # FIXME: very slow, just to make it work
+    # non-branching regions should be recorded without recreating
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
         while ($schedule[$i]->{state} ne "READY") {
@@ -851,7 +853,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         my $ahash = $schedule[$i]->{current};
         if ($ahash eq $from) {
             $schedule[$i]->{state} = "DONE";
-            # TODO: check thoughts and review schedule - maybe it's time to return
+            # TODO: check throughs and review schedule - maybe it's time to return
         } elsif ($children_num{$ahash} > 1) {
             # TODO: initiate waiting or resolve waiting other thread
         } else {
