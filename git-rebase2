@@ -834,8 +834,10 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # fill children_total for each commit
     foreach my $h (keys %{$commits}) {
         foreach my $p (@{$commits->{$h}->{parents}}) {
-            if (exists $commitsX{$p}) {
+            if (exists $children_num{$p}) {
                 $children_num{$p}++;
+            } else {
+                $children_num{$p} = 1;
             }
         }
     }
@@ -847,7 +849,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
         while ($schedule[$i]->{state} ne "READY") {
-            confess("No thread is READY") if ($i >= scalar $schedule);
+            confess("No thread is READY") if ($i >= scalar @schedule);
             ++$i;
         }
 
