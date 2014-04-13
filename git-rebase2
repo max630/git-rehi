@@ -842,6 +842,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
 
     # FIXME: very slow, just to make it work
     # non-branching regions should be recorded without recreating
+    # TODO: case of throughs in several branches is not covered
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
         while ($schedule[$i]->{state} ne "READY") {
@@ -852,12 +853,12 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         my $hash = $schedule[$i]->{current};
         if ($hash eq $from) {
             $schedule[$i]->{state} = "DONE";
-            # TODO: check throughs and review schedule - maybe it's time to return
-            my %todo_index = ( @{$schedule[$i]->{todo}} => () );
+            my %todo_index = ();
+            @todo_index{@{$schedule[$i]->{todo}}} = ();
             if ((grep { !exists $todo_index{$_}; } @{$through_list}) > 0) {
                 splice @schedule, $i, 1, ();
             }
-        } elsif ($children_num{$hash} > 1 || (exists $children_waiters{$hash} && $children_waiters{$hash}->{left} == 0)) {
+        } elsif ($children_num{$hash} > 1 && !exists $children_waiters{$hash} && $children_waiters{$hash}->{left} != 0) {
             if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
                     if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {
@@ -871,7 +872,9 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
                 }
                 splice @schedule, $i, 1, ();
             } else {
-                $children_waiters{$hash} = { todo_index => { @{$schedule[$i]->{todo}} => () },
+                my %todo_index = ();
+                @todo_index{@{$schedule[$i]->{todo}}} = ();
+                $children_waiters{$hash} = { todo_index => \%todo_index,
                                               left => $children_num{$hash} - 1,
                                               thread => $schedule[$i] };
                 $schedule[$i]->{state} = "WAIT_CHILDREN";
