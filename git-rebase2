@@ -857,7 +857,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         if ($ahash eq $from) {
             $schedule[$i]->{state} = "DONE";
             # TODO: check throughs and review schedule - maybe it's time to return
-        } elsif ($children_num{$ahash} > 1) {
+        } elsif ($children_num{$ahash} > 1 || (exists $children_waiters{$ahash} && $children_waiters{$ahash}->{left} == 0)) {
             if (exists $children_waiters{$ahash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
                     if (!exists $children_waiters{$ahash}->{todo_index}->{$step}) {
@@ -868,7 +868,6 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
                 $children_waiters{$ahash}->{left}--;
                 if ($children_waiters{$ahash}->{left} == 0) {
                     $children_waiters{$ahash}->{thread}->{state} = "READY";
-                    delete $children_waiters{$ahash};
                 }
                 splice @schedule, $i, 1, ();
             } else {
