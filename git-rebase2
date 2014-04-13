@@ -820,8 +820,8 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     #   current => String,
     #   todo => [ String ] }
     # should be copied while forking
-    # children_waiters = { $ahash => { todo_index => { String => () }, left => num, thread => ref to thread } }
-    # children_num => { $ahash => num }
+    # children_waiters = { $hash => { todo_index => { String => () }, left => num, thread => ref to thread } }
+    # children_num => { $hash => num }
 
     # NOTE: splice function
 
@@ -853,34 +853,34 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             ++$i;
         }
 
-        my $ahash = $schedule[$i]->{current};
-        if ($ahash eq $from) {
+        my $hash = $schedule[$i]->{current};
+        if ($hash eq $from) {
             $schedule[$i]->{state} = "DONE";
             # TODO: check throughs and review schedule - maybe it's time to return
-        } elsif ($children_num{$ahash} > 1 || (exists $children_waiters{$ahash} && $children_waiters{$ahash}->{left} == 0)) {
-            if (exists $children_waiters{$ahash}) {
+        } elsif ($children_num{$hash} > 1 || (exists $children_waiters{$hash} && $children_waiters{$hash}->{left} == 0)) {
+            if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
-                    if (!exists $children_waiters{$ahash}->{todo_index}->{$step}) {
-                        push @{$children_waiters{$ahash}->{thread}->{todo}}, $step;
-                        $children_waiters{$ahash}->{todo_index}->{$step} = undef;
+                    if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {
+                        push @{$children_waiters{$hash}->{thread}->{todo}}, $step;
+                        $children_waiters{$hash}->{todo_index}->{$step} = undef;
                     }
                 }
-                $children_waiters{$ahash}->{left}--;
-                if ($children_waiters{$ahash}->{left} == 0) {
-                    $children_waiters{$ahash}->{thread}->{state} = "READY";
+                $children_waiters{$hash}->{left}--;
+                if ($children_waiters{$hash}->{left} == 0) {
+                    $children_waiters{$hash}->{thread}->{state} = "READY";
                 }
                 splice @schedule, $i, 1, ();
             } else {
-                $children_waiters{$ahash} = { todo_index => { @{$schedule[$i]->{todo}} => () },
-                                              left => $children_num{$ahash} - 1,
+                $children_waiters{$hash} = { todo_index => { @{$schedule[$i]->{todo}} => () },
+                                              left => $children_num{$hash} - 1,
                                               thread => $schedule[$i] };
                 $schedule[$i]->{state} = "WAIT_CHILDREN";
             }
         } else {
-            push @{$schedule[$i]->{todo}}, $ahash;
+            push @{$schedule[$i]->{todo}}, $hash;
             my @new_tasks = map {
                 { state => "READY", current => $_, todo => [ @{$schedule[$i]->{todo}} ] };
-            } @{$commits->{$ahash}->{parents}};
+            } @{$commits->{$hash}->{parents}};
             splice @schedule, $i, 1, @new_tasks;
         }
     }
