@@ -152,8 +152,9 @@ git branch -f tmp origin/b2
 (
     # inner merge, funally
     reset_repo
-    git reset --hard origin/master1
-    testee :/change4
+    git reset --hard origin/b4
+    git commit --allow-empty -m 'LOCAL'
+    testee ..origin/master1
     git diff --quiet origin/master1 || fail "git diff --quiet origin/master1"
     has_master1=`git branch -r --merged=HEAD origin/master1`
     has_b1=`git branch -r --merged=HEAD origin/b1`
