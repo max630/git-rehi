@@ -431,6 +431,7 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
             foreach my $new_prev (grep { exists $marks{$_}; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
                 confess ("Unresolved mark for $new_prev") if (!defined $marks{$new_prev});
                 push @result, { type => 'reset', ahash => $marks{$new_prev} };
+                $prev_hash = $new_prev;
                 last;
             }
         }
@@ -449,9 +450,11 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
 
 # TODO: tests, tests, tests
 sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
-    my $head_idx = find_only($prev_hash, @{$commits->{by_hash}->{$step_hash}->{parents}});
+    find_only($prev_hash, @{$commits->{by_hash}->{$step_hash}->{parents}});
     my @parents_ahashes = map {
-        if (exists $marks->{$_}) {
+        if ($_ eq $prev_hash) {
+            "HEAD";
+        } elsif (exists $marks->{$_}) {
             confess ("Unresolved mark for $_") if (!defined $marks->{$_});
             "\@$marks->{$_}";
         } elsif (exists $commits->{by_hash}->{$_}) {
@@ -461,10 +464,9 @@ sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
         }
     } @{$commits->{by_hash}->{$step_hash}->{parents}};
     my %merge_flags;
-    if (system("git diff --quiet $step_hash $parents_ahashes[0]") == 0) {
+    if (system("git diff --quiet $step_hash $$commits->{by_hash}->{$step_hash}->{parents}[0]") == 0) {
         $merge_flags{ours} = 1;
     }
-    $parents_ahashes[$head_idx] = "HEAD";
     my $ahash = $commits->{by_hash}->{$step_hash}->{ahash};
     return { type => "merge", ahash => $ahash, parents => \@parents_ahashes, flags => \%merge_flags };
 }
