@@ -176,7 +176,7 @@ merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
 End
 } save_todo;
 
-foreach my $name (keys %Tests) {
+foreach my $name (do { if (scalar @ARGV) { @ARGV } else { keys %Tests; }; }) {
     subtest $name => $Tests{$name};
 }
 
