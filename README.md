@@ -41,7 +41,7 @@ for you if you use `git rebase2`.
 
 `git rebase2 [options] <dest> [[<source_from>]..[<through1>..<through2>]..[<source_to>]] [<target>]`
 
-Calculates the shortest path from `<source_from>` to `<source_to>`, and apply
+Calculates a path (a) from `<source_from>` to `<source_to>`, and apply
 it to repository, starting from `<dest>`. In the end, `<target>` branch is
 reset to the top of the resulting commit sequence and checked out.
 
@@ -67,6 +67,10 @@ Aborts whole rebase. The originally checked-out branch is checked out back.
 `git rebase2 --skip`
 
 Reset all uncommitted changes and continue rebasing starting with the next step in todo list.
+
+(a): the default path is some "optimal" which is not strictly specified and
+subject to change. At some point it was the shortest. Now general rule is to
+follow first parent but I might want to tune how it resolves ambiguous cases.
 
 ### Options
 
@@ -119,7 +123,4 @@ Executes a shell command. Can be abbreviated to `x`.
   already exist and are untouched by the rebase. I call it "external merge".
   They are supported, detected and handled when specified in todo.
 * merge which contains two or more parents from changes sequence. That is
-  "internal merge". Not supported currently, path finding aborts if
-  they are detected.
-  But they still can be manually constructed in interactive rebase with using
-  step `exec`, like in original rebase.
+  "internal merge". Support is in development.
