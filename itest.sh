@@ -149,4 +149,16 @@ git branch -f tmp origin/b2
     test "$has_master1$has_b1$has_b2" = "" || fail "source branches should not be merged"
 )
 
+(
+    # inner merge, funally
+    reset_repo
+    git reset --hard origin/master1
+    testee :/change4
+    git diff --quiet origin/master1 || fail "git diff --quiet origin/master1"
+    has_master1=`git branch -r --merged=HEAD origin/master1`
+    has_b1=`git branch -r --merged=HEAD origin/b1`
+    has_b2=`git branch -r --merged=HEAD origin/b2`
+    test "$has_master1$has_b1$has_b2" = "" || fail "source branches should not be merged"
+)
+
 echo ALL PASSED
