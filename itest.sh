@@ -3,7 +3,7 @@
 # TODO: set up some trap to indicate that the error happened
 set -e
 
-# git clone ../rebase2-test-repo /tmp/git-rebase/test-repo
+# git clone git://github.com/max630/git-rebase2-test-repo.git /tmp/git-rebase/test-repo
 DIR=`pwd`
 cd /tmp/git-rebase/test-repo
 
