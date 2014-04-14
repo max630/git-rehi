@@ -412,11 +412,35 @@ sub comment($) { my ($comment) = @_;
 sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
     my @result;
     my $prev_hash = $from;
-    foreach my $step_hash (@{find_sequence($commits->{by_hash}, $from, $to, $through)}) {
+    my $sequence = find_sequence($commits->{by_hash}, $from, $to, $through);
+    my %marks = ( $from => undef );
+    @marks{@{$sequence}} = ();
+    my $mark_num = 1;
+    foreach my $step_hash (@{$sequence}) {
+        foreach my $parent (grep { $_ ne $prev_hash; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
+            if (exists $marks{$parent} && !defined $marks{$parent}) {
+                $marks{$parent} = "tmp_" . $mark_num;
+                $mark_num++;
+            }
+        }
+        $prev_hash = $step_hash;
+    }
+    my $prev_hash = $from;
+    foreach my $step_hash (@{$sequence}) {
+        if (!grep { $_ eq $prev_hash; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
+            foreach my $new_prev (grep { exists $marks{$_}; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
+                confess ("Unresolved mark for $new_prev") if (!defined $marks{$new_prev});
+                push @result, { type => 'reset', ahash => $marks{$new_prev} };
+                last;
+            }
+        }
         if (scalar @{$commits->{by_hash}->{$step_hash}->{parents}} == 1) {
             push @result, { type => 'pick', ahash => $commits->{by_hash}->{$step_hash}->{ahash} };
+            if (defined $marks{$step_hash}) {
+                push @result, { type => 'mark', name => $marks{$step_hash} };
+            }
         } else {
-            push @result, make_merge_steps($step_hash, $prev_hash, $commits);
+            push @result, make_merge_steps($step_hash, $prev_hash, $commits, \%marks);
         }
         $prev_hash = $step_hash;
     }
@@ -424,10 +448,13 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
 }
 
 # TODO: tests, tests, tests
-sub make_merge_steps($$\%) { my ($step_hash, $prev_hash, $commits) = @_;
+sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
     my $head_idx = find_only($prev_hash, @{$commits->{by_hash}->{$step_hash}->{parents}});
     my @parents_ahashes = map {
-        if (exists $commits->{by_hash}->{$_}) {
+        if (exists $marks->{$_}) {
+            confess ("Unresolved mark for $_") if (!defined $marks->{$_});
+            "\@$marks->{$_}";
+        } elsif (exists $commits->{by_hash}->{$_}) {
             $commits->{by_hash}->{$_}->{ahash};
         } else {
             my $ahash = read_popen("git show -s --pretty=format:%h $_ --");
