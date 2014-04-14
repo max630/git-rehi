@@ -9,73 +9,79 @@ use Test::More;
 
 do 'git-rebase2';
 
-is_deeply (find_sequence({ 1 => {parents => [2]},
-                           2 => {parents => [3]},
-                           3 => {parents => [4]},},
-                           4, 1, []),
-                        [3, 2, 1]);
+
+my %Tests = ();
+sub t(&*) { my ($block, $name) = @_;
+    $Tests{$name} = $block;
+}
+
+t { is_deeply (find_sequence({ 1 => {parents => [2]},
+                                        2 => {parents => [3]},
+                                        3 => {parents => [4]},},
+                                        4, 1, []),
+                         [3, 2, 1]); } linear;
 # 1 -- 2
 #  \    \
 #   3 -- 4 - 5
-is_deeply (find_sequence({ 1 => {parents => [2, 3]},
+t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [4]},
                            3 => {parents => [4]},
                            4 => {parents => [5]},},
                            5, 1, []),
-                        [4, 3, 2, 1]);
+                        [4, 3, 2, 1]) } diamond;
 
-is_deeply (find_sequence({ 1 => {parents => [2, 3]},
+t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [3,5]}  },
                            2, 1, []),
-                        [1]);
+                        [1]); } simple_branch;
 
 # 1 --- 2 --- 6
 #  \        /
 #   3 ---- 4
-is_deeply (find_sequence({ 1 => {parents => [2, 3]},
+t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [6]},
                            3 => {parents => [4]},
                            4 => {parents => [6]},
                            6 => {parents => [7,10]}  },
                            6, 1, []),
-                        [2,1]);
+                        [2,1]); } shortest;
 # 1 --- 2 --- 6
 #  \        /
 #   3 ----4*
-is_deeply (find_sequence({ 1 => {parents => [2, 3]},
+t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [6]},
                            3 => {parents => [4]},
                            4 => {parents => [6]},
                            6 => {parents => [7,10]}  },
                            6, 1, [4]),
-                        [4,3,1]);
+                        [4,3,1]); } through;
 # 1 --- 2*--- 6
 #  \        /
 #   3 ----4*
-isnt (do { eval { find_sequence({ 1 => {parents => [2, 3]},
+t { isnt (do { eval { find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [6]},
                            3 => {parents => [4]},
                            4 => {parents => [6]},
                            6 => {parents => [7,10]}  },
                            6, 1, [2,4]); }; $@; },
-                        "");
+                        ""); } parallel_throughs;
 # 1 -- 2 -- 3 -- 4
 #  \       /    /
 #   5 --- 6 -- 7
 # should fail (inner merge in 1 from base 3 not allowed)
-isnt (do { eval {find_sequence({ 1 => {parents => [2, 5]},
+t { isnt (do { eval {find_sequence({ 1 => {parents => [2, 5]},
                                  2 => {parents => [3]},
                                  3 => {parents => [4]},
                                  4 => {parents => []},
                                  5 => {parents => [6]},
                                  6 => {parents => [3, 7]},
                                  7 => {parents => [4]},
-                               }, 4, 1, [])}; $@;}, "");
+                               }, 4, 1, [])}; $@;}, ""); } inner_merge;
 # 1 -- 2 -- 3 -- 4
 #  \       /    /
 #   5 --- 6 --7*
 # but this should work! - 2 is untouched and 1 is outer merge
-is_deeply (find_sequence({ 1 => {parents => [2, 5]},
+t { is_deeply (find_sequence({ 1 => {parents => [2, 5]},
                            2 => {parents => [3]},
                            3 => {parents => [4]},
                            4 => {parents => []},
@@ -83,8 +89,9 @@ is_deeply (find_sequence({ 1 => {parents => [2, 5]},
                            6 => {parents => [3, 7]},
                            7 => {parents => [4]},
                           }, 4, 1, [7]),
-                        [7,6,5,1]);
+                        [7,6,5,1]); } inner_merge_through_wa;
 
+t {
 is_deeply (parse_cli(['a']), ['RUN', 'a', undef, [], undef, undef, 0]);
 is_deeply (parse_cli(['a', 'c']), ['RUN', 'a', undef, [], undef, 'c', 0]);
 is_deeply (parse_cli(['a', 'b..d', 'c']), ['RUN', 'a', 'b', [], 'd', 'c', 0]);
@@ -97,7 +104,9 @@ is_deeply (parse_cli(['a', 'b..e..f..d', 'c']), ['RUN', 'a', 'b', ['e', 'f'], 'd
 
 isnt (do { eval { parse_cli(['a', 'b...d', 'c']) }; $@ }, '');
 isnt (do { eval { parse_cli(['a', 'b....d', 'c']) }; $@ }, '');
+} parse_cli;
 
+t {
 is_deeply (read_todo(\<<End, []), [{ type => "pick", ahash => "12345"}]);
 pick 12345
 End
@@ -125,7 +134,9 @@ edit \@12345 Test comment
 reset \@12345
 merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
 End
+} read_todo;
 
+t {
 is (do { my $out;
          save_todo([{ type => "pick",  ahash => "12345"}],
                    \$out,
@@ -163,5 +174,10 @@ edit \@12345 Test comment
 reset \@12345
 merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
 End
+} save_todo;
+
+foreach my $name (keys %Tests) {
+    $Tests{$name}->();
+}
 
 done_testing();
