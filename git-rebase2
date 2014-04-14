@@ -464,7 +464,7 @@ sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
         }
     } @{$commits->{by_hash}->{$step_hash}->{parents}};
     my %merge_flags;
-    if (system("git diff --quiet $step_hash $$commits->{by_hash}->{$step_hash}->{parents}[0]") == 0) {
+    if (system("git diff --quiet $step_hash $commits->{by_hash}->{$step_hash}->{parents}->[0]") == 0) {
         $merge_flags{ours} = 1;
     }
     my $ahash = $commits->{by_hash}->{$step_hash}->{ahash};
