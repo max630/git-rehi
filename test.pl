@@ -177,7 +177,7 @@ End
 } save_todo;
 
 foreach my $name (keys %Tests) {
-    $Tests{$name}->();
+    subtest $name => $Tests{$name};
 }
 
 done_testing();
