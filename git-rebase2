@@ -887,7 +887,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             if ((grep { !exists $todo_index{$_}; } @{$through_list}) > 0) {
                 splice @schedule, $i, 1, ();
             }
-        } elsif ($children_num{$hash} > 1 && !exists $children_waiters{$hash} && $children_waiters{$hash}->{left} != 0) {
+        } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} != 0)) {
             if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
                     if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {
