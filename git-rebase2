@@ -430,7 +430,7 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
         if (!grep { $_ eq $prev_hash; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
             foreach my $new_prev (grep { exists $marks{$_}; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
                 confess ("Unresolved mark for $new_prev") if (!defined $marks{$new_prev});
-                push @result, { type => 'reset', ahash => $marks{$new_prev} };
+                push @result, { type => "reset", ahash => "refs/rebase2/$marks{$new_prev}" };
                 $prev_hash = $new_prev;
                 last;
             }
@@ -456,7 +456,7 @@ sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
             "HEAD";
         } elsif (exists $marks->{$_}) {
             confess ("Unresolved mark for $_") if (!defined $marks->{$_});
-            "\@$marks->{$_}";
+            "refs/rebase2/$marks->{$_}";
         } elsif (exists $commits->{by_hash}->{$_}) {
             $commits->{by_hash}->{$_}->{ahash};
         } else {
