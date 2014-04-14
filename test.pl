@@ -68,15 +68,15 @@ t { isnt (do { eval { find_sequence({ 1 => {parents => [2, 3]},
 # 1 -- 2 -- 3 -- 4
 #  \       /    /
 #   5 --- 6 -- 7
-# should fail (inner merge in 1 from base 3 not allowed)
-t { isnt (do { eval {find_sequence({ 1 => {parents => [2, 5]},
+t { is_deeply (find_sequence({ 1 => {parents => [2, 5]},
                                  2 => {parents => [3]},
                                  3 => {parents => [4]},
                                  4 => {parents => []},
                                  5 => {parents => [6]},
                                  6 => {parents => [3, 7]},
                                  7 => {parents => [4]},
-                               }, 4, 1, [])}; $@;}, ""); } inner_merge;
+                               }, 4, 1, []),
+                [3, 6, 5, 2, 1]); } inner_merge;
 # 1 -- 2 -- 3 -- 4
 #  \       /    /
 #   5 --- 6 --7*
