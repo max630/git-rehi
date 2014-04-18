@@ -98,13 +98,14 @@ Can be abbreviated to `f`.
 Change the message of the latest commit. Following lines are the message contents.
 A line containing single "." marks the end of message.
 
-`merge [--ours] -c <ahash> <parent1>,<parent2>,... [<subject>]`
+`merge [--ours] -c <ahash> <ahash_1>,<ahash_2>,... [<subject>]`
 
-Merge latest commit with others. Order of parents will be exactly the same as
-specified in the command. Exactly one of the `parentN` should be literal
-"`HEAD`" (without quotes). If `--ours` is specified, merge will be performed
-with strategy `ours` (that is, is will copy the `parent1`, just marking others
-as merged and ignoring their contents).
+Merge latest commit with others. Parents of the resulting commits will be
+`ahash_1`, `ahash_2` and so on.  Their order exactly the same as specified in
+the command. Exactly one of the `ahash_N` should be literal "`HEAD`" (without
+quotes). If `--ours` is specified, merge will be performed with strategy `ours`
+(that is, is will copy the `ahash_1`, just marking others as merged and
+ignoring their contents).
 
 Message for commit is taken from the `ahash` commit. `subject` is ignored.
 
@@ -112,6 +113,16 @@ Message for commit is taken from the `ahash` commit. `subject` is ignored.
 
 Like `pick`, but stops after that, allowing user to make some manual changes.
 Can be abbreviated to `e`.
+
+`reset <ahash>`
+
+Reset to the `ahash` commit and continue to apply following steps on top of it.
+
+`: <mark>`
+
+Remember current HEAD as a `mark`. Anywhere in the todo steps `ahash` can be
+of form `@<mark_name>`. If it has been remembered before, the hash of the mark
+will be used.
 
 `exec <command>`
 
@@ -121,6 +132,7 @@ Executes a shell command. Can be abbreviated to `x`.
 
 * merge which contains only one parent from changes sequence, and all others
   already exist and are untouched by the rebase. I call it "external merge".
-  They are supported, detected and handled when specified in todo.
+  External merges are supported: detected and handled when specified in todo.
 * merge which contains two or more parents from changes sequence. That is
-  "internal merge". Support is in development.
+  "internal merge". There is an experimental support for such merges, with use
+  of `reset` and `:` steps.
