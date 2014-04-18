@@ -121,7 +121,7 @@ Reset to the `ahash` commit and continue to apply following steps on top of it.
 `: <mark>`
 
 Remember current HEAD as a `mark`. Anywhere in the todo steps `ahash` can be
-of form `@<mark_name>`. If it has been remembered before, the hash of the mark
+of form `@<mark>`. If it has been remembered before, the hash of the mark
 will be used.
 
 `exec <command>`
