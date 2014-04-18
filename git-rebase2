@@ -807,26 +807,7 @@ sub get_single(\@) { my ($array) = @_;
 # $commits : { $hash => { parents => [ $hash ] } }
 # returns: [ $hash ]
 sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
-    # TODO:
-    # + through
-    # + explicitly forbid inner merges
-    # * inner merges
-    #  * interface
-    #  * extraction
-
-    # deep-first search algorithm
-    # 1. go to next yet unused parent, marking it as used
-    # 2. if reached $from, return with success
-    #    if has more than one child - fail (inner merge), goto 4 (TODO: change this)
-    #    if no parent known - fail (parent of outer merge, don't go here), goto 4
-    #    if reached $from, but through is not known - fail (wrong path), goto 4
-    #    otherwise,
-    # 3. continue with 1 from the current position.
-    # 4. return to some(*) position when there were remaining parents and continue with 1
-    # (*) it probbaly should depend on the failure type. for example,
-    #     for no parent it definitely should be the latest one, but for other might be something else
-
-    # coroutine-based approach
+    # deep-first search, coroutine-based approach
     # fun X($v)
     #  do in loop:
     #   if $v == $from - stop and return the sequence (**)
@@ -835,20 +816,17 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     #    add their output to the end of the sequence and continue
     #   if >1 children and you are not 1st - mark the children you came by as processed and store your sequence (*), then stop
     #   otherwise add the current to sequence
-    #   if >1 parents - fork itself for each parent, continuing the sequence
-    #   go to the parent
+    #   fork itself for each parent, continuing the sequence
     # (*) store only the portion which is not yet in the sequence. Looks like it should be enough just to filter it
     # (**) here several returns should be sorted out
 
-    # thread info (unfinished):
+    # thread info:
     # { state => "READY" | "WAIT_CHILDREN" | "DONE",
     #   current => String,
     #   todo => [ String ] }
-    # should be copied while forking
+    # copied while forking
     # children_waiters = { $hash => { todo_index => { String => () }, left => num, thread => ref to thread } }
     # children_num => { $hash => num }
-
-    # NOTE: splice function
 
     my %children_num = ();
     foreach my $h (keys %{$commits}) {
