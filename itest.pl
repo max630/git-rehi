@@ -25,13 +25,13 @@ sub t(&*) { my ($block, $name) = @_;
 
 my $cmd_num = 0;
 sub cmd($;$) { my ($cmd) = @_;
-    my $goal_status = do { if (scalar @_) { $_[1]; } else { 0; }; };
+    my $goal_status = do { if (scalar @_ > 1) { $_[1]; } else { 0; }; };
     my $output = `$cmd 2>&1`;
     my $status = $?;
 
     $cmd_num++;
     if ($goal_status eq "!= 0" && $status != 0
-        || $status == $goal_status)
+        || $goal_status =~ /^-?\d+$/ && $status == $goal_status)
     {
         ok("cmd$cmd_num");
     } else {
