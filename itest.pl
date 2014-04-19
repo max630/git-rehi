@@ -167,6 +167,17 @@ t {
        "source branches are not merged");
 } inner_merge_detected;
 
+t {
+    local $TODO = "gh-19";
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner");
+    cmd("$testee -i origin/base~1");
+    {
+        my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner-broken");
+        cmd("$testee -i origin/base~1", "!= 0");
+    }
+} marks_cleared;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();

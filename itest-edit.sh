@@ -34,6 +34,13 @@ pick origin/b2
 merge -c origin/master1 HEAD,@tmp2
 EOF
 ;;
+merge-inner-broken)
+cat >"$file" <<EOF
+reset @tmp1
+pick origin/b2
+merge -c origin/master1 HEAD,@tmp2
+EOF
+;;
 *)
 cat >"$file" <<EOF
 pick 76dee8a19ec
