@@ -51,9 +51,8 @@ sub reset_repo {
 package env_guard {
     sub new ($$) { my ($class, $name, $new_value) = @_;
         my $res = { name => $name, prev_exists => exists $ENV{$name}, prev_value => $ENV{$name} };
-        bless $res, $class;
         $ENV{$name} = $new_value;
-        return $res;
+        return (bless $res, $class);
     }
 
     sub DESTROY($) { my ($instance) = @_;
