@@ -51,7 +51,6 @@ sub retry (&$) { my ($code, $ok) = @_;
 # }}}
 
 # {{{ io utils
-
 sub iterate_popen(&$) { my ($code, $command) = @_;
     open(my $in, "-|", $command) or confess "Cannot start a program: $!";
     while (<$in>) {
@@ -60,6 +59,13 @@ sub iterate_popen(&$) { my ($code, $command) = @_;
     close ($in) or confess "Program failed";
 }
 
+sub iterate_file(&$) { my ($code, $filename) = @_;
+    open(my $in, "<", $filename) or confess "Cannot open \"$filename\": $!";
+    while (<$in>) {
+        $code->($_);
+    }
+    close ($in);
+}
 # }}}
 
 # {{{ git utils
@@ -498,11 +504,7 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
 
 sub git_load_commits() {
     my $commits = {by_hash => {}, refs => {}};
-    open(my $in, "<", "$GIT_DIR/rebase2/commits") or confess("Cannot read commits cache ($GIT_DIR/rebase2/commits): $!");
-    while (<$in>) {
-        git_parse_commit_line($commits, $_);
-    }
-    close($in);
+    iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rebase2/commits";
     return $commits;
 }
 
