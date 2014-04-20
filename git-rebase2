@@ -336,7 +336,7 @@ sub abort_rebase() {
 }
 
 sub resolve_ahash($$) { my ($ahash, $commits) = @_;
-    if (/^refs\/rebase2\/([0-9a-zA-Z_]+)$/) {
+    if ($ahash =~ /^\@([0-9a-zA-Z_]+)$/) {
         confess("Mark $1 not found") unless exists $commits->{marks}->{$1};
         return $commits->{marks}->{$1};
     } else {
@@ -365,7 +365,6 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         print "Updating comment\n";
         comment($rebase_step->{comment});
     } elsif ($rebase_step->{type} eq "mark") {
-        run_command("git update-ref refs/rebase2/$rebase_step->{name} HEAD");
         my ($head_hash) = git_resolve_hashes(["HEAD"]);
         $commits->{marks}->{$rebase_step->{name}} = $head_hash;
         my $out;
@@ -453,7 +452,7 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
         if (!grep { $_ eq $prev_hash; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
             foreach my $new_prev (grep { exists $marks{$_}; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
                 confess ("Unresolved mark for $new_prev") if (!defined $marks{$new_prev});
-                push @result, { type => "reset", ahash => "refs/rebase2/$marks{$new_prev}" };
+                push @result, { type => "reset", ahash => "\@$marks{$new_prev}" };
                 $prev_hash = $new_prev;
                 last;
             }
@@ -479,7 +478,7 @@ sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
             "HEAD";
         } elsif (exists $marks->{$_}) {
             confess ("Unresolved mark for $_") if (!defined $marks->{$_});
-            "refs/rebase2/$marks->{$_}";
+            "\@$marks->{$_}";
         } elsif (exists $commits->{by_hash}->{$_}) {
             $commits->{by_hash}->{$_}->{ahash};
         } else {
@@ -644,25 +643,17 @@ sub commits_get_subject($$) { my ($commits, $ref) = @_;
     return $commits->{by_hash}->{$hash}->{subject};
 }
 
-sub encode_ahash($) { my ($ahash) = @_;
-    if ($ahash =~ /^refs\/rebase2\/([a-z0-9_]+)$/i) {
-        return "@" . $1;
-    } else {
-        return $ahash;
-    }
-}
-
 sub save_todo($$$) { my ($todo, $file, $commits) = @_;
     with_output_file($file, sub { my ($out) = @_;
         foreach my $step (@{$todo}) {
             if ($step->{type} eq "pick") {
-                print $out "pick " . encode_ahash($step->{ahash}) . " " . commits_get_subject($commits, $step->{ahash}) . "\n";
+                print $out "pick $step->{ahash} " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "edit") {
-                print $out "edit " . encode_ahash($step->{ahash}) . " " . commits_get_subject($commits, $step->{ahash}) . "\n";
+                print $out "edit $step->{ahash} " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "fixup") {
-                print $out "fixup " . encode_ahash($step->{ahash}) . " " . commits_get_subject($commits, $step->{ahash}) . "\n";
+                print $out "fixup $step->{ahash} " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "reset") {
-                print $out "reset " . encode_ahash($step->{ahash}) . "\n";
+                print $out "reset $step->{ahash}\n";
             } elsif ($step->{type} eq "exec") {
                 if ($step->{command} =~ /\n/) {
                     confess "multiline command cannot be saved";
@@ -676,8 +667,8 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 if ($step->{flags}->{ours}) {
                     $flags_str .= " --ours"
                 }
-                my $parents_str2 = join ",", map { encode_ahash($_); } @{$step->{parents}};
-                $flags_str .= " -c " . encode_ahash($step->{ahash});
+                my $parents_str2 = join ",", @{$step->{parents}};
+                $flags_str .= " -c $step->{ahash}";
                 print $out "merge$flags_str $parents_str2 " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "mark") {
                 print $out ": $step->{name}\n";
@@ -703,14 +694,6 @@ sub default_error($) { my ($msg) = @_;
     confess($msg);
 }
 
-sub expand_ahash($) { my ($ahash) = @_;
-    if ($ahash =~ /^\@([a-z0-9_]+)$/i) {
-        return "refs/rebase2/$1";
-    } else {
-        return $ahash;
-    }
-}
-
 # TODO for caching refs
 # * add to commits aliases (refs, whatever), which map entered aliases to commits
 # * save and restore them to something like rebase2/commit_refs
@@ -730,13 +713,13 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
             } elsif (/^(f|fixup) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
-                push @{$todo}, {type => "fixup", ahash => expand_ahash($2)};
+                push @{$todo}, {type => "fixup", ahash => $2};
             } elsif (/^(p|pick) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
-                push @{$todo}, {type => "pick", ahash => expand_ahash($2)};
+                push @{$todo}, {type => "pick", ahash => $2};
             } elsif (/^(e|edit) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
-                push @{$todo}, {type => "edit", ahash => expand_ahash($2)};
+                push @{$todo}, {type => "edit", ahash => $2};
             } elsif (/^(reset) (\@?[0-9a-zA-Z_\/]+)?$/) {
-                push @{$todo}, {type => "reset", ahash => expand_ahash($2)};
+                push @{$todo}, {type => "reset", ahash => $2};
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
             } elsif (/^comment\b/) {
@@ -752,7 +735,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                     if (shift @options eq "--ours") {
                         $flags->{ours} = 1;
                     } elsif (scalar @options > 1 && shift @options eq "-c") {
-                        $ahash = expand_ahash(shift @options);
+                        $ahash = shift @options;
                     } else {
                         onSyntaxError->("Unexpected merge options: " . join @options);
                     }
@@ -761,7 +744,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                     $onSyntaxError->("Missing -c option for merge");
                 }
                 my @pos_args = split / +/, $pos_string, 2;
-                my $parents = [map { expand_ahash($_); } split /,/, $pos_args[0]];
+                my $parents = [split /,/, $pos_args[0]];
                 push @{$todo}, {type => "merge", ahash => $ahash, parents => $parents, flags => $flags};
             } elsif (/^: ([^\n\r ]+)$/) {
                 my $name = $1;
