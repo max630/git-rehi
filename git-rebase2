@@ -367,10 +367,10 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
     } elsif ($rebase_step->{type} eq "mark") {
         run_command("git update-ref refs/rebase2/$rebase_step->{name} HEAD");
         my ($head_hash) = git_resolve_hashes(["HEAD"]);
-        $commits->{marks}->{$rebase_step->{mark}} = $head_hash;
+        $commits->{marks}->{$rebase_step->{name}} = $head_hash;
         my $out;
         open($out, ">>", "$GIT_DIR/rebase2/marks")
-            and print $out "$rebase_step->{mark} $head_hash\n"
+            and print $out "$rebase_step->{name} $head_hash\n"
             and close($out)
             or confess("Write to \"$GIT_DIR/rebase2/marks\" failed: $!");
     } elsif ($rebase_step->{type} eq "merge") {
