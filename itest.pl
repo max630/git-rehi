@@ -173,7 +173,7 @@ t {
     cmd("$testee -i origin/base~1");
     {
         my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner-broken");
-        cmd("$testee -i origin/base~1", "!= 0");
+        cmd("$testee -i origin/base~1", "!= 0"); # unknown refs - should fail
     }
 } marks_cleared;
 
