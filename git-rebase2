@@ -98,6 +98,7 @@ sub git_get_checkedout_branch()
 #
 # $commits = {
 #   refs => { $ref => $hash },
+#   marks => { $mark => $hash }.
 #   by_hash => { $hash => Entry },
 # }
 # ref is ahash or symbolic ref
@@ -334,21 +335,30 @@ sub abort_rebase() {
     cleanup_save();
 }
 
+sub resolve_ahash($$) { my ($ahash, $commits) = @_;
+    if (/^refs\/rebase2\/([0-9a-zA-Z_]+)$/) {
+        confess("Mark $1 not found") unless exists $commits->{marks}->{$1};
+        return $commits->{marks}->{$1};
+    } else {
+        return $ahash;
+    }
+}
+
 sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
     if ($rebase_step->{type} eq "pick") {
         print "Apply: " . commits_get_subject($commits, $rebase_step->{ahash}) . "\n";
-        pick($rebase_step->{ahash});
+        pick(resolve_ahash($rebase_step->{ahash}, $commits));
     } elsif ($rebase_step->{type} eq "edit") {
         print "Apply: " . commits_get_subject($commits, $rebase_step->{ahash}) . "\n";
-        pick($rebase_step->{ahash});
+        pick(resolve_ahash($rebase_step->{ahash}, $commits));
         print "Amend the commit and run \"git rebase2 --continue\"\n";
         ${$pause} = 1;
     } elsif ($rebase_step->{type} eq "fixup") {
         print "Fixup: " . commits_get_subject($commits, $rebase_step->{ahash}). "\n";
-        run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit $rebase_step->{ahash} "
-                    . "&& git commit --amend --no-edit");
+        run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit " . resolve_ahash($rebase_step->{ahash}, $commits)
+                    . " && git commit --amend --no-edit");
     } elsif ($rebase_step->{type} eq "reset") {
-        run_command("git reset --hard $rebase_step->{ahash}");
+        run_command("git reset --hard " . resolve_ahash($rebase_step->{ahash}, $commits));
     } elsif ($rebase_step->{type} eq "exec") {
         run_command($rebase_step->{command})
     } elsif ($rebase_step->{type} eq "comment") {
@@ -356,6 +366,13 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         comment($rebase_step->{comment});
     } elsif ($rebase_step->{type} eq "mark") {
         run_command("git update-ref refs/rebase2/$rebase_step->{name} HEAD");
+        my ($head_hash) = git_resolve_hashes(["HEAD"]);
+        $commits->{marks}->{$rebase_step->{mark}} = $head_hash;
+        my $out;
+        open($out, ">>", "$GIT_DIR/rebase2/marks")
+            and print $out "$rebase_step->{mark} $head_hash\n"
+            and close($out)
+            or confess("Write to \"$GIT_DIR/rebase2/marks\" failed: $!");
     } elsif ($rebase_step->{type} eq "merge") {
         print "Merging\n";
         # to merge as non-first child:
@@ -365,7 +382,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         if ($rebase_step->{flags}->{ours}) {
             $command .= " --strategy=ours";
         }
-        my @parents = @{$rebase_step->{parents}};
+        my @parents = map { resolve_ahash($_, $commits) } @{$rebase_step->{parents}};
         my %parent_hashes = map { $_ => undef } git_resolve_hashes(\@parents);
         my $head_pos = find_only("HEAD", \@parents);
         if ($head_pos != 0) {
@@ -380,7 +397,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         }
         run_command($command);
         my ($head_hash) = git_resolve_hashes(["HEAD"]);
-        run_command("git commit -C $rebase_step->{ahash} --reset-author");
+        run_command("git commit -C " . resolve_ahash($rebase_step->{ahash}, $commits) . " --reset-author");
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
@@ -492,7 +509,7 @@ sub git_resolve_hashes($) { my ($refs) = @_;
 sub git_fetch_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
-    my $commits = {by_hash => {}, refs => {}};
+    my $commits = {by_hash => {}, refs => {}, marks => {}};
     open(my $in, ">", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     iterate_popen {
         git_parse_commit_line($commits, $_);
@@ -505,6 +522,15 @@ sub git_fetch_commits($$) { my ($from, $to) = @_;
 sub git_load_commits() {
     my $commits = {by_hash => {}, refs => {}};
     iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rebase2/commits";
+    if (-e "$GIT_DIR/rebase2/marks") {
+        iterate_file {
+            if (/^([0-9a-zA-Z_\/]+) ([0-9a-fA-F]+)$/) {
+                $commits->{marks}->{$1} = $2;
+            } else {
+                confess("Invalid mark line: $_");
+            }
+        } "$GIT_DIR/rebase2/marks";
+    }
     return $commits;
 }
 
