@@ -48,6 +48,16 @@ sub retry (&$) { my ($code, $ok) = @_;
     }
 }
 
+package guard {
+    sub new ($&) { my ($class, $sub) = @_;
+        return (bless { sub => $sub }, $class);
+    }
+
+    sub DESTROY($) { my ($self) = @_;
+        $self->{sub}->();
+    }
+}
+
 # }}}
 
 # {{{ io utils
@@ -315,17 +325,19 @@ sub run_continue($$) { my ($current, $commits) = @_;
 
 sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
     # TODO: handle errors
-    while (defined (my $current = shift @{$todo})) {
-        my $pause = 0;
-        save_todo($todo, "$GIT_DIR/rebase2/todo", $commits);
-        save_todo([$current], "$GIT_DIR/rebase2/current", $commits);
-        run_step($current, $commits, \$pause);
-        if ($pause) {
-            return;
+    {
+        my $g = guard->new(sub { sync_head($commits); });
+        while (defined (my $current = shift @{$todo})) {
+            my $pause = 0;
+            save_todo($todo, "$GIT_DIR/rebase2/todo", $commits);
+            save_todo([$current], "$GIT_DIR/rebase2/current", $commits);
+            run_step($current, $commits, \$pause);
+            if ($pause) {
+                return;
+            }
+            unlink("$GIT_DIR/rebase2/current");
         }
-        unlink("$GIT_DIR/rebase2/current");
     }
-    sync_head($commits);
     # TODO: make proper reflog
     run_command("git checkout -B $target_ref");
     cleanup_save();
