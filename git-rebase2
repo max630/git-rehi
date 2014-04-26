@@ -325,6 +325,7 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
         }
         unlink("$GIT_DIR/rebase2/current");
     }
+    sync_head($commits);
     # TODO: make proper reflog
     run_command("git checkout -B $target_ref");
     cleanup_save();
@@ -457,8 +458,8 @@ sub sync_head($) { my ($commits) = @_;
 sub pick($$) { my ($hash, $commits) = @_;
     if ($commits->{head}->{type} eq "known_hash") {
         if (exists $commits->{by_hash}->{$hash} &&
-            scalar @{$commits->{by_hash}->{$hash}->{parent}} == 1 &&
-            scalar $commits->{by_hash}->{$hash}->{parent}->[0] eq $commits->{head}->{hash}) {
+            scalar @{$commits->{by_hash}->{$hash}->{parents}} == 1 &&
+            scalar $commits->{by_hash}->{$hash}->{parents}->[0] eq $commits->{head}->{hash}) {
             print "Fast-forwarding: $commits->{by_hash}->{$hash}->{ahash} $commits->{by_hash}->{$hash}->{subject}\n";
             $commits->{head}->{hash} = $hash;
         } else {
