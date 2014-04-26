@@ -393,6 +393,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         run_command($rebase_step->{command})
     } elsif ($rebase_step->{type} eq "comment") {
         print "Updating comment\n";
+        sync_head($commits);
         comment($rebase_step->{comment});
     } elsif ($rebase_step->{type} eq "mark") {
         my $head_hash = do {
