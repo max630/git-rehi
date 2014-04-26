@@ -817,7 +817,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 }
                 my @pos_args = split / +/, $pos_string, 2;
                 my $parents = [split /,/, $pos_args[0]];
-                my $step = {type => "merge", ahash => $ahash, parents => $parents, flags => $flags};
+                my $step = {type => "merge", parents => $parents, flags => $flags};
                 if (defined $ahash) {
                     $step->{ahash} = $ahash;
                 }
