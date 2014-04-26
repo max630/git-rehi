@@ -121,11 +121,11 @@ merge -c 93845345 HEAD,12345
 End
 sub { is_deeply (read_todo($_[0], []),
                    [{type => "mark", name => "12345"},
-                    {type => "pick",  ahash => "refs/rebase2/12345"},
-                    {type => "fixup",  ahash => "refs/rebase2/12345"},
-                    {type => "edit",  ahash => "refs/rebase2/12345"},
-                    {type => "reset",  ahash => "refs/rebase2/12345"},
-                    {type => "merge",  ahash => "refs/rebase2/12345", flags => {}, parents => ["HEAD", "45876", "refs/rebase2/ffeee12"]}]);
+                    {type => "pick",  ahash => "\@12345"},
+                    {type => "fixup",  ahash => "\@12345"},
+                    {type => "edit",  ahash => "\@12345"},
+                    {type => "reset",  ahash => "\@12345"},
+                    {type => "merge",  ahash => "\@12345", flags => {}, parents => ["HEAD", "45876", "\@ffeee12"]}]);
     }->(\<<End);
 : 12345
 pick \@12345 Test comment
@@ -157,13 +157,13 @@ merge -c 93845345 HEAD,12345 Test comment
 End
 is (do { my $out;
          save_todo([{type => "mark", name => "12345"},
-                    {type => "pick",  ahash => "refs/rebase2/12345"},
-                    {type => "fixup",  ahash => "refs/rebase2/12345"},
-                    {type => "edit",  ahash => "refs/rebase2/12345"},
-                    {type => "reset",  ahash => "refs/rebase2/12345"},
-                    {type => "merge",  ahash => "refs/rebase2/12345", flags => {}, parents => ["HEAD", "45876", "refs/rebase2/ffeee12"]}],
+                    {type => "pick",  ahash => "\@12345"},
+                    {type => "fixup",  ahash => "\@12345"},
+                    {type => "edit",  ahash => "\@12345"},
+                    {type => "reset",  ahash => "\@12345"},
+                    {type => "merge",  ahash => "\@12345", flags => {}, parents => ["HEAD", "45876", "\@ffeee12"]}],
                    \$out,
-                   { refs => { "refs/rebase2/12345" => "12345ddd" },
+                   { refs => { "\@12345" => "12345ddd" },
                      by_hash => { "12345ddd" => { subject => "Test comment" } } });
          $out; },
     <<End);
