@@ -445,7 +445,7 @@ sub merge($$) { my ($rebase_step, $commits) = @_;
                 }
             }
             if ($match) {
-                print "Fast-forwarding merge: $rebase_step->{ahash}, $commits->{by_hash}->{$step_hash}->{subject}\n";
+                print "Fast-forwarding merge: $rebase_step->{ahash} $commits->{by_hash}->{$step_hash}->{subject}\n";
                 $commits->{head}->{hash} = $step_hash;
             } else {
                 merge_noff($rebase_step, $commits);
