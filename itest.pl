@@ -135,8 +135,9 @@ t {
 } fastforward_merge_fails;
 
 t {
-    cmd("git reset --hard origin/b2b3");
-    cmd("$testee origin/base ..origin/b3..", "!= 0"); # conflict
+    cmd("git reset --hard origin/base");
+    cmd("git commit --allow-empty -m UPDATE");
+    cmd("$testee HEAD origin/base..origin/b3..origin/b2b3", "!= 0"); # conflict
     cmd("$testee --continue", "!= 0"); # no continue without resolving
     cmd("git checkout origin/b2b3 -- file1");
     cmd("git add file1");
@@ -148,8 +149,9 @@ t {
 } merge_conflict;
 
 t {
-    cmd("git reset --hard origin/b2b3");
-    cmd("$testee origin/base ..origin/b3..", "!= 0");
+    cmd("git reset --hard origin/base");
+    cmd("git commit --allow-empty -m UPDATE");
+    cmd("$testee HEAD origin/base..origin/b3..origin/b2b3", "!= 0");
     ok(-f ".git/rebase2/todo.backup");
 } todo_backup;
 
@@ -172,6 +174,13 @@ t {
        "",
        "source branches are not merged");
 } inner_merge_detected;
+
+t {
+    cmd("git reset --hard origin/b2b3");
+    cmd("$testee origin/b4");
+    is(`git show --quiet --pretty=format:%h HEAD`,
+       `git show --quiet --pretty=format:%h origin/b2b3`);
+} fastforward_over_merges;
 
 t {
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
