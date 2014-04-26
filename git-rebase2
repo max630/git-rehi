@@ -477,6 +477,9 @@ sub merge_new($$) { my ($rebase_step, $commits) = @_;
     if ($rebase_step->{flags}->{ours}) {
         $command .= " --strategy=ours";
     }
+    if ($rebase_step->{flags}->{noff}) {
+        $command .= " --no-ff";
+    }
     my @parents = map { resolve_ahash($_, $commits) } @{$rebase_step->{parents}};
     my %parent_hashes = map { $_ => undef } git_resolve_hashes(\@parents);
     my $head_pos = find_only("HEAD", \@parents);
@@ -789,6 +792,9 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 if ($step->{flags}->{ours}) {
                     $flags_str .= " --ours"
                 }
+                if ($step->{flags}->{noff}) {
+                    $flags_str .= " --no-ff"
+                }
                 my $parents_str2 = join ",", @{$step->{parents}};
                 my $subject = "";
                 if (exists $step->{ahash}) {
@@ -851,19 +857,27 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
             } elsif (/^comment\b/) {
                 $mode = "COMMENT";
                 $comment = "";
-            } elsif (/^merge( --ours| -c \@?[0-9a-zA-Z_\/]+)* (.+[^\n\r ])$/) {
+            } elsif (/^merge( --ours| --no-ff| -c \@?[0-9a-zA-Z_\/]+)* (.+[^\n\r ])$/) {
                 my $pos_string = $2;
                 # TODO: verify as refs
                 my $ahash = undef;
                 my $flags = {};
                 my @options = split / +/,$1;
+                if ($options[0] eq "") {
+                    shift @options;
+                }
                 while (scalar @options > 0) {
-                    if (shift @options eq "--ours") {
+                    if ($options[0] eq "--ours") {
+                        shift @options;
                         $flags->{ours} = 1;
-                    } elsif (scalar @options > 1 && shift @options eq "-c") {
+                    } elsif ($options[0] eq "--no-ff") {
+                        shift @options;
+                        $flags->{noff} = 1;
+                    } elsif (scalar @options > 1 && $options[0] eq "-c") {
+                        shift @options;
                         $ahash = shift @options;
                     } else {
-                        onSyntaxError->("Unexpected merge options: " . join @options);
+                        $onSyntaxError->("Unexpected merge options: " . Dumper([@options]));
                     }
                 }
                 my @pos_args = split / +/, $pos_string, 2;

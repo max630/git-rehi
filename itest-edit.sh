@@ -22,6 +22,15 @@ cat >"$file" <<EOF
 merge HEAD,608a449bb2 Some subject
 EOF
 ;;
+merge-no-ff)
+cat >"$file" <<EOF
+: base
+pick origin/base
+: tmp1
+reset @base
+merge --no-ff HEAD,@tmp1
+EOF
+;;
 merge-resolved)
 cat >"$file" <<EOF
 Merge origin/b2 with resolving conflict (test)
