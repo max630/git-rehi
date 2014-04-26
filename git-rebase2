@@ -351,7 +351,6 @@ sub resolve_ahash($$) { my ($ahash, $commits) = @_;
 
 sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
     if ($rebase_step->{type} eq "pick") {
-        print "Apply: " . commits_get_subject($commits, $rebase_step->{ahash}) . "\n";
         pick(resolve_ahash($rebase_step->{ahash}, $commits), $commits);
     } elsif ($rebase_step->{type} eq "edit") {
         print "Apply: " . commits_get_subject($commits, $rebase_step->{ahash}) . "\n";
@@ -463,6 +462,7 @@ sub pick($$) { my ($hash, $commits) = @_;
             print "Fast-forwarding: $commits->{by_hash}->{$hash}->{ahash} $commits->{by_hash}->{$hash}->{subject}\n";
             $commits->{head}->{hash} = $hash;
         } else {
+            print "Apply: $commits->{by_hash}->{$hash}->{subject}\n";
             sync_head($commits);
             run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash");
         }
