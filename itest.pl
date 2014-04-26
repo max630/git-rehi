@@ -126,7 +126,7 @@ t {
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-c");
     cmd("$testee -i origin/b2");
     cmd("git diff --quiet origin/master1");
-} edit_merge;
+} edit_merge_no_c;
 
 t {
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
