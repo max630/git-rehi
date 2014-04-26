@@ -326,7 +326,13 @@ sub run_continue($$) { my ($current, $commits) = @_;
 sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
     # TODO: handle errors
     {
-        my $g = guard->new(sub { sync_head($commits); });
+        my $g = guard->new(sub {
+            eval { sync_head($commits); };
+            if ($@ ne "") {
+                print "Fatal error while syncing: $@\nContinue not possible\n";
+                unlink("$GIT_DIR/rebase2/todo");
+            }
+        });
         while (defined (my $current = shift @{$todo})) {
             my $pause = 0;
             save_todo($todo, "$GIT_DIR/rebase2/todo", $commits);
