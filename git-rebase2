@@ -140,7 +140,8 @@ sub git_get_checkedout_branch()
 #   (optional) ahash => String,
 #   parents => [String],
 #   flags => {
-#       (optional) ours => Int
+#       (optional) ours => Int,
+#       (optional) noff => Int
 #   }
 # } or {
 #   type => "mark"
@@ -448,20 +449,20 @@ sub merge($$) { my ($rebase_step, $commits) = @_;
                 }
             }
             if ($match) {
-                print "Fast-forwarding merge: $rebase_step->{ahash} $commits->{by_hash}->{$step_hash}->{subject}\n";
+                print "Fast-forwarding unchanged merge: $rebase_step->{ahash} $commits->{by_hash}->{$step_hash}->{subject}\n";
                 $commits->{head}->{hash} = $step_hash;
             } else {
-                merge_noff($rebase_step, $commits);
+                merge_new($rebase_step, $commits);
             }
         } else {
-            merge_noff($rebase_step, $commits);
+            merge_new($rebase_step, $commits);
         }
     } else {
-        merge_noff($rebase_step, $commits);
+        merge_new($rebase_step, $commits);
     }
 }
 
-sub merge_noff($$) { my ($rebase_step, $commits) = @_;
+sub merge_new($$) { my ($rebase_step, $commits) = @_;
     sync_head($commits);
     print "Merging\n";
     # to merge as non-first child:
@@ -530,7 +531,7 @@ sub pick($$) { my ($hash, $commits) = @_;
         if (exists $commits->{by_hash}->{$hash} &&
             scalar @{$commits->{by_hash}->{$hash}->{parents}} == 1 &&
             scalar $commits->{by_hash}->{$hash}->{parents}->[0] eq $commits->{head}->{hash}) {
-            print "Fast-forwarding: $commits->{by_hash}->{$hash}->{ahash} $commits->{by_hash}->{$hash}->{subject}\n";
+            print "Fast-forwarding unchanged commit: $commits->{by_hash}->{$hash}->{ahash} $commits->{by_hash}->{$hash}->{subject}\n";
             $commits->{head}->{hash} = $hash;
         } else {
             print "Apply: $commits->{by_hash}->{$hash}->{subject}\n";
