@@ -123,6 +123,13 @@ t {
 
 t {
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-c");
+    cmd("$testee -i origin/b2");
+    cmd("git diff --quiet origin/master1");
+} edit_merge;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-c");
     cmd("$testee -i origin/b1", "!= 0");
 } fastforward_merge_fails;

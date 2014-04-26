@@ -176,6 +176,24 @@ merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
 End
 } save_todo;
 
+t {
+is (do { my $out;
+         save_todo([{ type => "merge", parents => ["HEAD", "12345"], flags => {} }],
+                   \$out,
+                   { refs => { },
+                     by_hash => { } });
+         $out; },
+    <<End);
+merge HEAD,12345
+End
+is_deeply (read_todo(\<<End, []), [{ type => "merge", parents => ["HEAD", "12345"], flags => {} }]);
+merge HEAD,12345
+End
+is_deeply (read_todo(\<<End, []), [{ type => "merge", parents => ["HEAD", "12345"], flags => {} }]);
+merge HEAD,12345 Some subject
+End
+} merge_no_c;
+
 foreach my $name (do { if (scalar @ARGV) { @ARGV } else { keys %Tests; }; }) {
     subtest $name => $Tests{$name};
 }

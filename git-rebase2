@@ -137,7 +137,7 @@ sub git_get_checkedout_branch()
 #   comment => String
 # } or {
 #   type => "merge",
-#   ahash => String,
+#   (optional) ahash => String,
 #   parents => [String],
 #   flags => {
 #       (optional) ours => Int
@@ -417,7 +417,12 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         # to merge as non-first child:
         # 1. get the current position
         # 2. reset to the first child
-        my $command = "git merge --no-commit";
+        my $command = "git merge";
+        if (exists $rebase_step->{ahash}) {
+            $command .= " --no-commit";
+        } else {
+            $command .= " --no-edit";
+        }
         if ($rebase_step->{flags}->{ours}) {
             $command .= " --strategy=ours";
         }
@@ -435,7 +440,9 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             $command .= " $p";
         }
         run_command($command);
-        run_command("git commit -C " . resolve_ahash($rebase_step->{ahash}, $commits) . " --reset-author");
+        if (exists $rebase_step->{ahash}) {
+            run_command("git commit -C " . resolve_ahash($rebase_step->{ahash}, $commits) . " --reset-author");
+        }
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
@@ -732,8 +739,12 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                     $flags_str .= " --ours"
                 }
                 my $parents_str2 = join ",", @{$step->{parents}};
-                $flags_str .= " -c $step->{ahash}";
-                print $out "merge$flags_str $parents_str2 " . commits_get_subject($commits, $step->{ahash}) . "\n";
+                my $subject = "";
+                if (exists $step->{ahash}) {
+                    $flags_str .= " -c $step->{ahash}";
+                    $subject = " " . commits_get_subject($commits, $step->{ahash});
+                }
+                print $out "merge$flags_str $parents_str2$subject\n";
             } elsif ($step->{type} eq "mark") {
                 print $out ": $step->{name}\n";
             } else {
@@ -804,12 +815,13 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                         onSyntaxError->("Unexpected merge options: " . join @options);
                     }
                 }
-                if (!defined $ahash) {
-                    $onSyntaxError->("Missing -c option for merge");
-                }
                 my @pos_args = split / +/, $pos_string, 2;
                 my $parents = [split /,/, $pos_args[0]];
-                push @{$todo}, {type => "merge", ahash => $ahash, parents => $parents, flags => $flags};
+                my $step = {type => "merge", ahash => $ahash, parents => $parents, flags => $flags};
+                if (defined $ahash) {
+                    $step->{ahash} = $ahash;
+                }
+                push @{$todo}, $step;
             } elsif (/^: ([^\n\r ]+)$/) {
                 my $name = $1;
                 if ($name =~ /[^0-9a-z_]/i) {
