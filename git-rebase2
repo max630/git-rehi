@@ -242,6 +242,7 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
     if (scalar @{$todo} > 0) {
         $commits->{head} = { type => "known_hash", hash => $dest_hash };
         save_todo($todo, "$GIT_DIR/rebase2/todo.backup", $commits);
+        run_command("git checkout --quiet --detach $dest_hash");
         run_rebase($todo, $commits, $target_ref);
     } else {
         cleanup_save();
@@ -514,7 +515,7 @@ sub find_only ($\@) { my ($needle, $items) = @_;
 
 sub sync_head($) { my ($commits) = @_;
     if ($commits->{head}->{type} eq "known_hash") {
-        run_command("git checkout --quiet --detach $commits->{head}->{hash}");
+        run_command("git reset --hard $commits->{head}->{hash}");
         $commits->{head} = { type => "synced" };
     } elsif ($commits->{head}->{type} eq "synced") {
         # nothing to do
