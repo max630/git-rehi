@@ -381,7 +381,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             if ($commits->{head}->{type} eq "known_hash") {
                 $commits->{head}->{hash};
             } elsif ($commits->{head}->{type} eq "synced") {
-                get_single(git_resolve_hashes(["HEAD"]));
+                get_single([git_resolve_hashes(["HEAD"])]);
             } else {
                 confess("Unknown head type: $commits->{head}->{type}");
             }
