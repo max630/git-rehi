@@ -983,5 +983,9 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
 # * continue, abort
 
 if ($0 !~ /test\.pl/) {
-    main(\@ARGV);
+    eval { main(\@ARGV); };
+    if ($@ ne "") {
+        print "Error: $@";
+        exit(1);
+    }
 }
