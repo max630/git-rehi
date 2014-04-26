@@ -419,8 +419,43 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
 }
 
 sub merge($$) { my ($rebase_step, $commits) = @_;
-    # TODO: make ff check
-    merge_noff($rebase_step, $commits);
+    if ($commits->{head}->{type} eq "known_hash" &&
+        exists $rebase_step->{ahash} &&
+        exists $commits->{refs}->{$rebase_step->{ahash}} &&
+        exists $commits->{by_hash}->{$commits->{refs}->{$rebase_step->{ahash}}})
+    {
+        my $merge_parents_refs = $rebase_step->{parents};
+        my $step_hash = $commits->{refs}->{$rebase_step->{ahash}};
+        my $commit_parents = $commits->{by_hash}->{$step_hash}->{parents};
+        if (scalar @{$merge_parents_refs} == scalar @{$commit_parents}) {
+            my $match = 1;
+            for (my $i = 0; $match && $i < @{$merge_parents_refs}; ++$i) {
+                if ($merge_parents_refs->[$i] eq "HEAD") {
+                    $match = $commits->{head}->{hash} eq $commit_parents->[$i];
+                } else {
+                    my $resolved = resolve_ahash($merge_parents_refs->[$i], $commits);
+                    if ($resolved eq $commit_parents->[$i]) {
+                        $match = 1;
+                    } elsif ($resolved =~ /^[0-9a-zA-Z_]+$/ && (substr $commit_parents->[$i], 0, length $resolved) eq $resolved) {
+                        # cheating here; $commits should have been known about it if I implement them properly
+                        $match = 1;
+                    } else {
+                        $match = 0;
+                    }
+                }
+            }
+            if ($match) {
+                print "Fast-forwarding merge: $rebase_step->{ahash}, $commits->{by_hash}->{$step_hash}->{subject}\n";
+                $commits->{head}->{hash} = $step_hash;
+            } else {
+                merge_noff($rebase_step, $commits);
+            }
+        } else {
+            merge_noff($rebase_step, $commits);
+        }
+    } else {
+        merge_noff($rebase_step, $commits);
+    }
 }
 
 sub merge_noff($$) { my ($rebase_step, $commits) = @_;
