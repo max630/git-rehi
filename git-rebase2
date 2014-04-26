@@ -126,7 +126,6 @@ sub git_get_checkedout_branch()
 #   comment => String
 # } or {
 #   type => "merge",
-#   # at least one of ahash or comment should be
 #   ahash => String,
 #   parents => [String],
 #   flags => {
