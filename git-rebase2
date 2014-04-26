@@ -107,7 +107,7 @@ sub git_get_checkedout_branch()
 #   ahash => String,
 #   hash => String[40],
 #   subject => String,
-#   parent => [String[40]],
+#   parents => [String[40]],
 # }
 #
 # $todo = [ Step ]
