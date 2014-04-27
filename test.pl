@@ -194,6 +194,21 @@ merge HEAD,12345 Some subject
 End
 } merge_no_c;
 
+t {
+is (do { my $out;
+         save_todo([{ type => "merge", parents => ["HEAD", "12345"], flags => { noff => 1 } }],
+                   \$out,
+                   { refs => { },
+                     by_hash => { } });
+         $out; },
+    <<End);
+merge --no-ff HEAD,12345
+End
+is_deeply (read_todo(\<<End, []), [{ type => "merge", parents => ["HEAD", "12345"], flags => { noff => 1 } }]);
+merge --no-ff HEAD,12345
+End
+} merge_no_ff;
+
 foreach my $name (do { if (scalar @ARGV) { @ARGV } else { keys %Tests; }; }) {
     subtest $name => $Tests{$name};
 }
