@@ -209,6 +209,44 @@ merge --no-ff HEAD,12345
 End
 } merge_no_ff;
 
+t {
+    is_deeply(
+        build_rebase_sequence(
+            {
+              'refs' => { 'afff2' => 'fff2', 'afff3' => 'fff3', 'afff4' => 'fff4', 'afff1' => 'fff1' },
+              'marks' => {},
+              'by_hash' => {
+                 'fff1' => {
+                         'hash' => 'fff1',
+                         'ahash' => 'afff1',
+                         'subject' => 'reset',
+                         'parents' => [ 'fff5' ]
+                 },
+                 'fff4' => {
+                         'hash' => 'fff4',
+                         'ahash' => 'afff4',
+                         'subject' => 'change1',
+                         'parents' => [ 'fff3' ]
+                 },
+                 'fff3' => {
+                         'hash' => 'fff3',
+                         'ahash' => 'afff3',
+                         'subject' => 'Merge commit \'fff2\' into HEAD',
+                         'parents' => [ 'fff5', 'fff2' ]
+                 },
+                 'fff2' => {
+                         'hash' => 'fff2',
+                         'ahash' => 'afff2',
+                         'subject' => 'change2',
+                         'parents' => [ 'fff1' ]
+                 }
+                }
+          },
+          'fff5', 'fff4', ['fff1']),
+        []
+      );
+} handle_noff_merges;
+
 foreach my $name (do { if (scalar @ARGV) { @ARGV } else { keys %Tests; }; }) {
     subtest $name => $Tests{$name};
 }
