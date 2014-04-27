@@ -388,6 +388,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             $commits->{head} = { type => "known_hash", hash => $hash_or_ref };
         } else {
             run_command("git reset --hard $hash_or_ref");
+            $commits->{head} = { type => "synced" };
         }
     } elsif ($rebase_step->{type} eq "exec") {
         sync_head($commits);
