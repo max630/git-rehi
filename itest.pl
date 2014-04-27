@@ -126,7 +126,7 @@ t {
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-ff");
     cmd("$testee -i origin/b4");
     is_deeply([split(/[ \n]/,`git show --quiet --pretty=format:%p HEAD`)],
-              [split(/\n/, `git show --quiet --pretty=format:%h origin/b4 origin/base`)]);
+              [split(/\n/, `git show --quiet --pretty=format:%h origin/b4 origin/b2`)]);
 } edit_merge_no_ff;
 
 t {

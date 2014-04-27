@@ -26,6 +26,7 @@ merge-no-ff)
 cat >"$file" <<EOF
 : base
 pick origin/base
+pick origin/b2
 : tmp1
 reset @base
 merge --no-ff HEAD,@tmp1
