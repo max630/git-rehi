@@ -192,6 +192,13 @@ t {
     }
 } marks_cleared;
 
+t {
+    cmd("git reset --hard origin/b_noffmerge");
+    cmd("$testee origin/b4 ..origin/base..");
+    is(`git show --quiet --pretty=format:%h HEAD`,
+       `git show --quiet --pretty=format:%h origin/b_noffmerge`);
+} handle_noff_merges;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
