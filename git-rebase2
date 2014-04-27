@@ -565,6 +565,9 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
         }
         $prev_hash = $step_hash;
     }
+    if (defined $marks{$from}) {
+        push @result, { type => 'mark', name => $marks{$from} };
+    }
     my $prev_hash = $from;
     foreach my $step_hash (@{$sequence}) {
         if (!grep { $_ eq $prev_hash; } @{$commits->{by_hash}->{$step_hash}->{parents}}) {
