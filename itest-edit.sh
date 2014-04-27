@@ -32,6 +32,16 @@ reset @base
 merge --no-ff HEAD,@tmp1
 EOF
 ;;
+merge-no-ff-reuse)
+file_content=`cat "$file"`
+cat >"$file" <<EOF
+: base
+$file_content
+: tmp1
+reset @base
+merge --no-ff HEAD,@tmp1
+EOF
+;;
 merge-resolved)
 cat >"$file" <<EOF
 Merge origin/b2 with resolving conflict (test)

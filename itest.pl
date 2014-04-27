@@ -131,6 +131,15 @@ t {
 
 t {
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-ff-reuse");
+    cmd("git reset --hard origin/b2");
+    cmd("$testee -i origin/b4");
+    is_deeply([split(/[ \n]/,`git show --quiet --pretty=format:%p HEAD`)],
+              [split(/\n/, `git show --quiet --pretty=format:%h origin/b4 origin/b2`)]);
+} edit_merge_no_ff_reuse;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-c");
     cmd("$testee -i origin/b2");
     cmd("git diff --quiet origin/master1");
