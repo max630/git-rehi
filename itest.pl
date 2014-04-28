@@ -166,6 +166,13 @@ t {
 } merge_conflict;
 
 t {
+    cmd("$testee origin/b1");
+    like(`cat .git/rebase2_todo.backup`, qr/^merge -c [0-9a-z]+ [0-9a-z]+,HEAD merge$/);
+    is(`git show --quiet --pretty=format:%h HEAD`,
+       `git show --quiet --pretty=format:%h origin/master1`);
+} merge_second_parent;
+
+t {
     cmd("git reset --hard origin/base");
     cmd("git commit --allow-empty -m UPDATE");
     cmd("$testee HEAD origin/base..origin/b3..origin/b2b3", "!= 0");
