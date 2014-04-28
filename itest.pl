@@ -166,6 +166,12 @@ t {
 } merge_conflict;
 
 t {
+    cmd("$testee origin/b1");
+    is(`git show --quiet --pretty=format:%h HEAD`,
+       `git show --quiet --pretty=format:%h origin/b1`);
+} merge_second_parent;
+
+t {
     cmd("git reset --hard origin/base");
     cmd("git commit --allow-empty -m UPDATE");
     cmd("$testee HEAD origin/base..origin/b3..origin/b2b3", "!= 0");
