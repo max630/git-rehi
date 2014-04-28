@@ -168,7 +168,7 @@ t {
 t {
     cmd("$testee origin/b1");
     is(`git show --quiet --pretty=format:%h HEAD`,
-       `git show --quiet --pretty=format:%h origin/b1`);
+       `git show --quiet --pretty=format:%h origin/master1`);
 } merge_second_parent;
 
 t {
