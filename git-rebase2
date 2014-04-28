@@ -598,6 +598,7 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
 # TODO: tests, tests, tests
 sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
     find_only($prev_hash, @{$commits->{by_hash}->{$step_hash}->{parents}});
+    my $_;
     my @parents_ahashes = map {
         if ($_ eq $prev_hash) {
             "HEAD";
