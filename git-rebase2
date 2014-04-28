@@ -607,7 +607,7 @@ sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
         } elsif (exists $commits->{by_hash}->{$_}) {
             $commits->{by_hash}->{$_}->{ahash};
         } else {
-            my $ahash = read_popen("git show -s --pretty=format:%h $_ --");
+            read_popen("git show -s --pretty=format:%h $_ --");
         }
     } @{$commits->{by_hash}->{$step_hash}->{parents}};
     my %merge_flags;
