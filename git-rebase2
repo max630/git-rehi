@@ -989,11 +989,13 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     $children_num{$to} = 0;
     # fill children_total for each commit
     foreach my $h (keys %{$commits}) {
-        foreach my $p (@{$commits->{$h}->{parents}}) {
-            if (exists $children_num{$p}) {
-                $children_num{$p}++;
-            } else {
-                $children_num{$p} = 1;
+        if(exists $commits->{$h}->{parents}) {
+            foreach my $p (@{$commits->{$h}->{parents}}) {
+                if (exists $children_num{$p}) {
+                    $children_num{$p}++;
+                } else {
+                    $children_num{$p} = 1;
+                }
             }
         }
     }
@@ -1043,7 +1045,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             push @{$schedule[$i]->{todo}}, $hash;
             my @new_tasks = map {
                 { state => "READY", current => $_, todo => [ @{$schedule[$i]->{todo}} ] };
-            } @{$commits->{$hash}->{parents}};
+            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
             splice @schedule, $i, 1, @new_tasks;
         }
     }
