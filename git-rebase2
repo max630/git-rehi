@@ -753,6 +753,7 @@ sub init_save($$) { my ($target_ref, $initial_branch) = @_;
 
 sub cleanup_save() {
     # will throw itself
+    run_command("cp $GIT_DIR/rebase2/todo.backup $GIT_DIR/rebase2_todo.backup");
     rmtree("$GIT_DIR/rebase2");
 }
 
