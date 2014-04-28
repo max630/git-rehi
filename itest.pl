@@ -167,6 +167,7 @@ t {
 
 t {
     cmd("$testee origin/b1");
+    like(`cat .git/rebase2_todo.backup`, qr/^merge -c [0-9a-z]+ [0-9a-z]+,HEAD merge$/);
     is(`git show --quiet --pretty=format:%h HEAD`,
        `git show --quiet --pretty=format:%h origin/master1`);
 } merge_second_parent;
