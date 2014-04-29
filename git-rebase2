@@ -539,7 +539,7 @@ sub pick($$) { my ($hash, $commits) = @_;
             print "Fast-forwarding unchanged commit: $commits->{by_hash}->{$hash}->{ahash} $commits->{by_hash}->{$hash}->{subject}\n";
             $commits->{head}->{hash} = $hash;
         } else {
-            print "Apply: $commits->{by_hash}->{$hash}->{subject}\n";
+            print "Apply: $hash " . ((exists $commits->{by_hash}->{$hash}) ? $commits->{by_hash}->{$hash}->{subject} : "???") . "\n";
             sync_head($commits);
             run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash");
         }
