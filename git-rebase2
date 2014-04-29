@@ -48,7 +48,9 @@ sub retry (&$) { my ($code, $ok) = @_;
     }
 }
 
-package guard {
+{
+    package guard;
+
     sub new ($&) { my ($class, $sub) = @_;
         return (bless { sub => $sub }, $class);
     }
