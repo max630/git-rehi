@@ -41,7 +41,7 @@ sub cmd($;$) { my ($cmd) = @_;
 }
 
 sub reset_repo {
-    `git rebase2 --abort 2>&1`;
+    `$testee --abort 2>&1`;
     `git checkout -f --no-track -B master origin/master1 2>&1`;
     die("reset checkout failed") if ($? != 0);
     `git clean -f -x -d 2>&1`;
