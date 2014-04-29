@@ -9,6 +9,8 @@ use Carp;
 use File::Path qw(rmtree);
 use File::Temp qw(:mktemp);
 
+no autovivification qw(fetch delete store exists strict);
+
 my $GIT_DIR = read_popen("git rev-parse --git-dir");
 # full list of invalid sylbols is unclear.
 # definitely no \ or " (to be used in command-line), what else?
