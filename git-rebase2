@@ -159,15 +159,17 @@ sub main($) { my ($argv) = @_;
     my $parsed = parse_cli($argv);
     if (0) {
     } elsif ($parsed->[0] eq "ABORT") {
-        abort_rebase();
+        return abort_rebase();
     } elsif ($parsed->[0] eq "CONTINUE") {
         my ($todo, $current, $commits, $target_ref) = restore_rebase();
         if ($current) {
-            run_continue($current, $commits);
+            if (run_continue($current, $commits) != 0) {
+                return 1;
+            }
             unlink("$GIT_DIR/rebase2/current");
         }
         $commits->{head} = { type => "synced" };
-        run_rebase($todo, $commits, $target_ref);
+        return run_rebase($todo, $commits, $target_ref);
     } elsif ($parsed->[0] eq "SKIP") {
         my ($todo, $current, $commits, $target_ref) = restore_rebase();
         if ($current) {
@@ -175,7 +177,7 @@ sub main($) { my ($argv) = @_;
             unlink("$GIT_DIR/rebase2/current");
         }
         $commits->{head} = { type => "synced" };
-        run_rebase($todo, $commits, $target_ref);
+        return run_rebase($todo, $commits, $target_ref);
     } elsif ($parsed->[0] eq "RUN") {
         my ($tag, $dest, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
         git_verify_clean();
@@ -183,7 +185,7 @@ sub main($) { my ($argv) = @_;
         my $target_ref = do { if ($target_arg ne "") { $target_arg; } else { $initial_branch }};
         my $source_to = do { if ($source_to_arg ne "") { $source_to_arg } else { $target_ref }};
         my $source_from = do { if ($source_from_arg ne "") { $source_from_arg } else { git_merge_base($source_to, $dest); }};
-        main_run($dest, $source_from, $through, $source_to, $target_ref, $initial_branch, $interactive);
+        return main_run($dest, $source_from, $through, $source_to, $target_ref, $initial_branch, $interactive);
     } else {
         confess("Unexpected: " . Data::Dumper($parsed));
     }
@@ -237,19 +239,18 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
         my $ok;
         $todo = edit_todo($todo, $commits, \$ok);
         if (!$ok) {
-            cleanup_save();
             print "Aborted\n";
-            return;
+            return cleanup_save();
         }
     }
     if (scalar @{$todo} > 0) {
         $commits->{head} = { type => "known_hash", hash => $dest_hash };
         save_todo($todo, "$GIT_DIR/rebase2/todo.backup", $commits);
         run_command("git checkout --quiet --detach $dest_hash");
-        run_rebase($todo, $commits, $target_ref);
+        return run_rebase($todo, $commits, $target_ref);
     } else {
-        cleanup_save();
         print "Nothing to do\n";
+        return cleanup_save();
     }
 }
 
@@ -296,9 +297,12 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
 }
 
 sub run_continue($$) { my ($current, $commits) = @_;
-    run_command("git rev-parse --verify HEAD >/dev/null"
+    if (run_command("git rev-parse --verify HEAD >/dev/null"
                 . " && git update-index --ignore-submodules --refresh"
-                . " && git diff-files --quiet --ignore-submodules");
+                . " && git diff-files --quiet --ignore-submodules", 1) != 0) {
+        print "Continue failed - unresolved problems\n";
+        return 1;
+    }
     # TODO: restore proper rebase-like behavior
     if ($current->{type} eq "pick" || $current->{type} eq "merge") {
         if (git_no_uncommitted_changes()) {
@@ -321,10 +325,11 @@ sub run_continue($$) { my ($current, $commits) = @_;
     } elsif ($current->{type} eq "exec") {
         confess "Cannot continue 'exec $current->{command}'; resolve it manually, then skip or abort";
     } elsif ($current->{type} eq "comment") {
-        comment($current->{comment});
+        return comment($current->{comment});
     } else {
         confess "Type $current->{type} is unknown or not implemented";
     }
+    return 0;
 }
 
 sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
@@ -341,23 +346,26 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
             my $pause = 0;
             save_todo($todo, "$GIT_DIR/rebase2/todo", $commits);
             save_todo([$current], "$GIT_DIR/rebase2/current", $commits);
-            run_step($current, $commits, \$pause);
-            if ($pause) {
-                return;
+            if (run_step($current, $commits, \$pause) == 0) {
+                if ($pause) {
+                    return 0;
+                }
+            } else {
+                return 1
             }
             unlink("$GIT_DIR/rebase2/current");
         }
     }
     # TODO: make proper reflog
     run_command("git checkout -B $target_ref");
-    cleanup_save();
+    return cleanup_save();
 }
 
 sub abort_rebase() {
     my $initial_branch = read_file("$GIT_DIR/rebase2/initial_branch");
     run_command("git reset --hard $initial_branch");
     run_command("git checkout -f $initial_branch");
-    cleanup_save();
+    return cleanup_save();
 }
 
 sub resolve_ahash($$) { my ($ahash, $commits) = @_;
@@ -373,18 +381,23 @@ sub resolve_ahash($$) { my ($ahash, $commits) = @_;
 
 sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
     if ($rebase_step->{type} eq "pick") {
-        pick(resolve_ahash($rebase_step->{ahash}, $commits), $commits);
+        return pick(resolve_ahash($rebase_step->{ahash}, $commits), $commits);
     } elsif ($rebase_step->{type} eq "edit") {
         print "Apply: " . commits_get_subject($commits, $rebase_step->{ahash}) . "\n";
-        pick(resolve_ahash($rebase_step->{ahash}, $commits), $commits);
+        if (pick(resolve_ahash($rebase_step->{ahash}, $commits), $commits) != 0) {
+            return 1;
+        }
         sync_head($commits);
         print "Amend the commit and run \"git rebase2 --continue\"\n";
         ${$pause} = 1;
     } elsif ($rebase_step->{type} eq "fixup") {
         print "Fixup: " . commits_get_subject($commits, $rebase_step->{ahash}). "\n";
         sync_head($commits);
-        run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit " . resolve_ahash($rebase_step->{ahash}, $commits)
-                    . " && git commit --amend --no-edit");
+        if (run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit " . resolve_ahash($rebase_step->{ahash}, $commits)
+                    . " && git commit --amend --no-edit", 1) != 0) {
+            print ("Amend by $rebase_step->{ahash} failed. Resolve and --continue or --skip, or --abort\n");
+            return 1;
+        }
     } elsif ($rebase_step->{type} eq "reset") {
         my $hash_or_ref = resolve_ahash($rebase_step->{ahash}, $commits);
         if (exists $commits->{by_hash}->{$hash_or_ref}) {
@@ -395,11 +408,14 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         }
     } elsif ($rebase_step->{type} eq "exec") {
         sync_head($commits);
-        run_command($rebase_step->{command})
+        if (run_command($rebase_step->{command}, 1) != 0) {
+            print "Command $rebase_step->{command} failed. Resolve and --continue or --skip, or --abort\n";
+            return 1;
+        }
     } elsif ($rebase_step->{type} eq "comment") {
         print "Updating comment\n";
         sync_head($commits);
-        comment($rebase_step->{comment});
+        return comment($rebase_step->{comment});
     } elsif ($rebase_step->{type} eq "mark") {
         my $head_hash = do {
             if ($commits->{head}->{type} eq "known_hash") {
@@ -418,10 +434,11 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             and close($out)
             or confess("Write to \"$GIT_DIR/rebase2/marks\" failed: $!");
     } elsif ($rebase_step->{type} eq "merge") {
-        merge($rebase_step, $commits);
+        return merge($rebase_step, $commits);
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
+    return 0;
 }
 
 sub merge($$) { my ($rebase_step, $commits) = @_;
@@ -453,15 +470,11 @@ sub merge($$) { my ($rebase_step, $commits) = @_;
             if ($match) {
                 print "Fast-forwarding unchanged merge: $rebase_step->{ahash} $commits->{by_hash}->{$step_hash}->{subject}\n";
                 $commits->{head}->{hash} = $step_hash;
-            } else {
-                merge_new($rebase_step, $commits);
+                return 0;
             }
-        } else {
-            merge_new($rebase_step, $commits);
         }
-    } else {
-        merge_new($rebase_step, $commits);
     }
+    return merge_new($rebase_step, $commits);
 }
 
 sub merge_new($$) { my ($rebase_step, $commits) = @_;
@@ -495,10 +508,22 @@ sub merge_new($$) { my ($rebase_step, $commits) = @_;
     foreach my $p (@parents) {
         $command .= " $p";
     }
-    run_command($command);
-    if (exists $rebase_step->{ahash}) {
-        run_command("git commit -C " . resolve_ahash($rebase_step->{ahash}, $commits) . " --reset-author");
+    if (run_command($command, 1) != 0) {
+        print "Merge failed. Resolve and --continue or --skip, or --abort\n";
+        return 1;
     }
+    if (exists $rebase_step->{ahash}) {
+        if (run_command("git commit -C " . resolve_ahash($rebase_step->{ahash}, $commits) . " --reset-author", 1) != 0) {
+            print "Merge commit failed, fastforward?\n";
+            print "You would probably want to do now one of the following:\n";
+            print " * force non-fastforward merge\n";
+            print " * merge some other parent instead of the one from history\n";
+            print " * skip the step at all (is it a non-interactive rebase?)\n";
+            print "Then invoke git rebase2 --skip\n";
+            return 1;
+        }
+    }
+    return 0;
 }
 
 sub find_only ($\@) { my ($needle, $items) = @_;
@@ -538,21 +563,27 @@ sub pick($$) { my ($hash, $commits) = @_;
             scalar $commits->{by_hash}->{$hash}->{parents}->[0] eq $commits->{head}->{hash}) {
             print "Fast-forwarding unchanged commit: $commits->{by_hash}->{$hash}->{ahash} $commits->{by_hash}->{$hash}->{subject}\n";
             $commits->{head}->{hash} = $hash;
+            return 0;
         } else {
             print "Apply: $hash " . ((exists $commits->{by_hash}->{$hash}) ? $commits->{by_hash}->{$hash}->{subject} : "???") . "\n";
             sync_head($commits);
-            run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash");
         }
     } elsif ($commits->{head}->{type} eq "synced") {
-        run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash");
     } else {
         confess("Unknown head type: $commits->{head}->{type}");
     }
+    if (run_command("git cherry-pick --allow-empty --allow-empty-message --ff $hash", 1) != 0) {
+        print "Pick $hash failed. Resolve and --continue or --skip, or --abort\n";
+        return 1;
+    }
+    return 0;
 }
 
 sub comment($) { my ($comment) = @_;
     write_file("$GIT_DIR/rebase2/commit_msg", $comment);
-    run_command("git commit --amend -F \"$GIT_DIR/rebase2/commit_msg\"");
+    if (run_command("git commit --amend -F \"$GIT_DIR/rebase2/commit_msg\"", 1) != 0) {
+        print "Editing comment failed. Resolve and --continue or --skip, or --abort\n";
+    }
 }
 
 sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
@@ -719,9 +750,15 @@ sub git_sequence_editor() {
     confess ("Editor not found");
 }
 
-sub run_command($) { my ($command) = @_;
+sub run_command($;$) { my ($command) = @_;
     my $ret = system($command);
-    confess("Command failed: $ret") unless ($ret == 0);
+    if ($ret == 0) {
+        return 0;
+    } elsif (scalar @_ > 1 && $_[1] != 0) {
+        return 1;
+    } else {
+        confess("Command failed: $ret") unless ($ret == 0);
+    }
 }
 
 sub read_popen($) { my ($command) = @_;
@@ -756,10 +793,14 @@ sub init_save($$) { my ($target_ref, $initial_branch) = @_;
 
 sub cleanup_save() {
     # will throw itself
-    if (-e "$GIT_DIR/rebase2/todo.backup") {
-        run_command("cp -f $GIT_DIR/rebase2/todo.backup $GIT_DIR/rebase2_todo.backup");
+    if (-e "$GIT_DIR/rebase2") {
+        if (-e "$GIT_DIR/rebase2/todo.backup") {
+            run_command("cp -f $GIT_DIR/rebase2/todo.backup $GIT_DIR/rebase2_todo.backup");
+        }
+        return ((rmtree("$GIT_DIR/rebase2") > 0) ? 0 : 1);
+    } else {
+        return 0;
     }
-    rmtree("$GIT_DIR/rebase2");
 }
 
 sub commits_get_subject($$) { my ($commits, $ref) = @_;
@@ -1067,9 +1108,9 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
 # * continue, abort
 
 if ($0 !~ /test\.pl/) {
-    eval { main(\@ARGV); };
+    eval { exit(main(\@ARGV)); };
     if ($@ ne "") {
-        print "Error: $@";
+        print STDERR "Error: $@";
         exit(1);
     }
 }
