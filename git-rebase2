@@ -507,7 +507,15 @@ sub merge_new($$) { my ($rebase_step, $commits) = @_;
         return 1;
     }
     if (exists $rebase_step->{ahash}) {
-        run_command("git commit -C " . resolve_ahash($rebase_step->{ahash}, $commits) . " --reset-author");
+        if (run_command("git commit -C " . resolve_ahash($rebase_step->{ahash}, $commits) . " --reset-author", 1) != 0) {
+            print "Merge commit failed, fastforward?\n";
+            print "You would probably want to do now one of the following:\n";
+            print " * force non-fastforward merge\n";
+            print " * merge some other parent instead of the one from history\n";
+            print " * skip the step at all (is it a non-interactive rebase?)\n";
+            print "Then invoke git rebase2 --skip\n";
+            return 1;
+        }
     }
     return 0;
 }
