@@ -554,7 +554,7 @@ sub pick($$) { my ($hash, $commits) = @_;
             print "Apply: $hash " . ((exists $commits->{by_hash}->{$hash}) ? $commits->{by_hash}->{$hash}->{subject} : "???") . "\n";
             sync_head($commits);
         }
-    } elsif ($commits->{head}->{type} ne "synced") {
+    } elsif ($commits->{head}->{type} eq "synced") {
     } else {
         confess("Unknown head type: $commits->{head}->{type}");
     }
