@@ -163,7 +163,9 @@ sub main($) { my ($argv) = @_;
     } elsif ($parsed->[0] eq "CONTINUE") {
         my ($todo, $current, $commits, $target_ref) = restore_rebase();
         if ($current) {
-            run_continue($current, $commits);
+            if (run_continue($current, $commits) != 0) {
+                return 1;
+            }
             unlink("$GIT_DIR/rebase2/current");
         }
         $commits->{head} = { type => "synced" };
@@ -295,9 +297,12 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
 }
 
 sub run_continue($$) { my ($current, $commits) = @_;
-    run_command("git rev-parse --verify HEAD >/dev/null"
+    if (run_command("git rev-parse --verify HEAD >/dev/null"
                 . " && git update-index --ignore-submodules --refresh"
-                . " && git diff-files --quiet --ignore-submodules");
+                . " && git diff-files --quiet --ignore-submodules", 1) != 0) {
+        print "Continue failed - unresolved problems\n";
+        return 1;
+    }
     # TODO: restore proper rebase-like behavior
     if ($current->{type} eq "pick" || $current->{type} eq "merge") {
         if (git_no_uncommitted_changes()) {
@@ -320,10 +325,11 @@ sub run_continue($$) { my ($current, $commits) = @_;
     } elsif ($current->{type} eq "exec") {
         confess "Cannot continue 'exec $current->{command}'; resolve it manually, then skip or abort";
     } elsif ($current->{type} eq "comment") {
-        comment($current->{comment});
+        return comment($current->{comment});
     } else {
         confess "Type $current->{type} is unknown or not implemented";
     }
+    return 0;
 }
 
 sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
