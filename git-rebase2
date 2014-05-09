@@ -1054,8 +1054,8 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
         while ($schedule[$i]->{state} ne "READY") {
-            confess("No thread is READY") if ($i >= scalar @schedule);
             ++$i;
+            confess("No thread is READY") if ($i >= scalar @schedule);
         }
 
         my $hash = $schedule[$i]->{current};
