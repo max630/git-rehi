@@ -1091,7 +1091,6 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # TODO: case of throughs in several branches is not covered
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
-        print Dumper([@schedule], $i);
         while ($schedule[$i]->{state} ne "READY") {
             ++$i;
             confess("No thread is READY") if ($i >= scalar @schedule);
@@ -1152,6 +1151,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             splice @schedule, $i, 1, @new_tasks;
         }
     }
+    print Dumper("found", [@schedule]);
 
     if (scalar @schedule > 0) {
         return [ reverse @{$schedule[0]->{todo}} ];
