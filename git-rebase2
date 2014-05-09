@@ -1102,8 +1102,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             @todo_index{@{$schedule[$i]->{todo}}} = ();
             if ((grep { !exists $todo_index{$_}; } @{$through_list}) == 0) {
                 $schedule[$i]->{done_marked} = 1;
-                my %done_elem = %{$schedule[$i]};
-                $done_elem{state} = "DONE";
+                my %done_elem = ( state => "DONE", current => $schedule[$i]{current}, todo => [ @{$schedule[$i]{todo}} ], done_marked => 0);
                 splice @schedule, $i, 0, \%done_elem;
                 ++$i;
             }
