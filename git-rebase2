@@ -275,7 +275,7 @@ sub init_rebase($$$$$) { my ($dest, $source_from, $through, $source_to, $target_
         @through_hashes = git_resolve_hashes($through);
     }
     init_save($target_ref, $initial_branch);
-    my $commits = git_fetch_commits($source_from, $source_to);
+    my $commits = git_fetch_cli_commits($source_from, $source_to);
     my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
     # TODO: edit if interactive
     return ($todo, $commits, $dest_hash);
@@ -663,15 +663,20 @@ sub git_resolve_hashes($) { my ($refs) = @_;
     return @result;
 }
 
-sub git_fetch_commits($$) { my ($from, $to) = @_;
+sub git_fetch_cli_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    open(my $in, ">", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+    git_fetch_commits($commits, git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to);
+    return $commits;
+}
+
+sub git_fetch_commits($$) { my ($commits, $command) = @_;
+    open(my $in, ">>", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     iterate_popen {
         git_parse_commit_line($commits, $_);
         printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
-    } "git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to";
+    } $command;
     close($in) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     return $commits;
 }
