@@ -1052,9 +1052,12 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     #   fork itself for each parent, continuing the sequence
     # (*) store only the portion which is not yet in the sequence. Looks like it should be enough just to filter it
     # (**) here several returns should be sorted out
+    # UP: continue tracing children even after DONE, because may need to finalize other threads.
+    #     done_marked is used for it
 
     # thread info:
     # { state => "READY" | "WAIT_CHILDREN" | "DONE",
+    #   done_marked => Bool,
     #   current => String,
     #   todo => [ String ] }
     # copied while forking
@@ -1080,27 +1083,33 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         }
     }
     my %children_waiters = ();
-    my @schedule = ({ state => "READY", current => $to, todo => []});
+    my @schedule = ({ state => "READY", current => $to, todo => [], done_marked => 0 });
 
     # FIXME: very slow, just to make it work
     # non-branching regions should be recorded without recreating
     # TODO: case of throughs in several branches is not covered
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
+        print Dumper([@schedule], $i);
         while ($schedule[$i]->{state} ne "READY") {
             ++$i;
             confess("No thread is READY") if ($i >= scalar @schedule);
         }
 
         my $hash = $schedule[$i]->{current};
-        if ($hash eq $from) {
-            $schedule[$i]->{state} = "DONE";
+        if ($hash eq $from && !$schedule[$i]->{done_marked}) {
             my %todo_index = ();
             @todo_index{@{$schedule[$i]->{todo}}} = ();
-            if ((grep { !exists $todo_index{$_}; } @{$through_list}) > 0) {
-                splice @schedule, $i, 1, ();
+            if ((grep { !exists $todo_index{$_}; } @{$through_list}) == 0) {
+                $schedule[$i]->{done_marked} = 1;
+                my %done_elem = %{$schedule[$i]};
+                $done_elem{state} = "DONE";
+                splice @schedule, $i, 0, \%done_elem;
+                ++$i;
             }
-        } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} != 0)) {
+        }
+
+        if ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} != 0)) {
             if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
                     if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {
@@ -1124,7 +1133,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
         } else {
             push @{$schedule[$i]->{todo}}, $hash;
             my @new_tasks = map {
-                { state => "READY", current => $_, todo => [ @{$schedule[$i]->{todo}} ] };
+                { state => "READY", current => $_, todo => [ @{$schedule[$i]->{todo}} ], done_marked => 0 };
             } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
             splice @schedule, $i, 1, @new_tasks;
         }
