@@ -667,7 +667,7 @@ sub git_fetch_cli_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    git_fetch_commits($commits, git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to);
+    git_fetch_commits($commits, "git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to");
     return $commits;
 }
 
