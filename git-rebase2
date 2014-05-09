@@ -1054,6 +1054,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # (**) here several returns should be sorted out
     # UP: continue tracing children even after DONE, because may need to finalize other threads.
     #     done_marked is used for it
+    # FIXME: `through` testcase - it should prefer the smaller one!
 
     # thread info:
     # { state => "READY" | "WAIT_CHILDREN" | "DONE",
@@ -1103,8 +1104,22 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             if ((grep { !exists $todo_index{$_}; } @{$through_list}) == 0) {
                 $schedule[$i]->{done_marked} = 1;
                 my %done_elem = ( state => "DONE", current => $schedule[$i]{current}, todo => [ @{$schedule[$i]{todo}} ], done_marked => 0);
-                splice @schedule, $i, 0, \%done_elem;
-                ++$i;
+                my $j = 0;
+                # FIXME: also handle case when larger is filled _after_ smaller
+                for (; $j < $i; ++$j) {
+                    if ($schedule[$j]{state} = "DONE"
+                        && do { my %j_todo_index = ();
+                                @j_todo_index{@{$schedule[$j]{todo}}} = ();
+                                scalar grep { !exists $j_todo_index{$_}; } @{$schedule[$i]{todo}}; } == 0) {
+                        last;
+                    }
+                }
+                if ($j < $i) {
+                    $schedule[$j] = \%done_elem;
+                } else {
+                    splice @schedule, $i, 0, \%done_elem;
+                    ++$i;
+                }
             }
         }
 
