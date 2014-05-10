@@ -617,11 +617,11 @@ sub build_rebase_sequence($$$$) { my ($commits, $from, $to, $through) = @_;
         }
         if (scalar @{$commits->{by_hash}->{$step_hash}->{parents}} == 1) {
             push @result, { type => 'pick', ahash => $commits->{by_hash}->{$step_hash}->{ahash} };
-            if (defined $marks{$step_hash}) {
-                push @result, { type => 'mark', name => $marks{$step_hash} };
-            }
         } else {
             push @result, make_merge_steps($step_hash, $prev_hash, $commits, \%marks);
+        }
+        if (defined $marks{$step_hash}) {
+            push @result, { type => 'mark', name => $marks{$step_hash} };
         }
         $prev_hash = $step_hash;
     }
