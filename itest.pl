@@ -223,6 +223,11 @@ t {
        `git show --quiet --pretty=format:%h origin/b_noffmerge`);
 } handle_noff_merges;
 
+t {
+    cmd("git reset --hard origin/b_diamond_after_merge");
+    cmd("$testee origin/b2");
+} inner_merge_after_merge;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
