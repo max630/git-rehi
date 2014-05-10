@@ -1118,7 +1118,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             my @new_tasks = map {
                 { state => "FINALIZE_MERGEBASES", current => $_ };
             } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
-            splice @schedule, $i, 1, @new_tasks;
+            splice @schedule, $i, 0, @new_tasks;
         } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
             if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
