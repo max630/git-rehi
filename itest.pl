@@ -228,6 +228,11 @@ t {
     cmd("$testee origin/b2");
 } inner_merge_after_merge;
 
+t {
+    cmd("git reset --hard origin/b_merge_of_merges");
+    cmd("$testee origin/b5");
+} base_after_merge;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
