@@ -121,6 +121,7 @@ sub git_get_checkedout_branch()
 #   hash => String[40],
 #   subject => String,
 #   parents => [String[40]],
+#   tree => String[40],
 # }
 #
 # $todo = [ Step ]
@@ -275,10 +276,24 @@ sub init_rebase($$$$$) { my ($dest, $source_from, $through, $source_to, $target_
         @through_hashes = git_resolve_hashes($through);
     }
     init_save($target_ref, $initial_branch);
-    my $commits = git_fetch_commits($source_from, $source_to);
+    my $commits = git_fetch_cli_commits($source_from, $source_to);
+    my $unknown_parents = find_unknown_parents($commits);
+    git_fetch_commit_list($commits, $unknown_parents);
     my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
     # TODO: edit if interactive
     return ($todo, $commits, $dest_hash);
+}
+
+sub find_unknown_parents($) { my ($commits) = @_;
+    my %result = ();
+    foreach my $c (values %{$commits->{by_hash}}) {
+        foreach my $p (@{$c->{parents}}) {
+            if (!exists $commits->{by_hash}{$p} && !exists $result{$p}) {
+                $result{$p} = undef;
+            }
+        }
+    }
+    return [keys %result];
 }
 
 sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
@@ -640,11 +655,11 @@ sub make_merge_steps($$$$) { my ($step_hash, $prev_hash, $commits, $marks) = @_;
         } elsif (exists $commits->{by_hash}->{$_}) {
             $commits->{by_hash}->{$_}->{ahash};
         } else {
-            read_popen("git show -s --pretty=format:%h $_ --");
+            confess("Unknown parent: $_");
         }
     } @{$commits->{by_hash}->{$step_hash}->{parents}};
     my %merge_flags;
-    if (system("git diff --quiet $step_hash $commits->{by_hash}->{$step_hash}->{parents}->[0]") == 0) {
+    if ($commits->{by_hash}{$step_hash}{tree} eq $commits->{by_hash}{$commits->{by_hash}{$step_hash}{parents}[0]}{tree}) {
         $merge_flags{ours} = 1;
     }
     my $ahash = $commits->{by_hash}->{$step_hash}->{ahash};
@@ -663,15 +678,35 @@ sub git_resolve_hashes($) { my ($refs) = @_;
     return @result;
 }
 
-sub git_fetch_commits($$) { my ($from, $to) = @_;
+sub git_fetch_cli_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    open(my $in, ">", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+    git_fetch_commits($commits, "git log --ancestry-path --pretty=format:%H:%h:%T:%P:%s $from..$to");
+    return $commits;
+}
+
+sub git_fetch_commit_list($$) { my ($commits, $unknowns_arg) = @_;
+    my @unknowns = @{$unknowns_arg};
+    while (scalar @unknowns > 0) {
+        my @chunk = splice @unknowns, 0, 20;
+        my $command = "git show --no-patch --pretty=format:%H:%h:%T:%P:%s";
+        foreach my $c (@chunk) {
+            verify_cmdarg($c);
+            $command .= " $c";
+        }
+        git_fetch_commits($commits, $command);
+    }
+}
+
+sub git_fetch_commits($$) { my ($commits, $command) = @_;
+    open(my $in, ">>", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     iterate_popen {
-        git_parse_commit_line($commits, $_);
-        printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
-    } "git log --ancestry-path --pretty=format:%H:%h:%P:%s $from..$to";
+        if ($_ ne "\n") {
+            git_parse_commit_line($commits, $_);
+            printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+        }
+    } $command;
     close($in) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     return $commits;
 }
@@ -692,15 +727,16 @@ sub git_load_commits() {
 }
 
 sub git_parse_commit_line($$) { my ($commits, $line) = @_;
-    if ($line =~ /^([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
+    if ($line =~ /^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)\x{a}?$/) {
         my $hash = $1;
         my $ahash = $2;
-        my @parents = split(/ /, $3);
-        my $subject = $4;
+        my $tree = $3;
+        my @parents = split(/ /, $4);
+        my $subject = $5;
         verify_hash($hash);
         foreach my $p (@parents) { verify_hash($p); }
         if (!exists $commits->{by_hash}->{$hash}) {
-            my $obj = {parents => \@parents, subject => $subject, hash => $hash, ahash => $ahash};
+            my $obj = {parents => \@parents, subject => $subject, hash => $hash, ahash => $ahash, tree => $tree};
             $commits->{by_hash}->{$hash} = $obj;
         }
         if (exists $commits->{refs}->{$ahash}) {
@@ -1020,12 +1056,13 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # (**) here several returns should be sorted out
 
     # thread info:
-    # { state => "READY" | "WAIT_CHILDREN" | "DONE",
+    # { state => "READY" | "WAIT_CHILDREN" | "DONE" | "FINALIZE_MERGEBASES",
     #   current => String,
     #   todo => [ String ] }
     # copied while forking
     # children_waiters = { $hash => { todo_index => { String => () }, left => num, thread => ref to thread } }
     # children_num => { $hash => num }
+    # terminating_commits = { $hash => undef }
 
     my %children_num = ();
     foreach my $h (keys %{$commits}) {
@@ -1047,26 +1084,46 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     }
     my %children_waiters = ();
     my @schedule = ({ state => "READY", current => $to, todo => []});
+    my %terminating_commits = ();
 
     # FIXME: very slow, just to make it work
     # non-branching regions should be recorded without recreating
     # TODO: case of throughs in several branches is not covered
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
-        while ($schedule[$i]->{state} ne "READY") {
+        while ($schedule[$i]->{state} ne "READY" && $schedule[$i]->{state} ne "FINALIZE_MERGEBASES") {
             ++$i;
             confess("No thread is READY") if ($i >= scalar @schedule);
         }
 
         my $hash = $schedule[$i]->{current};
-        if ($hash eq $from) {
+        if (exists $terminating_commits{$hash}) {
+            splice @schedule, $i, 1;
+        } elsif ($schedule[$i]->{state} eq "FINALIZE_MERGEBASES") {
+            if ($children_num{$hash} > 1) {
+                if (exists $children_waiters{$hash}) {
+                    $children_waiters{$hash}{thread}{state} = "FINALIZE_MERGEBASES";
+                }
+            }
+            $terminating_commits{$hash} = ();
+            my @new_tasks = map {
+                { state => "FINALIZE_MERGEBASES", current => $_ };
+            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
+            splice @schedule, $i, 1, @new_tasks;
+        } elsif ($hash eq $from) {
             $schedule[$i]->{state} = "DONE";
             my %todo_index = ();
             @todo_index{@{$schedule[$i]->{todo}}} = ();
             if ((grep { !exists $todo_index{$_}; } @{$through_list}) > 0) {
                 splice @schedule, $i, 1, ();
+            } else {
+                ++$i;
             }
-        } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} != 0)) {
+            my @new_tasks = map {
+                { state => "FINALIZE_MERGEBASES", current => $_ };
+            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
+            splice @schedule, $i, 0, @new_tasks;
+        } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
             if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
                     if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {

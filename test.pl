@@ -92,6 +92,32 @@ t { is_deeply (find_sequence({ 1 => {parents => [2, 5]},
                         [7,6,5,1]); } inner_merge_through_wa;
 
 t {
+    # 1-2-4-5-7
+    #  \ / \
+    #   3   6-8
+    my $commits = {
+        by_hash => {
+            f0001 => { ahash => "a0001", hash => "f0001", subject => "s0001", tree => "b0001", parents => ["f0002", "f0003"] },
+            f0002 => { ahash => "a0002", hash => "f0002", subject => "s0002", tree => "b0002", parents => ["f0004"] },
+            f0003 => { ahash => "a0003", hash => "f0003", subject => "s0003", tree => "b0003", parents => ["f0004"] },
+            f0004 => { ahash => "a0004", hash => "f0004", subject => "s0004", tree => "b0004", parents => ["f0005", "f0006"] },
+            f0005 => { ahash => "a0005", hash => "f0005", subject => "s0005", tree => "b0005", parents => ["f0007"] },
+            f0006 => { ahash => "a0006", hash => "f0006", subject => "s0006", tree => "b0006", parents => ["f0008"] },
+        }
+    };
+    is_deeply(build_rebase_sequence($commits, "f0005", "f0001", []),
+              read_todo(\<<End, undef));
+merge -c a0004 HEAD,a0006
+: tmp_1
+pick a0003
+: tmp_2
+reset \@tmp_1
+pick a0002
+merge -c a0001 HEAD,\@tmp_2
+End
+} inner_merge_after_merge;
+
+t {
 is_deeply (parse_cli(['a']), ['RUN', 'a', undef, [], undef, undef, 0]);
 is_deeply (parse_cli(['a', 'c']), ['RUN', 'a', undef, [], undef, 'c', 0]);
 is_deeply (parse_cli(['a', 'b..d', 'c']), ['RUN', 'a', 'b', [], 'd', 'c', 0]);
