@@ -1052,12 +1052,13 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # (**) here several returns should be sorted out
 
     # thread info:
-    # { state => "READY" | "WAIT_CHILDREN" | "DONE",
+    # { state => "READY" | "WAIT_CHILDREN" | "DONE" | "FINALIZE_MERGEBASES",
     #   current => String,
     #   todo => [ String ] }
     # copied while forking
     # children_waiters = { $hash => { todo_index => { String => () }, left => num, thread => ref to thread } }
     # children_num => { $hash => num }
+    # terminating_commits = { $hash => undef }
 
     my %children_num = ();
     foreach my $h (keys %{$commits}) {
@@ -1079,26 +1080,46 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     }
     my %children_waiters = ();
     my @schedule = ({ state => "READY", current => $to, todo => []});
+    my %terminating_commits = ();
 
     # FIXME: very slow, just to make it work
     # non-branching regions should be recorded without recreating
     # TODO: case of throughs in several branches is not covered
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
         my $i = 0;
-        while ($schedule[$i]->{state} ne "READY") {
+        while ($schedule[$i]->{state} ne "READY" && $schedule[$i]->{state} ne "FINALIZE_MERGEBASES") {
             ++$i;
             confess("No thread is READY") if ($i >= scalar @schedule);
         }
 
         my $hash = $schedule[$i]->{current};
-        if ($hash eq $from) {
+        if (exists $terminating_commits{$hash}) {
+            splice @schedule, $i, 1;
+        } elsif ($schedule[$i]->{state} eq "FINALIZE_MERGEBASES") {
+            if ($children_num{$hash} > 1) {
+                if (exists $children_waiters{$hash}) {
+                    $children_waiters{$hash}{thread}{state} = "FINALIZE_MERGEBASES";
+                }
+            }
+            $terminating_commits{$hash} = ();
+            my @new_tasks = map {
+                { state => "FINALIZE_MERGEBASES", current => $_ };
+            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
+            splice @schedule, $i, 1, @new_tasks;
+        } elsif ($hash eq $from) {
             $schedule[$i]->{state} = "DONE";
             my %todo_index = ();
             @todo_index{@{$schedule[$i]->{todo}}} = ();
             if ((grep { !exists $todo_index{$_}; } @{$through_list}) > 0) {
                 splice @schedule, $i, 1, ();
+            } else {
+                ++$i;
             }
-        } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} != 0)) {
+            my @new_tasks = map {
+                { state => "FINALIZE_MERGEBASES", current => $_ };
+            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
+            splice @schedule, $i, 1, @new_tasks;
+        } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
             if (exists $children_waiters{$hash}) {
                 foreach my $step (@{$schedule[$i]->{todo}}) {
                     if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {
