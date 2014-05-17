@@ -8,6 +8,7 @@ use Data::Dumper;
 use Carp;
 use File::Path qw(rmtree);
 use File::Temp qw(:mktemp);
+use Time::HiRes qw(time);
 
 my $GIT_DIR = read_popen("git rev-parse --git-dir");
 # full list of invalid sylbols is unclear.
@@ -60,10 +61,20 @@ sub retry (&$) { my ($code, $ok) = @_;
     }
 }
 
+# time guard
+sub time_measure($) { my ($msg) = @_;
+    my $start = time;
+    return guard->new(sub {
+        my $diff = time - $start;
+        print "Time: $diff ($msg)\n";
+    });
+}
+
 # }}}
 
 # {{{ io utils
 sub iterate_popen(&$) { my ($code, $command) = @_;
+    my $g = time_measure "pipe: $command";
     open(my $in, "-|", $command) or confess "Cannot start a program: $!";
     while (<$in>) {
         $code->($_);
@@ -84,6 +95,7 @@ sub iterate_file(&$) { my ($code, $filename) = @_;
 
 sub git_no_uncommitted_changes()
 {
+    my $g = time_measure "git_no_uncommitted_changes";
     return (system("git diff-index --quiet --ignore-submodules HEAD") == 0);
 }
 
@@ -772,6 +784,7 @@ sub git_sequence_editor() {
 }
 
 sub run_command($;$) { my ($command) = @_;
+    my $g = time_measure "cmd: $command";
     my $ret = system($command);
     if ($ret == 0) {
         return 0;
