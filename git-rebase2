@@ -277,8 +277,6 @@ sub init_rebase($$$$$) { my ($dest, $source_from, $through, $source_to, $target_
     }
     init_save($target_ref, $initial_branch);
     my $commits = git_fetch_cli_commits($source_from, $source_to);
-    my $unknown_parents = find_unknown_parents($commits);
-    git_fetch_commit_list($commits, $unknown_parents);
     my $todo = build_rebase_sequence($commits, $source_from_hash, $source_to_hash, \@through_hashes);
     # TODO: edit if interactive
     return ($todo, $commits, $dest_hash);
@@ -682,21 +680,8 @@ sub git_fetch_cli_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    git_fetch_commits($commits, "git log --ancestry-path --pretty=format:%H:%h:%T:%P:%s $from..$to");
+    git_fetch_commits($commits, "git log --pretty=format:%H:%h:%T:%P:%s $from~..$to");
     return $commits;
-}
-
-sub git_fetch_commit_list($$) { my ($commits, $unknowns_arg) = @_;
-    my @unknowns = @{$unknowns_arg};
-    while (scalar @unknowns > 0) {
-        my @chunk = splice @unknowns, 0, 20;
-        my $command = "git show --no-patch --pretty=format:%H:%h:%T:%P:%s";
-        foreach my $c (@chunk) {
-            verify_cmdarg($c);
-            $command .= " $c";
-        }
-        git_fetch_commits($commits, $command);
-    }
 }
 
 sub git_fetch_commits($$) { my ($commits, $command) = @_;
