@@ -8,6 +8,21 @@ use Data::Dumper;
 use Carp;
 use File::Path qw(rmtree);
 use File::Temp qw(:mktemp);
+use Time::HiRes qw(time);
+
+# {{{ initialize globals
+my $GIT_EXEC_PATH = do {
+    if (1) {
+        my $dir = read_popen("git --exec-path");
+        if (-d $dir && $dir =~ /^[-a-z0-9_\.,\/ ]+$/i) {
+            $dir;
+        } else {
+            undef;
+        }
+    } else {
+        undef;
+    }
+};
 
 my $GIT_DIR = read_popen("git rev-parse --git-dir");
 # full list of invalid sylbols is unclear.
@@ -16,9 +31,9 @@ my $GIT_DIR = read_popen("git rev-parse --git-dir");
 if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
     confess("Some unsupported symbols in: $GIT_DIR");
 }
+# }}}
 
 # {{{ utils
-
 sub retry (&$) { my ($code, $ok) = @_;
     my $warray = wantarray;
     while (1) {
@@ -60,11 +75,30 @@ sub retry (&$) { my ($code, $ok) = @_;
     }
 }
 
+# time guard
+sub time_measure($) { my ($msg) = @_;
+    return undef; # disabled
+    my $start = time;
+    return guard->new(sub {
+        my $diff = time - $start;
+        print "Time: $diff ($msg)\n";
+    });
+}
+
 # }}}
 
 # {{{ io utils
+sub check_git_alias($) { my ($command) = @_;
+    if ($command =~ /^git ([a-z].*)/ && defined $GIT_EXEC_PATH) {
+        return "$GIT_EXEC_PATH/git-$1";
+    } else {
+        return $command;
+    }
+}
+
 sub iterate_popen(&$) { my ($code, $command) = @_;
-    open(my $in, "-|", $command) or confess "Cannot start a program: $!";
+    my $g = time_measure "pipe: $command";
+    open(my $in, "-|", check_git_alias($command)) or confess "Cannot start a program: $!";
     while (<$in>) {
         $code->($_);
     }
@@ -84,7 +118,8 @@ sub iterate_file(&$) { my ($code, $filename) = @_;
 
 sub git_no_uncommitted_changes()
 {
-    return (system("git diff-index --quiet --ignore-submodules HEAD") == 0);
+    my $g = time_measure "git_no_uncommitted_changes";
+    return (system(check_git_alias("git diff-index --quiet --ignore-submodules HEAD")) == 0);
 }
 
 sub git_verify_clean()
@@ -772,7 +807,8 @@ sub git_sequence_editor() {
 }
 
 sub run_command($;$) { my ($command) = @_;
-    my $ret = system($command);
+    my $g = time_measure "cmd: $command";
+    my $ret = system(check_git_alias($command));
     if ($ret == 0) {
         return 0;
     } elsif (scalar @_ > 1 && $_[1] != 0) {
