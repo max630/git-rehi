@@ -33,7 +33,12 @@ sub cmd($;$) { my ($cmd) = @_;
     if ($goal_status eq "!= 0" && $status != 0
         || $goal_status =~ /^-?\d+$/ && $status == $goal_status)
     {
-        ok("cmd$cmd_num");
+        if ($output =~ /at.*line [0-9]+/) {
+            diag("Command output contains stacktrace\nCommand: $cmd\nOutput:\n$output\n");
+            fail("cmd$cmd_num");
+        } else {
+            ok("cmd$cmd_num");
+        }
     } else {
         diag("Command status does not match: $status vs $goal_status\nCommand: $cmd\nOutput:\n$output\n");
         fail("cmd$cmd_num");
@@ -207,6 +212,7 @@ t {
 } fastforward_over_merges;
 
 t {
+    local $TODO = "pure build_rebase_sequence()";
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner");
     cmd("$testee -i origin/base~1");
