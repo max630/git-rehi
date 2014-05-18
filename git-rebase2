@@ -77,6 +77,7 @@ sub retry (&$) { my ($code, $ok) = @_;
 
 # time guard
 sub time_measure($) { my ($msg) = @_;
+    return undef; # disabled
     my $start = time;
     return guard->new(sub {
         my $diff = time - $start;
