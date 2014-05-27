@@ -331,7 +331,7 @@ sub verify_marks($) { my ($todo) = @_;
             $check->($step->{ahash});
         } elsif ($step->{type} eq "merge") {
             #TODO: verify ahash also, when it's implemented
-            foreach my $p (@$step->{parents}) {
+            foreach my $p (@{$step->{parents}}) {
                 $check->($p);
             }
         } elsif ($step->{type} =~ /^commits|exec$/) {
