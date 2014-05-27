@@ -212,7 +212,6 @@ t {
 } fastforward_over_merges;
 
 t {
-    local $TODO = "pure build_rebase_sequence()";
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner");
     cmd("$testee -i origin/base~1");
