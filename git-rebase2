@@ -241,7 +241,8 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
         $todo = edit_todo($todo, $commits, \$ok);
         if (!$ok) {
             print "Aborted\n";
-            return cleanup_save();
+            cleanup_save();
+            return 1;
         }
     }
     if (scalar @{$todo} > 0) {
