@@ -26,7 +26,7 @@ sub t(&*) { my ($block, $name) = @_;
 my $cmd_num = 0;
 sub cmd($;$) { my ($cmd) = @_;
     my $goal_status = do { if (scalar @_ > 1) { $_[1]; } else { 0; }; };
-    my $output = `$cmd 2>&1`;
+    my $output = `$cmd 2>&1 </dev/null`;
     my $status = $?;
 
     $cmd_num++;
