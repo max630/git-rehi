@@ -306,9 +306,39 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
         retry {
             run_command($editor . " $tmpname");
             # TODO: read unknown commits
-            return read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
+            my $todo_rc = read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
+            verify_marks($todo_rc);
+            $todo_rc;
         } $ok;
     return $new_todo;
+}
+
+sub verify_marks($) { my ($todo) = @_;
+    my %marks = ();
+    my $check = sub ($) {
+        if ($_[0] =~ /^\@([0-9a-zA-Z_]+)$/) {
+            die "Unknown mark: $1\n" if (!exists $marks{$1});
+        }
+    };
+    foreach my $step (@{$todo}) {
+        if ($step->{type} eq "mark") {
+            if (exists $marks{$step->{name}}) {
+                die "Duplicated mark: $step->{name}\n";
+            } else {
+                $marks{$step->{name}} = undef;
+            }
+        } elsif ($step->{type} =~ /^pick|fixup|edit|reset$/) {
+            $check->($step->{ahash});
+        } elsif ($step->{type} eq "merge") {
+            #TODO: verify ahash also, when it's implemented
+            foreach my $p (@$step->{parents}) {
+                $check->($p);
+            }
+        } elsif ($step->{type} =~ /^commits|exec$/) {
+        } else {
+            confess("Unknown step: $step->{type}");
+        }
+    }
 }
 
 sub run_continue($$) { my ($current, $commits) = @_;
