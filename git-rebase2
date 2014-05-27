@@ -487,6 +487,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
 }
 
 sub merge($$) { my ($rebase_step, $commits) = @_;
+    #TODO: ahash should be resolved as usual, allowing marks for example
     if ($commits->{head}->{type} eq "known_hash" &&
         exists $rebase_step->{ahash} &&
         exists $commits->{refs}->{$rebase_step->{ahash}} &&
