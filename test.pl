@@ -15,6 +15,16 @@ sub t(&*) { my ($block, $name) = @_;
     $Tests{$name} = $block;
 }
 
+sub fails(&;%) { my ($code) = @_;
+    my $flags = do { if (exists $_[1]) { $_[1] } else { { }; } };
+    eval { $code->(); };
+    my $err = $@;
+    isnt("", $err, "should fail");
+    if (!(exists $flags->{allow_stack} && $flags->{allow_stack})) {
+        unlike($err, '/at.*line [0-9]+/', "should not contain stack");
+    }
+}
+
 t { is_deeply (find_sequence({ 1 => {parents => [2]},
                                         2 => {parents => [3]},
                                         3 => {parents => [4]},},
@@ -58,13 +68,12 @@ t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
 # 1 --- 2*--- 6
 #  \        /
 #   3 ----4*
-t { isnt (do { eval { find_sequence({ 1 => {parents => [2, 3]},
+t { fails { find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [6]},
                            3 => {parents => [4]},
                            4 => {parents => [6]},
                            6 => {parents => [7,10]}  },
-                           6, 1, [2,4]); }; $@; },
-                        ""); } parallel_throughs;
+                           6, 1, [2,4]); } { allow_stack => 1 }; } parallel_throughs;
 # 1 -- 2 -- 3 -- 4
 #  \       /    /
 #   5 --- 6 -- 7
@@ -128,8 +137,8 @@ is_deeply (parse_cli(['a', '..e..', 'c']), ['RUN', 'a', '', ['e'], '', 'c', 0]);
 is_deeply (parse_cli(['a', '..e..']), ['RUN', 'a', '', ['e'], '', undef, 0]);
 is_deeply (parse_cli(['a', 'b..e..f..d', 'c']), ['RUN', 'a', 'b', ['e', 'f'], 'd', 'c', 0]);
 
-isnt (do { eval { parse_cli(['a', 'b...d', 'c']) }; $@ }, '');
-isnt (do { eval { parse_cli(['a', 'b....d', 'c']) }; $@ }, '');
+fails { parse_cli(['a', 'b...d', 'c']) } { allow_stack => 1 };
+fails { parse_cli(['a', 'b....d', 'c']) } { allow_stack => 1 };
 } parse_cli;
 
 t {
