@@ -137,8 +137,8 @@ is_deeply (parse_cli(['a', '..e..', 'c']), ['RUN', 'a', '', ['e'], '', 'c', 0]);
 is_deeply (parse_cli(['a', '..e..']), ['RUN', 'a', '', ['e'], '', undef, 0]);
 is_deeply (parse_cli(['a', 'b..e..f..d', 'c']), ['RUN', 'a', 'b', ['e', 'f'], 'd', 'c', 0]);
 
-isnt (do { eval { parse_cli(['a', 'b...d', 'c']) }; $@ }, '');
-isnt (do { eval { parse_cli(['a', 'b....d', 'c']) }; $@ }, '');
+fails { parse_cli(['a', 'b...d', 'c']) } { allow_stack => 1 };
+fails { parse_cli(['a', 'b....d', 'c']) } { allow_stack => 1 };
 } parse_cli;
 
 t {
