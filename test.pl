@@ -15,6 +15,13 @@ sub t(&*) { my ($block, $name) = @_;
     $Tests{$name} = $block;
 }
 
+sub fails(&) { my ($code) = @_;
+    eval { $code->(); };
+    my $err = $@;
+    isnt("", $err, "should fail");
+    unlike($err, '/at.*line [0-9]+/', "should not contain stack");
+}
+
 t { is_deeply (find_sequence({ 1 => {parents => [2]},
                                         2 => {parents => [3]},
                                         3 => {parents => [4]},},
@@ -58,13 +65,12 @@ t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
 # 1 --- 2*--- 6
 #  \        /
 #   3 ----4*
-t { isnt (do { eval { find_sequence({ 1 => {parents => [2, 3]},
+t { fails { find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [6]},
                            3 => {parents => [4]},
                            4 => {parents => [6]},
                            6 => {parents => [7,10]}  },
-                           6, 1, [2,4]); }; $@; },
-                        ""); } parallel_throughs;
+                           6, 1, [2,4]); }; } parallel_throughs;
 # 1 -- 2 -- 3 -- 4
 #  \       /    /
 #   5 --- 6 -- 7
