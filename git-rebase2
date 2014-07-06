@@ -335,7 +335,7 @@ sub verify_marks($) { my ($todo) = @_;
             foreach my $p (@{$step->{parents}}) {
                 $check->($p);
             }
-        } elsif ($step->{type} =~ /^commits|exec$/) {
+        } elsif ($step->{type} =~ /^comment|exec$/) {
         } else {
             confess("Unknown step: $step->{type}");
         }
