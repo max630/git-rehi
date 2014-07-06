@@ -1035,10 +1035,10 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
 
 sub with_output_file($$) { my ($filename, $proc) = @_;
     if (ref $filename eq "") {
-        open(my $out, ">", $filename + ".new") or confess "Cannot open file $filename.new: $!";
+        open(my $out, ">", $filename . ".new") or confess "Cannot open file $filename.new: $!";
         $proc->($out);
         close($out) or confess "Cannot close output file $filename.new: $!";
-        rename($filename + ".new", $filename) or "Cannot replace output file $filename: $!";
+        rename($filename . ".new", $filename) or "Cannot replace output file $filename: $!";
     } else {
         # for testing
         open(my $out, ">", $filename) or confess "Cannot open file $filename: $!";
