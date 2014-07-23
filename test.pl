@@ -154,6 +154,28 @@ End
 is_deeply (read_todo(\<<End, []), [{ type => "merge", parents => ["HEAD", "12345"], flags => {}, ahash => "93845345"}]);
 merge -c 93845345 HEAD,12345
 End
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "Test comment\n"}]);
+comment
+Test comment
+.
+End
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "Test comment\n."}]);
+comment {{{
+Test comment
+.}}}
+End
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "#Test comment\n"}]);
+comment {{{
+#Test comment
+}}}
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "Test comment"}]);
+comment {{{
+Test comment}}}
+End
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "{Test comment"}]);
+comment <<
+{Test comment>>
+End
 sub { is_deeply (read_todo($_[0], []),
                    [{type => "mark", name => "12345"},
                     {type => "pick",  ahash => "\@12345"},
@@ -208,6 +230,33 @@ fixup \@12345 Test comment
 edit \@12345 Test comment
 reset \@12345
 merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
+End
+is (do { my $out;
+         save_todo([{ type => "pick",  ahash => "12345"},
+                    { type => "comment", comment => "Test comment\n" }],
+                   \$out,
+                   { refs => { "12345" => "12345ddd" },
+                     by_hash => { "12345ddd" => { subject => "Test comment" } } });
+         $out; },
+    <<End);
+pick 12345 Test comment
+comment
+Test comment
+.
+End
+is (do { my $out;
+         save_todo([{ type => "pick",  ahash => "12345"},
+                    { type => "comment", comment => "Test comment\n." }],
+                   \$out,
+                   { refs => { "12345" => "12345ddd" },
+                     by_hash => { "12345ddd" => { subject => "Test comment" } } });
+         $out; },
+    <<End);
+pick 12345 Test comment
+comment {{{
+Test comment
+.
+}}}
 End
 } save_todo;
 
