@@ -440,7 +440,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         print "Fixup: " . commits_get_subject($commits, $rebase_step->{ahash}). "\n";
         sync_head($commits);
         if (run_command("git cherry-pick --allow-empty --allow-empty-message --no-commit " . resolve_ahash($rebase_step->{ahash}, $commits)
-                    . " && git commit --amend --no-edit", 1) != 0) {
+                    . " && git commit --amend --reset-author --no-edit", 1) != 0) {
             print ("Amend by $rebase_step->{ahash} failed. Resolve and --continue or --skip, or --abort\n");
             return 1;
         }
