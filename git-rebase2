@@ -900,7 +900,6 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 }
                 print $out "exec $step->{command}\n";
             } elsif ($step->{type} eq "comment") {
-                print $out "comment\n";
                 write_todo_comment($out, $step->{comment});
             } elsif ($step->{type} eq "merge") {
                 my $flags_str = "";
@@ -927,6 +926,23 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
 }
 
 sub write_todo_comment($$) { my ($out, $comment) = @_;
+    if ($comment =~ /^\.$/m || $comment =~ /[^\n]\z/s || $comment =~ /^#/m) {
+        write_todo_comment_quoted($out, $comment);
+    } else {
+        write_todo_comment_plain($out, $comment);
+    }
+}
+
+sub write_todo_comment_quoted($$) { my ($out, $comment) = @_;
+    my $quote_end = '}}}';
+    while ($comment =~ /\Q$quote_end\E/) {
+        $quote_end = $quote_end . '}';
+    }
+    print $out ("comment " . ($quote_end =~ tr/}/{/r) . "\n" . $comment . $quote_end . "\n");
+}
+
+sub write_todo_comment_plain($$) { my ($out, $comment) = @_;
+    print $out "comment\n";
     while ($comment =~ /\n\.\n/) {
         $comment =~ s/\n\.\n/\n/;
     }

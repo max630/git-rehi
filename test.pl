@@ -251,7 +251,7 @@ Test comment
 End
 is (do { my $out;
          save_todo([{ type => "pick",  ahash => "12345"},
-                    { type => "comment", comment => "Test comment\n." }],
+                    { type => "comment", comment => "Test comment\n.\n" }],
                    \$out,
                    { refs => { "12345" => "12345ddd" },
                      by_hash => { "12345ddd" => { subject => "Test comment" } } });
@@ -261,6 +261,24 @@ pick 12345 Test comment
 comment {{{
 Test comment
 .
+}}}
+End
+is (do { my $out;
+         save_todo([{ type => "comment", comment => "#Test comment\n" }], \$out, { });
+         $out; },
+    <<End);
+comment {{{
+#Test comment
+}}}
+End
+is (do { my $out;
+         save_todo([{ type => "comment", comment => "Test comment\n\n#desc\n" }], \$out, { });
+         $out; },
+    <<End);
+comment {{{
+Test comment
+
+#desc
 }}}
 End
 } save_todo;
