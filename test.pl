@@ -168,6 +168,7 @@ is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "#Test commen
 comment {{{
 #Test comment
 }}}
+End
 is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "Test comment"}]);
 comment {{{
 Test comment}}}
@@ -175,6 +176,10 @@ End
 is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "{Test comment"}]);
 comment <<
 {Test comment>>
+End
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "{Test comment}}}"}]);
+comment <<
+{Test comment}}}>>
 End
 sub { is_deeply (read_todo($_[0], []),
                    [{type => "mark", name => "12345"},

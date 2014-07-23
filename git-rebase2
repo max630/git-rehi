@@ -956,6 +956,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     open(my $in, "<", $filename) or confess "Cannot open file $filename: $!";
     my $mode = "COMMAND";
     my $comment = undef;
+    my $quote_end = "";
     while (<$in>) {
         if ($mode eq "COMMAND") {
             if (/^#.*$/) {
@@ -969,9 +970,13 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 push @{$todo}, {type => "reset", ahash => $2};
             } elsif (/^(x|exec) (.+)$/) {
                 push @{$todo}, {type => "exec", command => $2};
-            } elsif (/^comment\b/) {
-                $mode = "COMMENT";
+            } elsif (/^comment$/) {
+                $mode = "COMMENT_PLAIN";
                 $comment = "";
+            } elsif (/^comment ([\<\{\[\(]+)$/) {
+                $mode = "COMMENT_QUOTED";
+                $comment = "";
+                $quote_end = ($1 =~ tr/<{[(/>}])/r);
             } elsif (/^merge( --ours| --no-ff| -c \@?[0-9a-zA-Z_\/]+)* (.+[^\n\r ])$/) {
                 my $pos_string = $2;
                 # TODO: verify as refs
@@ -1013,10 +1018,18 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 s/\n//;
                 $onSyntaxError->("Unrecognised todo line for mode $mode: \"$_\"");
             }
-        } elsif ($mode eq "COMMENT") {
+        } elsif ($mode eq "COMMENT_PLAIN") {
             if (/^#.*$/) {
             } elsif (/^\.$/) {
                 $mode = "COMMAND";
+                push @{$todo}, {type => "comment", comment => $comment};
+            } else {
+                $comment = $comment . $_;
+            }
+        } elsif ($mode eq "COMMENT_QUOTED") {
+            if (/^(.*)\Q$quote_end\E$/) {
+                $mode = "COMMAND";
+                $comment = $comment . $1;
                 push @{$todo}, {type => "comment", comment => $comment};
             } else {
                 $comment = $comment . $_;
