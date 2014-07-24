@@ -18,36 +18,6 @@ if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
 }
 
 # {{{ utils
-
-sub retry (&$) { my ($code, $ok) = @_;
-    my $warray = wantarray;
-    while (1) {
-        my $result;
-        my @result;
-        if ($warray) {
-            @result = eval { $code->(); }
-        } else {
-            $result = eval { $code->(); }
-        }
-        if ($@ ne "") {
-            print "Error: $@";
-            print "Retry (y/N)?";
-            my $answer = <STDIN>;
-            if ($answer !~ /^y.*/i) {
-                ${$ok} = 0;
-                return;
-            }
-        } else {
-            ${$ok} = 1;
-            if ($warray) {
-                return @result;
-            } else {
-                return $result;
-            }
-        }
-    }
-}
-
 {
     package guard;
 
@@ -303,14 +273,32 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
     close($tmpfh) or confess ("Unable to close the tmpfile");
     save_todo($old_todo, $tmpname, $commits);
     my $editor = git_sequence_editor();
-    my $new_todo =
-        retry {
-            run_command($editor . " $tmpname");
-            # TODO: read unknown commits
-            my $todo_rc = read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
-            verify_marks($todo_rc);
-            $todo_rc;
-        } $ok;
+    my $new_todo = do {
+        my $end = 0;
+        my $todo_rc = undef;
+        while (!$end) {
+            eval {
+                run_command($editor . " $tmpname");
+                # TODO: read unknown commits
+                $todo_rc = read_todo($tmpname, $commits, { onSyntaxError => sub { die(@_, "\n"); } });
+                verify_marks($todo_rc);
+            };
+            if ($@ ne "") {
+                print "Error: $@";
+                print "Retry (y/N)?";
+                my $answer = <STDIN>;
+                if ($answer !~ /^y.*/i) {
+                    ${$ok} = 0;
+                    $end = 1;
+                    return;
+                }
+            } else {
+                $end = 1;
+                ${$ok} = 1;
+            }
+        }
+        $todo_rc;
+    };
     return $new_todo;
 }
 
