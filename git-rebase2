@@ -109,6 +109,8 @@ sub git_get_checkedout_branch()
 #   type => "comment",
 #   comment => String
 # } or {
+#   type => "comment?",
+# } or {
 #   type => "merge",
 #   (optional) ahash => String,
 #   parents => [String],
@@ -292,6 +294,7 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
                     $end = 1;
                     return;
                 }
+            } elsif () {
             } else {
                 $end = 1;
                 ${$ok} = 1;
@@ -981,6 +984,8 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 $mode = "COMMENT_QUOTED";
                 $comment = "";
                 $quote_end = ($1 =~ tr/<{[(/>}])/r);
+            } elsif (/^comment\?$/) {
+                push @{$todo}, {type => "comment?"};
             } elsif (/^merge( --ours| --no-ff| -c \@?[0-9a-zA-Z_\/]+)* (.+[^\n\r ])$/) {
                 my $pos_string = $2;
                 # TODO: verify as refs
