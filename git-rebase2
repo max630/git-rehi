@@ -744,7 +744,7 @@ sub git_fetch_commits($$) { my ($commits, $command) = @_;
 }
 
 sub git_load_commits() {
-    my $commits = {by_hash => {}, refs => {}};
+    my $commits = {by_hash => {}, refs => {}, marks => {}};
     iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rebase2/commits";
     if (-e "$GIT_DIR/rebase2/marks") {
         iterate_file {

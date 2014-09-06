@@ -157,9 +157,9 @@ t {
 } fastforward_merge_fails;
 
 t {
-    cmd("git reset --hard origin/base");
+    cmd("git reset --hard origin/b4");
     cmd("git commit --allow-empty -m UPDATE");
-    cmd("$testee HEAD origin/base..origin/b3..origin/b2b3", "!= 0"); # conflict
+    cmd("$testee HEAD origin/b4..origin/b3..origin/b2b3", "!= 0"); # conflict
     cmd("$testee --continue", "!= 0"); # no continue without resolving
     cmd("git checkout origin/b2b3 -- file1");
     cmd("git add file1");
