@@ -269,6 +269,13 @@ sub find_unknown_parents($) { my ($commits) = @_;
     return [keys %result];
 }
 
+sub fill_comment_reqs($) { my ($old_todo) = @_;
+    my @pending_steps;
+    foreach my $step (@$old_todo) {
+        if ($step->{type} = )
+    }
+}
+
 sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
     my ($tmpfh, $tmpname) = mkstemp("$GIT_DIR/rebase2/todo.XXXXXXXX");
     # TODO: write without reopen, to fh
@@ -294,7 +301,7 @@ sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
                     $end = 1;
                     return;
                 }
-            } elsif () {
+            } elsif (grep {if ($_->{type} eq "comment?") {  } else { 0; }} @$todo_rc) {
             } else {
                 $end = 1;
                 ${$ok} = 1;
