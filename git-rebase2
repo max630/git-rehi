@@ -152,6 +152,9 @@ sub git_get_checkedout_branch()
 # } or {
 #   type => "reset"
 #   ahash => String
+# } or {
+#   type => "user-comment"
+#   content => String
 # }
 #
 # }}}
@@ -245,7 +248,7 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
             return 1;
         }
     }
-    if (scalar @{$todo} > 0) {
+    if ((grep { $_->{type} ne "user-comment"; } @{$todo}) > 0) {
         $commits->{head} = { type => "known_hash", hash => $dest_hash };
         save_todo($todo, "$GIT_DIR/rebase2/todo.backup", $commits);
         run_command("git checkout --quiet --detach $dest_hash");
@@ -335,7 +338,7 @@ sub verify_marks($) { my ($todo) = @_;
             foreach my $p (@{$step->{parents}}) {
                 $check->($p);
             }
-        } elsif ($step->{type} =~ /^comment|exec$/) {
+        } elsif ($step->{type} =~ /^comment|exec|user-comment$/) {
         } else {
             confess("Unknown step: $step->{type}");
         }
@@ -481,6 +484,8 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             or confess("Write to \"$GIT_DIR/rebase2/marks\" failed: $!");
     } elsif ($rebase_step->{type} eq "merge") {
         return merge($rebase_step, $commits);
+    } elsif ($rebase_step->{type} eq "user-comment") {
+        return 0;
     } else {
         confess "Type $rebase_step->{type} is unknown or not implemented";
     }
@@ -918,6 +923,8 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
                 print $out "merge$flags_str $parents_str2$subject\n";
             } elsif ($step->{type} eq "mark") {
                 print $out ": $step->{name}\n";
+            } elsif ($step->{type} eq "user-comment") {
+                print $out "#$step->{content}\n";
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -975,7 +982,8 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     my $quote_end = "";
     while (<$in>) {
         if ($mode eq "COMMAND") {
-            if (/^#.*$/) {
+            if (/^#([^\r\n]*)[\r\n]*$/) {
+                push @{$todo}, {type => "user-comment", content => $1};
             } elsif (/^(f|fixup) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => $2};
             } elsif (/^(p|pick) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
@@ -1035,7 +1043,8 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 $onSyntaxError->("Unrecognised todo line for mode $mode: \"$_\"");
             }
         } elsif ($mode eq "COMMENT_PLAIN") {
-            if (/^#.*$/) {
+            if (/^#([^\r\n]*)[\r\n]*$/) {
+                push @{$todo}, {type => "user-comment", content => $1};
             } elsif (/^\.$/) {
                 $mode = "COMMAND";
                 push @{$todo}, {type => "comment", comment => $comment};

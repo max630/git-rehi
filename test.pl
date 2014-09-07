@@ -181,6 +181,27 @@ is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "{Test commen
 comment <<
 {Test comment}}}>>
 End
+is_deeply (read_todo(\<<End, []), [{ type => "user-comment", content => "comment_2341"}]);
+#comment_2341
+End
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "Test comment\n"}, {type => "user-comment", content => "comment_2341"}]);
+comment
+Test comment
+.
+#comment_2341
+End
+is_deeply (read_todo(\<<End, []), [{type => "user-comment", content => "comment_2341"}, { type => "comment", comment => "Test comment\n"}]);
+#comment_2341
+comment
+Test comment
+.
+End
+is_deeply (read_todo(\<<End, []), [{type => "user-comment", content => "comment_2341"}, { type => "comment", comment => "Test comment\n"}]);
+comment
+#comment_2341
+Test comment
+.
+End
 sub { is_deeply (read_todo($_[0], []),
                    [{type => "mark", name => "12345"},
                     {type => "pick",  ahash => "\@12345"},
@@ -280,6 +301,44 @@ Test comment
 
 #desc
 }}}
+End
+is (do { my $out;
+         save_todo([{ type => "user-comment",  content => "comment_2341"}],
+                   \$out,
+                   { });
+         $out; },
+    <<End);
+#comment_2341
+End
+is (do { my $out;
+         save_todo([{ type => "pick",  ahash => "12345"},
+                    { type => "user-comment",  content => "comment_2341"},
+                    { type => "comment", comment => "Test comment\n" }],
+                   \$out,
+                   { refs => { "12345" => "12345ddd" },
+                     by_hash => { "12345ddd" => { subject => "Test comment" } } });
+         $out; },
+    <<End);
+pick 12345 Test comment
+#comment_2341
+comment
+Test comment
+.
+End
+is (do { my $out;
+         save_todo([{ type => "pick",  ahash => "12345"},
+                    { type => "comment", comment => "Test comment\n" },
+                    { type => "user-comment",  content => "comment_2341"}],
+                   \$out,
+                   { refs => { "12345" => "12345ddd" },
+                     by_hash => { "12345ddd" => { subject => "Test comment" } } });
+         $out; },
+    <<End);
+pick 12345 Test comment
+comment
+Test comment
+.
+#comment_2341
 End
 } save_todo;
 
