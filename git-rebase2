@@ -63,18 +63,32 @@ sub retry (&$) { my ($code, $ok) = @_;
 # }}}
 
 # {{{ io utils
-sub iterate_popen(&$) { my ($code, $command) = @_;
+sub iterate_popen(&$;$) { my ($code, $command, $separator) = @_;
     open(my $in, "-|", $command) or confess "Cannot start a program: $!";
-    while (<$in>) {
-        $code->($_);
+    if (defined $separator) {
+        local $/ = $separator;
+        while (<$in>) {
+            $code->($_);
+        }
+    } else {
+        while (<$in>) {
+            $code->($_);
+        }
     }
     close ($in) or confess "Program failed";
 }
 
-sub iterate_file(&$) { my ($code, $filename) = @_;
+sub iterate_file(&$;$) { my ($code, $filename, $separator) = @_;
     open(my $in, "<", $filename) or confess "Cannot open \"$filename\": $!";
-    while (<$in>) {
-        $code->($_);
+    if (defined $separator) {
+        local $/ = $separator;
+        while (<$in>) {
+            $code->($_);
+        }
+    } else {
+        while (<$in>) {
+            $code->($_);
+        }
     }
     close ($in);
 }
@@ -747,7 +761,7 @@ sub git_fetch_cli_commits($$) { my ($from, $to) = @_;
     verify_cmdarg($from);
     verify_cmdarg($to);
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    git_fetch_commits($commits, "git log --ancestry-path --pretty=format:%H:%h:%T:%P:%s $from..$to");
+    git_fetch_commits($commits, "git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%s $from..$to");
     return $commits;
 }
 
@@ -755,7 +769,7 @@ sub git_fetch_commit_list($$) { my ($commits, $unknowns_arg) = @_;
     my @unknowns = @{$unknowns_arg};
     while (scalar @unknowns > 0) {
         my @chunk = splice @unknowns, 0, 20;
-        my $command = "git show --no-patch --pretty=format:%H:%h:%T:%P:%s";
+        my $command = "git show -z --no-patch --pretty=format:%H:%h:%T:%P:%s";
         foreach my $c (@chunk) {
             verify_cmdarg($c);
             $command .= " $c";
@@ -771,14 +785,14 @@ sub git_fetch_commits($$) { my ($commits, $command) = @_;
             git_parse_commit_line($commits, $_);
             printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
         }
-    } $command;
+    } $command, v000;
     close($in) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
     return $commits;
 }
 
 sub git_load_commits() {
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rebase2/commits";
+    iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rebase2/commits", v000;
     if (-e "$GIT_DIR/rebase2/marks") {
         iterate_file {
             if (/^([0-9a-zA-Z_\/]+) ([0-9a-fA-F]+)$/) {
