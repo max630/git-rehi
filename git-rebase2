@@ -241,6 +241,7 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
     my ($todo, $commits, $dest_hash) = init_rebase($dest, $source_from, $through, $source_to, $target_ref, $initial_branch);
     if ($interactive) {
         my $ok;
+        $todo = add_info_to_todo($todo, $commits);
         $todo = edit_todo($todo, $commits, \$ok);
         if (!$ok) {
             print "Aborted\n";
@@ -298,6 +299,33 @@ sub find_unknown_parents($) { my ($commits) = @_;
         }
     }
     return [keys %result];
+}
+
+my $help = "
+Commands:
+
+ pick
+ fixup
+ edit
+ exec
+ comment
+ merge
+ :
+ reset
+";
+
+sub comments_from_string($$) { my ($content, $indent) = @_;
+    my @result = map {
+        {type=>"user-comment", content => sprintf("%*.s",$indent,"") . $_}
+    } (split /\r\n|\n|\r/, $content);
+
+    return (@result);
+}
+
+sub add_info_to_todo($$) { my ($old_todo, $commits, $ok) = @_;
+    my @new_todo = @$old_todo;
+    push @new_todo, comments_from_string($help, 1);
+    return \@new_todo;
 }
 
 sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
