@@ -94,6 +94,20 @@ t {
 } edit_b2_to_b1;
 
 t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "empty");
+    cmd("$testee -i origin/b4 ..origin/base");
+    cmd("git diff --quiet origin/master1");
+} edit_empty;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "empty-with-comment");
+    cmd("$testee -i origin/b4 ..origin/base");
+    cmd("git diff --quiet origin/master1");
+} edit_empty_with_comment;
+
+t {
     cmd("git reset --hard origin/b1");
     cmd("git branch -f tmp origin/b2");
     cmd("$testee HEAD tmp");

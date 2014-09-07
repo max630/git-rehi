@@ -7,6 +7,14 @@ cat "$file" >>/dev/stderr
 
 
 case "$GIT_SEQUENCE_EDITOR_CASE" in
+empty)
+: >"$file"
+;;
+empty-with-comment)
+cat >"$file" <<EOF
+#bla-bla
+EOF
+;;
 fail)
 cat >"$file" <<EOF
 x false
@@ -38,6 +46,7 @@ cat >"$file" <<EOF
 : base
 $file_content
 : tmp1
+#aaaa
 reset @base
 merge --no-ff HEAD,@tmp1
 EOF
@@ -54,6 +63,7 @@ pick origin/base
 : tmp1
 pick origin/b1
 : tmp2
+#bbbb
 reset @tmp1
 pick origin/b2
 merge -c origin/master1 HEAD,@tmp2
