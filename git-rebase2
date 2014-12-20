@@ -169,6 +169,10 @@ sub git_get_checkedout_branch()
 # } or {
 #   type => "user-comment"
 #   content => String
+# } or {
+#   type => "tail_pick_with_comment"
+#   ahash => String
+#   message => String
 # }
 #
 # }}}
@@ -326,6 +330,7 @@ Commands:
  merge
  :
  reset
+ end
 ";
 
 sub comments_from_string($$) { my ($content, $indent) = @_;
@@ -945,8 +950,25 @@ sub commits_get_subject($$) { my ($commits, $ref) = @_;
 }
 
 sub save_todo($$$) { my ($todo, $file, $commits) = @_;
+    my @colllect_main = ();
+    my @colllect_tail = ();
+    my $tail = 1;
+    foreach my $step (reverse @{$todo}) {
+        if ($tail) {
+            if ($step->{type} eq "user-comment" || $step->{type} eq "tail_pick_with_comment") {
+                push @colllect_tail, $step;
+            } else {
+                $tail = 0;
+                push @colllect_main, $step;
+            }
+        } else {
+            push @colllect_main, $step;
+        }
+    }
+    my @main = reverse @colllect_main;
+    my @tail = reverse @colllect_tail;
     with_output_file($file, sub { my ($out) = @_;
-        foreach my $step (@{$todo}) {
+        foreach my $step (@main) {
             if ($step->{type} eq "pick") {
                 print $out "pick $step->{ahash} " . commits_get_subject($commits, $step->{ahash}) . "\n";
             } elsif ($step->{type} eq "edit") {
@@ -982,7 +1004,18 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
             } elsif ($step->{type} eq "user-comment") {
                 print $out "# $step->{content}\n";
             } else {
-                confess "Type $step->{type} is unknown or not implemented";
+                confess "Type $step->{type} is unknown or not allowed for main section of todo";
+            }
+        }
+        if (scalar @tail > 0) {
+            print $out "end\n";
+            foreach my $step (@tail) {
+                if ($step->{type} eq "user-comment") {
+                    print $out "$step->{content}\n";
+                } elsif ($step->{type} eq "tail_pick_with_comment") {
+                    print $out "----- $step->{ahash} ----- \n";
+                    write_todo_comment($out, $step->{message});
+                }
             }
         }
     });
@@ -1040,6 +1073,8 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
         if ($mode eq "COMMAND") {
             if (/^# ?([^\r\n]*)[\r\n]*$/) {
                 push @{$todo}, {type => "user-comment", content => $1};
+            } elsif (/^end$/) {
+                $mode = "DONE";
             } elsif (/^(f|fixup) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => $2};
             } elsif (/^(p|pick) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
@@ -1115,12 +1150,18 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
             } else {
                 $comment = $comment . $_;
             }
+        } elsif ($mode eq "DONE") {
+            if (/^(.*)$/) {
+                push @{$todo}, {type => "user-comment", content => $1};
+            } else {
+                $onSyntaxError->("Impossible, line=\"$_\"");
+            }
         } else {
             $onSyntaxError->("Unexpected mode: $mode");
         }
     }
     close($in);
-    if ($mode ne "COMMAND") {
+    if ($mode ne "COMMAND" && $mode ne "DONE") {
         $onSyntaxError->("Unterminated comment");
     }
     # TODO: resolve the $unknown_commits

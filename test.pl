@@ -190,6 +190,13 @@ Test comment
 .
 #comment_2341
 End
+is_deeply (read_todo(\<<End, []), [{ type => "comment", comment => "Test comment\n"}, {type => "user-comment", content => "comment_2341"}]);
+comment
+Test comment
+.
+end
+comment_2341
+End
 is_deeply (read_todo(\<<End, []), [{type => "user-comment", content => "comment_2341"}, { type => "comment", comment => "Test comment\n"}]);
 #comment_2341
 comment
@@ -308,7 +315,8 @@ is (do { my $out;
                    { });
          $out; },
     <<End);
-#comment_2341
+end
+comment_2341
 End
 is (do { my $out;
          save_todo([{ type => "pick",  ahash => "12345"},
@@ -338,7 +346,8 @@ pick 12345 Test comment
 comment
 Test comment
 .
-#comment_2341
+end
+comment_2341
 End
 } save_todo;
 

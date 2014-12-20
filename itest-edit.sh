@@ -5,7 +5,6 @@ file="$1"
 echo File: >>/dev/stderr
 cat "$file" >>/dev/stderr
 
-
 case "$GIT_SEQUENCE_EDITOR_CASE" in
 empty)
 : >"$file"
@@ -41,7 +40,7 @@ merge --no-ff HEAD,@tmp1
 EOF
 ;;
 merge-no-ff-reuse)
-file_content=`cat "$file"`
+file_content=`awk -- '/^end$/{ exit } { print }' "$file"`
 cat >"$file" <<EOF
 : base
 $file_content
