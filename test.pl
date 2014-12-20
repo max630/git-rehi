@@ -320,7 +320,7 @@ is (do { my $out;
          $out; },
     <<End);
 pick 12345 Test comment
-#comment_2341
+# comment_2341
 comment
 Test comment
 .

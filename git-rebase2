@@ -338,15 +338,15 @@ sub comments_from_string($$) { my ($content, $indent) = @_;
 
 sub add_info_to_todo($$) { my ($old_todo, $commits, $ok) = @_;
     my @new_todo = @$old_todo;
-    push @new_todo, comments_from_string($help, 1);
+    push @new_todo, comments_from_string($help, 0);
     push @new_todo, {type=>"user-comment", content=>""};
     push @new_todo, {type=>"user-comment", content=>" Commits:"};
     foreach my $step (@$old_todo) {
         if ($step->{type} =~ /^pick|fixup|edit$/ || ($step->{type} eq "merge" && exists $step->{ahash})) {
             if (exists $commits->{refs}{$step->{ahash}} && exists $commits->{by_hash}{$commits->{refs}{$step->{ahash}}}) {
                 my $body = $commits->{by_hash}{$commits->{refs}{$step->{ahash}}}{body};
-                push @new_todo, comments_from_string("----- " . $step->{ahash} . " -----", 1);
-                push @new_todo, comments_from_string($body, 1);
+                push @new_todo, comments_from_string("----- " . $step->{ahash} . " -----", 0);
+                push @new_todo, comments_from_string($body, 0);
             }
         }
     }
@@ -980,7 +980,7 @@ sub save_todo($$$) { my ($todo, $file, $commits) = @_;
             } elsif ($step->{type} eq "mark") {
                 print $out ": $step->{name}\n";
             } elsif ($step->{type} eq "user-comment") {
-                print $out "#$step->{content}\n";
+                print $out "# $step->{content}\n";
             } else {
                 confess "Type $step->{type} is unknown or not implemented";
             }
@@ -1038,7 +1038,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
     my $quote_end = "";
     while (<$in>) {
         if ($mode eq "COMMAND") {
-            if (/^#([^\r\n]*)[\r\n]*$/) {
+            if (/^# ?([^\r\n]*)[\r\n]*$/) {
                 push @{$todo}, {type => "user-comment", content => $1};
             } elsif (/^(f|fixup) (\@?[0-9a-zA-Z_\/]+)( (.*))?$/) {
                 push @{$todo}, {type => "fixup", ahash => $2};
@@ -1099,7 +1099,7 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 $onSyntaxError->("Unrecognised todo line for mode $mode: \"$_\"");
             }
         } elsif ($mode eq "COMMENT_PLAIN") {
-            if (/^#([^\r\n]*)[\r\n]*$/) {
+            if (/^# ?([^\r\n]*)[\r\n]*$/) {
                 push @{$todo}, {type => "user-comment", content => $1};
             } elsif (/^\.$/) {
                 $mode = "COMMAND";
