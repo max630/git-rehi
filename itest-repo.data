@@ -1,0 +1,1203 @@
+blob
+mark :1
+data 446
+Lorem ipsum dolor sit amet, consectetur
+adipisicing elit, sed do eiusmod tempor
+incididunt ut labore et dolore magna
+aliqua. Ut enim ad minim veniam, quis
+nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit
+in voluptate velit esse cillum dolore eu
+fugiat nulla pariatur. Excepteur sint
+occaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim
+id est laborum
+
+reset refs/remotes/origin/b4
+commit refs/remotes/origin/b4
+mark :2
+author Max Kirillov <max@max630.net> 1382996488 +0200
+committer Max Kirillov <max@max630.net> 1382996488 +0200
+data 6
+file1
+M 100644 :1 file1
+
+blob
+mark :3
+data 444
+Lorem ipsum dolor sit amet, consectetur
+adipisicing elit, sed do eiusmod tempor
+incididunt ut labore et dolore magna
+liqua. Ut enim ad minim veniam, quis
+nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit
+in voluptate velit esse cillum dolore eu
+fugiat nulla pariatur. Excepteur sint
+ccaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim
+id est laborum
+
+commit refs/remotes/origin/b4
+mark :4
+author Max Kirillov <max@max630.net> 1382996513 +0200
+committer Max Kirillov <max@max630.net> 1382996513 +0200
+data 8
+change1
+from :2
+M 100644 :3 file1
+
+blob
+mark :5
+data 890
+Lorem ipsum dolor sit amet, consectetur
+adipisicing elit, sed do eiusmod tempor
+incididunt ut labore et dolore magna
+liqua. Ut enim ad minim veniam, quis
+nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit
+in voluptate velit esse cillum dolore eu
+fugiat nulla pariatur. Excepteur sint
+ccaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim
+id est laborum
+
+
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+commit refs/remotes/origin/b4
+mark :6
+author Max Kirillov <max@max630.net> 1382996562 +0200
+committer Max Kirillov <max@max630.net> 1382996562 +0200
+data 8
+doubled
+from :4
+M 100644 :5 file1
+
+blob
+mark :7
+data 891
+Lorem ipsum dolor sit amet, consectetur
+adipisicing elit, sed do eiusmod tempor
+incididunt ut labore et dolore magna
+liqua. Ut enim ad minim veniam, quis
+nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit
+in voluptate velit esse cillum dolore eu
+fugiat nulla pariatur. Excepteur sint
+ccaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim
+id est laborum
+
+
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+
+magna liqua. Ut enim
+ad minim veniam,
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+commit refs/remotes/origin/b4
+mark :8
+author Max Kirillov <max@max630.net> 1382996576 +0200
+committer Max Kirillov <max@max630.net> 1382996576 +0200
+data 8
+change3
+from :6
+M 100644 :7 file1
+
+blob
+mark :9
+data 892
+Lorem ipsum dolor sit amet, consectetur
+adipisicing elit, sed do eiusmod tempor
+incididunt ut labore et dolore magna
+liqua. Ut enim ad minim veniam, quis
+nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit
+in voluptate velit esse cillum dolore eu
+fugiat nulla pariatur. Excepteur sint
+ccaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim
+id est laborum
+
+
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+
+magna liqua. Ut enim
+ad minim veniam,
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+commit refs/remotes/origin/b4
+mark :10
+author Max Kirillov <max@max630.net> 1382996615 +0200
+committer Max Kirillov <max@max630.net> 1382996615 +0200
+data 8
+change4
+from :8
+M 100644 :9 file1
+
+blob
+mark :11
+data 1311
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+illum qui dolorem
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/base
+mark :12
+author Max Kirillov <max@max630.net> 1382996800 +0200
+committer Max Kirillov <max@max630.net> 1382996800 +0200
+data 6
+reset
+from :10
+M 100644 :11 file1
+
+blob
+mark :13
+data 1313
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+illum qui dolorem
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/b1
+mark :14
+author Max Kirillov <max@max630.net> 1382996818 +0200
+committer Max Kirillov <max@max630.net> 1382996818 +0200
+data 8
+change1
+from :12
+M 100644 :13 file1
+
+blob
+mark :15
+data 1315
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+illum qui dolorem
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/master
+mark :16
+author Max Kirillov <max@max630.net> 1382996827 +0200
+committer Max Kirillov <max@max630.net> 1393768707 +0200
+data 8
+change2
+from :14
+M 100644 :15 file1
+
+blob
+mark :17
+data 1313
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+illum qui dolorem
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/heads/tmp
+mark :18
+author Max Kirillov <max@max630.net> 1382996827 +0200
+committer Max Kirillov <max@max630.net> 1382996878 +0200
+data 8
+change2
+from :12
+M 100644 :17 file1
+
+commit refs/heads/master
+mark :19
+author Max Kirillov <max@max630.net> 1398623824 +0300
+committer Max Kirillov <max@max630.net> 1398623824 +0300
+data 66
+Merge commit '76dee8a19ec9fddea0a02d99b0d1e00b1ef1caba' into HEAD
+from :10
+merge :18
+M 100644 :17 file1
+
+commit refs/remotes/origin/b_noffmerge
+mark :20
+author Max Kirillov <max@max630.net> 1382996818 +0200
+committer Max Kirillov <max@max630.net> 1398624661 +0300
+data 8
+change1
+from :19
+M 100644 :15 file1
+
+commit refs/remotes/origin/master1
+mark :21
+author Max Kirillov <max@max630.net> 1382996906 +0200
+committer Max Kirillov <max@max630.net> 1382996906 +0200
+data 6
+merge
+from :18
+merge :14
+M 100644 :15 file1
+
+blob
+mark :22
+data 1305
+Lorem ipsum dolor
+consectetur
+adipisicing elit,
+
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+illum qui dolorem
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/b_diamond_after_merge
+mark :23
+author Max Kirillov <max@max630.net> 1399744486 +0300
+committer Max Kirillov <max@max630.net> 1399744486 +0300
+data 3
+c6
+from :21
+M 100644 :22 file1
+
+blob
+mark :24
+data 1297
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/b5
+mark :25
+author Max Kirillov <max@max630.net> 1399744462 +0300
+committer Max Kirillov <max@max630.net> 1399744462 +0300
+data 3
+c5
+from :21
+M 100644 :24 file1
+
+blob
+mark :26
+data 1287
+Lorem ipsum dolor
+consectetur
+adipisicing elit,
+
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/b_diamond_after_merge
+mark :27
+author Max Kirillov <max@max630.net> 1399744498 +0300
+committer Max Kirillov <max@max630.net> 1399744498 +0300
+data 26
+Merge commit 'dff8991feb'
+from :23
+merge :25
+M 100644 :26 file1
+
+commit refs/heads/master
+mark :28
+author Max Kirillov <max@max630.net> 1399753550 +0300
+committer Max Kirillov <max@max630.net> 1399753550 +0300
+data 26
+Merge commit 'd272d688d2'
+from :27
+merge :19
+
+blob
+mark :29
+data 1321
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+aaaa bbbb
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+illum qui dolorem
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/b3
+mark :30
+author Max Kirillov <max@max630.net> 1397074348 +0300
+committer Max Kirillov <max@max630.net> 1397074348 +0300
+data 32
+change3
+
+conflicts with change2
+from :12
+M 100644 :29 file1
+
+blob
+mark :31
+data 1322
+Lorem ipsum dolor
+sit amet,
+consectetur
+adipisicing elit,
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+cccc dddd
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+illum qui dolorem
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/remotes/origin/b2b3
+mark :32
+author Max Kirillov <max@max630.net> 1397074402 +0300
+committer Max Kirillov <max@max630.net> 1397074402 +0300
+data 64
+Merge remote-tracking branch 'origin/b2'
+
+resolve conflict also
+from :30
+merge :18
+M 100644 :31 file1
+
+blob
+mark :33
+data 1296
+Lorem ipsum dolor
+consectetur
+adipisicing elit,
+
+sed do eiusmod
+tempor incididunt ut
+labore et dolore
+magna liqua. Ut enim
+ad minim veniam,
+
+quis nostrud
+exercitation ullamco
+laboris nisi ut
+aliquip ex ea
+commodo consequat.
+Duis aute irure
+dolor in
+reprehenderit in
+voluptate velit esse
+cillum dolore eu
+fugiat nulla
+pariatur. Excepteur
+sint ccaecat
+cupidatat non
+proident, sunt in
+culpa qui officia
+deserunt mollit anim
+id est laborum
+
+Sed ut perspiciatis
+unde omnis iste
+natus error sit
+voluptatem
+accusantium
+doloremque
+laudantium, totam
+rem aperiam, eaque
+ipsa quae ab illo
+inventore veritatis
+et quasi architecto
+beatae vitae dicta
+sunt explicabo. Nemo
+cccc dddd
+enim ipsam
+voluptatem quia
+voluptas sit
+aspernatur aut odit
+aut fugit, sed quia
+consequuntur magni
+dolores eos qui
+ratione voluptatem
+sequi nesciunt.
+Neque porro quisquam
+est, qui dolorem
+ipsum quia dolor sit
+amet, consectetur,
+adipisci velit, sed
+quia non numquam
+eius modi tempora
+incidunt ut labore
+et dolore magnam
+
+aliquam quaerat
+voluptatem. Ut enim
+ad minima veniam,
+quis nostrum
+exercitationem ullam
+corporis suscipit
+laboriosam, nisi ut
+aliquid ex ea
+commodi consequatur?
+Quis autem vel eum
+iure reprehenderit
+qui in ea voluptate
+velit esse quam
+nihil molestiae
+consequatur, vel
+eum fugiat quo
+voluptas nulla
+pariatur?
+
+commit refs/heads/master
+mark :34
+author Max Kirillov <max@max630.net> 1399753560 +0300
+committer Max Kirillov <max@max630.net> 1399753560 +0300
+data 26
+Merge commit '9ac82f5327'
+from :28
+merge :32
+M 100644 :33 file1
+
+reset refs/heads/master
+from :34
+
+reset refs/remotes/origin/master
+from :16
+
+reset refs/remotes/origin/b_merge_of_merges
+from :34
+
+reset refs/remotes/origin/b2
+from :18
+

@@ -9,7 +9,8 @@ use Test::More;
 
 # {{{ initialize
 if (! -e "/tmp/git-rebase/test-repo") {
-    system("git clone git://github.com/max630/git-rebase2-test-repo.git /tmp/git-rebase/test-repo") and die("Initial cloning failed");
+    !system("mkdir -p /tmp/git-rebase/test-repo && ( cd /tmp/git-rebase/test-repo && git init && git fast-import ) <itest-repo.data")
+        or die("Test repo initialization failed: $? ($!)");
 }
 my $SOURCE_DIR = getcwd;
 chdir("/tmp/git-rebase/test-repo") or die("Unable to chdir to /tmp/git-rebase/test-repo: $!");
