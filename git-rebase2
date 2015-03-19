@@ -178,7 +178,11 @@ sub git_get_checkedout_branch()
 # }}}
 
 sub main($) { my ($argv) = @_;
-    my $parsed = parse_cli($argv);
+    my $parsed = eval { parse_cli($argv); };
+    if ($@ ne "") {
+        print STDERR $@;
+        return 1;
+    }
     if (0) {
     } elsif ($parsed->[0] eq "ABORT") {
         return abort_rebase();
@@ -221,13 +225,13 @@ sub parse_cli($) { my @argv = @{$_[0]};
             $interactive = 1;
             shift @argv;
         } elsif ($argv[0] eq "--abort") { # TODO: make them a very specific
-            confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+            die("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. (scalar @argv - 1)]) . "\"") if (scalar @argv > 1);
             return ['ABORT'];
         } elsif ($argv[0] eq "--skip") {
-            confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+            die("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. (scalar @argv - 1)]) . "\"") if (scalar @argv > 1);
             return ['SKIP'];
         } elsif ($argv[0] eq "--continue") {
-            confess ("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. -1]) . "\"") if (scalar @argv > 1);
+            die("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. (scalar @argv - 1)]) . "\"") if (scalar @argv > 1);
             return ['CONTINUE'];
         } elsif (scalar @argv == 1) {
             return ['RUN', $argv[0], undef, [], undef, undef, $interactive];
@@ -243,14 +247,14 @@ sub parse_cli($) { my @argv = @{$_[0]};
                     my @through_arr = $2 =~ m/($re_ref1)$re_sep/g;
                     ($source_from, \@through_arr, $source_to);
                 } else {
-                    confess("Invalid source spec: $argv[1]");
+                    die("Invalid source spec: $argv[1]");
                 }
             };
             return ['RUN', $argv[0], $source_from, $through, $source_to, $argv[2], $interactive];
         } elsif (scalar @argv == 2) {
             return ['RUN', $argv[0], undef, [], undef, $argv[1], $interactive];
         } else {
-            confess ("Invalid arguments: \"" . join(" ", @argv) . "\"");
+            die("Invalid arguments: \"" . join(" ", @argv) . "\"");
         }
     }
 }
