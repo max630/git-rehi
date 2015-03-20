@@ -130,9 +130,12 @@ t {
 is_deeply (parse_cli(['a']), ['RUN', 'a', undef, [], undef, undef, 0]);
 is_deeply (parse_cli(['a', 'c']), ['RUN', 'a', undef, [], undef, 'c', 0]);
 is_deeply (parse_cli(['a', 'b..d', 'c']), ['RUN', 'a', 'b', [], 'd', 'c', 0]);
+is_deeply (parse_cli(['a', 'b~1..d', 'c']), ['RUN', 'a', 'b~1', ['b'], 'd', 'c', 0]);
 is_deeply (parse_cli(['a', 'b..', 'c']), ['RUN', 'a', 'b', [], '', 'c', 0]);
+is_deeply (parse_cli(['a', 'b~1..', 'c']), ['RUN', 'a', 'b~1', ['b'], '', 'c', 0]);
 is_deeply (parse_cli(['a', '..d', 'c']), ['RUN', 'a', '', [], 'd', 'c', 0]);
 is_deeply (parse_cli(['a', 'b..e..d', 'c']), ['RUN', 'a', 'b', ['e'], 'd', 'c', 0]);
+is_deeply (parse_cli(['a', 'b~1..e..d', 'c']), ['RUN', 'a', 'b~1', ['b', 'e'], 'd', 'c', 0]);
 is_deeply (parse_cli(['a', '..e..', 'c']), ['RUN', 'a', '', ['e'], '', 'c', 0]);
 is_deeply (parse_cli(['a', '..e..']), ['RUN', 'a', '', ['e'], '', undef, 0]);
 is_deeply (parse_cli(['a', 'b..e..f..d', 'c']), ['RUN', 'a', 'b', ['e', 'f'], 'd', 'c', 0]);

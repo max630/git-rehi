@@ -245,6 +245,9 @@ sub parse_cli($) { my @argv = @{$_[0]};
                 } elsif ($argv[1] =~ /^($re_ref0)$re_sep((?:$re_ref1$re_sep)*)($re_ref0)$/x) {
                     my ($source_from, $source_to) = ($1, $3);
                     my @through_arr = $2 =~ m/($re_ref1)$re_sep/g;
+                    if ($source_from =~ /^(.*)~1$/) {
+                        splice @through_arr, 0, 0, $1;
+                    }
                     ($source_from, \@through_arr, $source_to);
                 } else {
                     die("Invalid source spec: $argv[1]");
