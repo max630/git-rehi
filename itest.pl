@@ -253,6 +253,27 @@ t {
     cmd("$testee origin/b5");
 } base_after_merge;
 
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
+    cmd("$testee -i origin/base", "!= 0");
+    cmd("grep -q 'pick.*change2\$' save_todo");
+} optimal_first_parent;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
+    cmd("$testee -i origin/base origin/b1~1..", "!= 0");
+    cmd("grep -q 'pick.*change1\$' save_todo");
+} optimal_include_start_from_sourcefrom;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
+    cmd("$testee -i origin/b1~1", "!= 0");
+    cmd("grep -q 'pick.*change1\$' save_todo");
+} optimal_include_start_from_base;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
