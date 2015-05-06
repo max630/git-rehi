@@ -68,6 +68,10 @@ Aborts whole rebase. The originally checked-out branch is checked out back.
 
 Reset all uncommitted changes and continue rebasing starting with the next step in todo list.
 
+`git rebase2 --current`
+
+If there is a rebase in progress, shows current step.
+
 (a): the default path is some "optimal" which is not strictly specified and
 subject to change. At some point it was the shortest. Now general rule is to
 follow first parent but I might want to tune how it resolves ambiguous cases.

@@ -204,6 +204,12 @@ sub main($) { my ($argv) = @_;
         }
         $commits->{head} = { type => "synced" };
         return run_rebase($todo, $commits, $target_ref);
+    } elsif ($parsed->[0] eq "CURRENT") {
+        if (-e "$GIT_DIR/rebase2/current") {
+            print "Current: " . read_file("$GIT_DIR/rebase2/current");
+        } else {
+            die "No rebase2 in progress\n";
+        }
     } elsif ($parsed->[0] eq "RUN") {
         my ($tag, $dest, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
         git_verify_clean();
@@ -239,6 +245,9 @@ sub parse_cli($) { my @argv = @{$_[0]};
         } elsif ($argv[0] eq "--continue") {
             die("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. (scalar @argv - 1)]) . "\"") if (scalar @argv > 1);
             return ['CONTINUE'];
+        } elsif ($argv[0] eq "--current") {
+            die("Extra arguments after " . $argv[0] . ": \"" . join(" ", @argv[1 .. (scalar @argv - 1)]) . "\"") if (scalar @argv > 1);
+            return ['CURRENT'];
         } elsif (scalar @argv == 1) {
             return ['RUN', $argv[0], undef, [], undef, undef, $interactive];
         } elsif (scalar @argv == 3 || scalar @argv == 2 && $argv[1] =~ /\.\./) {

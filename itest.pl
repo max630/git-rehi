@@ -276,6 +276,17 @@ t {
     cmd("grep -q 'pick.*change1\$' save_todo");
 } optimal_include_start_from_base;
 
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
+    cmd("$testee -i HEAD", "!= 0");
+    is(`$testee --current`, "Current: exec false\n");
+} current_ok;
+
+t {
+    cmd("$testee --current", "!= 0");
+} current_no_rebase;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
