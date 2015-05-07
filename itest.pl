@@ -229,10 +229,12 @@ t {
 t {
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner");
-    cmd("$testee -i origin/base~1");
+    cmd("$testee -i origin/b4");
     {
         my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner-broken");
-        cmd("$testee -i origin/base~1", "!= 0"); # unknown refs - should fail
+        if (-f "save_todo") { cmd("rm save_todo"); }
+        cmd("$testee -i origin/b4", "!= 0"); # unknown refs - should fail
+        ok(-f "save_todo"); # make sure it reached editor
     }
 } marks_cleared;
 
@@ -252,6 +254,27 @@ t {
     cmd("git reset --hard origin/b_merge_of_merges");
     cmd("$testee origin/b5");
 } base_after_merge;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
+    cmd("$testee -i origin/base", "!= 0");
+    cmd("grep -q 'pick.*change2\$' save_todo");
+} optimal_first_parent;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
+    cmd("$testee -i origin/base origin/b1~1..", "!= 0");
+    cmd("grep -q 'pick.*change1\$' save_todo");
+} optimal_include_start_from_sourcefrom;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
+    cmd("$testee -i origin/b1~1", "!= 0");
+    cmd("grep -q 'pick.*change1\$' save_todo");
+} optimal_include_start_from_base;
 
 my %argv_idx = ();
 if (scalar @ARGV) {

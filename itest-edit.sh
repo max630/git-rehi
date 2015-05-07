@@ -4,6 +4,7 @@ file="$1"
 
 echo File: >>/dev/stderr
 cat "$file" >>/dev/stderr
+cp "$file" "save_todo"
 
 case "$GIT_SEQUENCE_EDITOR_CASE" in
 empty)
