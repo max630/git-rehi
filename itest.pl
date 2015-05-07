@@ -229,10 +229,12 @@ t {
 t {
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner");
-    cmd("$testee -i origin/base~1");
+    cmd("$testee -i origin/b4");
     {
         my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner-broken");
-        cmd("$testee -i origin/base~1", "!= 0"); # unknown refs - should fail
+        if (-f "save_todo") { cmd("rm save_todo"); }
+        cmd("$testee -i origin/b4", "!= 0"); # unknown refs - should fail
+        ok(-f "save_todo"); # make sure it reached editor
     }
 } marks_cleared;
 
