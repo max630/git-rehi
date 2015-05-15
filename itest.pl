@@ -14,8 +14,8 @@ if (! -e "/tmp/git-rebase/test-repo") {
 }
 my $SOURCE_DIR = getcwd;
 chdir("/tmp/git-rebase/test-repo") or die("Unable to chdir to /tmp/git-rebase/test-repo: $!");
-my $testee = "$SOURCE_DIR/git-rebase2";
-# my $testee = "git rebase2";
+my $testee = "$SOURCE_DIR/git-rehi";
+# my $testee = "git rehi";
 # }}}
 
 # {{{ test utils
@@ -187,7 +187,7 @@ t {
 
 t {
     cmd("$testee origin/b1");
-    like(`cat .git/rebase2_todo.backup`, qr/^merge -c [0-9a-z]+ [0-9a-z]+,HEAD merge$/);
+    like(`cat .git/rehi_todo.backup`, qr/^merge -c [0-9a-z]+ [0-9a-z]+,HEAD merge$/);
     is(`git show --quiet --pretty=format:%h HEAD`,
        `git show --quiet --pretty=format:%h origin/master1`);
 } merge_second_parent;
@@ -196,7 +196,7 @@ t {
     cmd("git reset --hard origin/base");
     cmd("git commit --allow-empty -m UPDATE");
     cmd("$testee HEAD origin/base..origin/b3..origin/b2b3", "!= 0");
-    ok(-f ".git/rebase2/todo.backup");
+    ok(-f ".git/rehi/todo.backup");
 } todo_backup;
 
 t {

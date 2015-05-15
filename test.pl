@@ -7,7 +7,7 @@ use Carp;
 
 use Test::More;
 
-do 'git-rebase2';
+do 'git-rehi';
 
 
 my %Tests = ();
