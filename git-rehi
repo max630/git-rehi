@@ -193,7 +193,7 @@ sub main($) { my ($argv) = @_;
             if (run_continue($current, $commits) != 0) {
                 return 1;
             }
-            unlink("$GIT_DIR/rebase2/current");
+            unlink("$GIT_DIR/rehi/current");
         }
         $commits->{head} = { type => "synced" };
         return run_rebase($todo, $commits, $target_ref);
@@ -201,15 +201,15 @@ sub main($) { my ($argv) = @_;
         my ($todo, $current, $commits, $target_ref) = restore_rebase();
         if ($current) {
             run_command("git reset --hard HEAD");
-            unlink("$GIT_DIR/rebase2/current");
+            unlink("$GIT_DIR/rehi/current");
         }
         $commits->{head} = { type => "synced" };
         return run_rebase($todo, $commits, $target_ref);
     } elsif ($parsed->[0] eq "CURRENT") {
-        if (-e "$GIT_DIR/rebase2/current") {
-            print "Current: " . read_file("$GIT_DIR/rebase2/current");
+        if (-e "$GIT_DIR/rehi/current") {
+            print "Current: " . read_file("$GIT_DIR/rehi/current");
         } else {
-            die "No rebase2 in progress\n";
+            die "No rehi in progress\n";
         }
     } elsif ($parsed->[0] eq "RUN") {
         my ($tag, $dest, $source_from_arg, $through, $source_to_arg, $target_arg, $interactive) = @{$parsed};
@@ -289,7 +289,7 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
     }
     if ((grep { $_->{type} ne "user-comment"; } @{$todo}) > 0) {
         $commits->{head} = { type => "known_hash", hash => $dest_hash };
-        save_todo($todo, "$GIT_DIR/rebase2/todo.backup", $commits);
+        save_todo($todo, "$GIT_DIR/rehi/todo.backup", $commits);
         run_command("git checkout --quiet --detach $dest_hash");
         return run_rebase($todo, $commits, $target_ref);
     } else {
@@ -299,13 +299,13 @@ sub main_run($$$$$$$) { my ($dest, $source_from, $through, $source_to, $target_r
 }
 
 sub restore_rebase() {
-    my $target_ref = read_file("$GIT_DIR/rebase2/target_ref");
+    my $target_ref = read_file("$GIT_DIR/rehi/target_ref");
     my $commits = git_load_commits();
     # TODO: add $unknown_commits  to $commits
-    my $todo = read_todo("$GIT_DIR/rebase2/todo", $commits);
+    my $todo = read_todo("$GIT_DIR/rehi/todo", $commits);
     my $current = 0;
-    if (-e "$GIT_DIR/rebase2/current") {
-        $current = get_single(read_todo("$GIT_DIR/rebase2/current", $commits));
+    if (-e "$GIT_DIR/rehi/current") {
+        $current = get_single(read_todo("$GIT_DIR/rehi/current", $commits));
     }
     return ($todo, $current, $commits, $target_ref);
 }
@@ -379,7 +379,7 @@ sub add_info_to_todo($$) { my ($old_todo, $commits, $ok) = @_;
 }
 
 sub edit_todo($$$) { my ($old_todo, $commits, $ok) = @_;
-    my ($tmpfh, $tmpname) = mkstemp("$GIT_DIR/rebase2/todo.XXXXXXXX");
+    my ($tmpfh, $tmpname) = mkstemp("$GIT_DIR/rehi/todo.XXXXXXXX");
     # TODO: write without reopen, to fh
     close($tmpfh) or confess ("Unable to close the tmpfile");
     save_todo($old_todo, $tmpname, $commits);
@@ -466,13 +466,13 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
             eval { sync_head($commits); };
             if ($@ ne "") {
                 print "Fatal error while syncing: $@\nContinue not possible\n";
-                unlink("$GIT_DIR/rebase2/todo");
+                unlink("$GIT_DIR/rehi/todo");
             }
         });
         while (defined (my $current = shift @{$todo})) {
             my $pause = 0;
-            save_todo($todo, "$GIT_DIR/rebase2/todo", $commits);
-            save_todo([$current], "$GIT_DIR/rebase2/current", $commits);
+            save_todo($todo, "$GIT_DIR/rehi/todo", $commits);
+            save_todo([$current], "$GIT_DIR/rehi/current", $commits);
             if (run_step($current, $commits, \$pause) == 0) {
                 if ($pause) {
                     return 0;
@@ -480,7 +480,7 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
             } else {
                 return 1
             }
-            unlink("$GIT_DIR/rebase2/current");
+            unlink("$GIT_DIR/rehi/current");
         }
     }
     # TODO: make proper reflog
@@ -489,7 +489,7 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
 }
 
 sub abort_rebase() {
-    my $initial_branch = read_file("$GIT_DIR/rebase2/initial_branch");
+    my $initial_branch = read_file("$GIT_DIR/rehi/initial_branch");
     run_command("git reset --hard $initial_branch");
     run_command("git checkout -f $initial_branch");
     return cleanup_save();
@@ -515,7 +515,7 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
             return 1;
         }
         sync_head($commits);
-        print "Amend the commit and run \"git rebase2 --continue\"\n";
+        print "Amend the commit and run \"git rehi --continue\"\n";
         ${$pause} = 1;
     } elsif ($rebase_step->{type} eq "fixup") {
         print "Fixup: " . commits_get_subject($commits, $rebase_step->{ahash}). "\n";
@@ -556,10 +556,10 @@ sub run_step($$$) { my ($rebase_step, $commits, $pause) = @_;
         $commits->{marks}->{$rebase_step->{name}} = $head_hash;
         # TODO: save and restore the head
         my $out;
-        open($out, ">>", "$GIT_DIR/rebase2/marks")
+        open($out, ">>", "$GIT_DIR/rehi/marks")
             and print $out "$rebase_step->{name} $head_hash\n"
             and close($out)
-            or confess("Write to \"$GIT_DIR/rebase2/marks\" failed: $!");
+            or confess("Write to \"$GIT_DIR/rehi/marks\" failed: $!");
     } elsif ($rebase_step->{type} eq "merge") {
         return merge($rebase_step, $commits);
     } elsif ($rebase_step->{type} eq "user-comment") {
@@ -649,7 +649,7 @@ sub merge_new($$) { my ($rebase_step, $commits) = @_;
             print " * force non-fastforward merge\n";
             print " * merge some other parent instead of the one from history\n";
             print " * skip the step at all (is it a non-interactive rebase?)\n";
-            print "Then invoke git rebase2 --skip\n";
+            print "Then invoke git rehi --skip\n";
             return 1;
         }
     }
@@ -710,8 +710,8 @@ sub pick($$) { my ($hash, $commits) = @_;
 }
 
 sub comment($) { my ($comment) = @_;
-    write_file("$GIT_DIR/rebase2/commit_msg", $comment);
-    if (run_command("git commit --amend -F \"$GIT_DIR/rebase2/commit_msg\"", 1) != 0) {
+    write_file("$GIT_DIR/rehi/commit_msg", $comment);
+    if (run_command("git commit --amend -F \"$GIT_DIR/rehi/commit_msg\"", 1) != 0) {
         print "Editing comment failed. Resolve and --continue or --skip, or --abort\n";
     }
 }
@@ -815,28 +815,28 @@ sub git_fetch_commit_list($$) { my ($commits, $unknowns_arg) = @_;
 }
 
 sub git_fetch_commits($$) { my ($commits, $command) = @_;
-    open(my $in, ">>", "$GIT_DIR/rebase2/commits") or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+    open(my $in, ">>", "$GIT_DIR/rehi/commits") or confess("Cannot write commits cache ($GIT_DIR/rehi/commits): $!");
     iterate_popen {
         if ($_ ne "\n") {
             git_parse_commit_line($commits, $_);
-            printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+            printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rehi/commits): $!");
         }
     } $command, v000;
-    close($in) or confess("Cannot write commits cache ($GIT_DIR/rebase2/commits): $!");
+    close($in) or confess("Cannot write commits cache ($GIT_DIR/rehi/commits): $!");
     return $commits;
 }
 
 sub git_load_commits() {
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rebase2/commits", v000;
-    if (-e "$GIT_DIR/rebase2/marks") {
+    iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rehi/commits", v000;
+    if (-e "$GIT_DIR/rehi/marks") {
         iterate_file {
             if (/^([0-9a-zA-Z_\/]+) ([0-9a-fA-F]+)$/) {
                 $commits->{marks}->{$1} = $2;
             } else {
                 confess("Invalid mark line: $_");
             }
-        } "$GIT_DIR/rebase2/marks";
+        } "$GIT_DIR/rehi/marks";
     }
     return $commits;
 }
@@ -937,21 +937,21 @@ sub verify_cmdarg($) { my ($str) = @_;
 }
 
 sub init_save($$) { my ($target_ref, $initial_branch) = @_;
-    if (-e "$GIT_DIR/rebase2") {
+    if (-e "$GIT_DIR/rehi") {
         confess "already in progress?";
     }
-    mkdir("$GIT_DIR/rebase2") or confess "Mkdir $GIT_DIR/rebase2 failed: $!";
-    write_file("$GIT_DIR/rebase2/target_ref", $target_ref);
-    write_file("$GIT_DIR/rebase2/initial_branch", $initial_branch);
+    mkdir("$GIT_DIR/rehi") or confess "Mkdir $GIT_DIR/rehi failed: $!";
+    write_file("$GIT_DIR/rehi/target_ref", $target_ref);
+    write_file("$GIT_DIR/rehi/initial_branch", $initial_branch);
 }
 
 sub cleanup_save() {
     # will throw itself
-    if (-e "$GIT_DIR/rebase2") {
-        if (-e "$GIT_DIR/rebase2/todo.backup") {
-            run_command("cp -f $GIT_DIR/rebase2/todo.backup $GIT_DIR/rebase2_todo.backup");
+    if (-e "$GIT_DIR/rehi") {
+        if (-e "$GIT_DIR/rehi/todo.backup") {
+            run_command("cp -f $GIT_DIR/rehi/todo.backup $GIT_DIR/rehi_todo.backup");
         }
-        return ((rmtree("$GIT_DIR/rebase2") > 0) ? 0 : 1);
+        return ((rmtree("$GIT_DIR/rehi") > 0) ? 0 : 1);
     } else {
         return 0;
     }
@@ -1075,7 +1075,7 @@ sub default_error($) { my ($msg) = @_;
 
 # TODO for caching refs
 # * add to commits aliases (refs, whatever), which map entered aliases to commits
-# * save and restore them to something like rebase2/commit_refs
+# * save and restore them to something like rehi/commit_refs
 # * refer to the refs dictionary in read_todo()
 # * fill missing refs and missing commits in the following function
 # * consider splitting the resolving part; I believe it should be possible to handle all state in todo+commits
