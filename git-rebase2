@@ -3,6 +3,7 @@
 # vim: foldmethod=marker
 
 use strict;
+no autovivification qw(fetch delete store exists strict);
 
 use Data::Dumper;
 use Carp;
