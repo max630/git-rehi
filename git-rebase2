@@ -269,7 +269,7 @@ sub parse_cli($) { my @argv = @{$_[0]};
         } elsif (scalar @argv == 2) {
             return ['RUN', $argv[0], undef, [], undef, $argv[1], $interactive];
         } else {
-            die("Invalid arguments: \"" . join(" ", @argv) . "\"");
+            die("Invalid arguments: " . join(" ", @argv) . "\n");
         }
     }
 }
