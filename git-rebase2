@@ -103,9 +103,9 @@ sub git_no_uncommitted_changes()
 
 sub git_verify_clean()
 {
-    confess "Not clean working directory" unless git_no_uncommitted_changes();
-    confess "git-am or rebase in progress" if -e "$GIT_DIR/rebase-apply";
-    confess "rebase in progress" if -e "$GIT_DIR/rebase-merge";
+    die "Not clean working directory\n" unless git_no_uncommitted_changes();
+    die "git-am or rebase in progress\n" if -e "$GIT_DIR/rebase-apply";
+    die "rebase in progress\n" if -e "$GIT_DIR/rebase-merge";
 }
 
 sub git_get_checkedout_branch()
@@ -114,7 +114,7 @@ sub git_get_checkedout_branch()
     if ($head_path =~ /refs\/heads\/(.*)/) {
         return $1;
     } else {
-        confess("Unsupported ref checked-out: $head_path");
+        die("Unsupported ref checked-out: $head_path\n");
     }
 }
 
