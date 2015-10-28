@@ -287,6 +287,17 @@ t {
     cmd("$testee --current", "!= 0");
 } current_no_rebase;
 
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "/bin/true");
+    cmd("git reset --hard origin/b3");
+    cmd("git merge -sours -m ours_with_ref_comment origin/b2");
+    cmd("git branch -f t_b3b2_ours");
+    cmd("git reset --hard origin/b3");
+    cmd("git commit --allow-empty -m dummy");
+    cmd("$testee -i HEAD t_b3b2_ours~1..t_b3b2_ours");
+    is("ours_with_ref_comment\n", `git log --pretty=format:%B -1`);
+} ours_with_ref;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
