@@ -224,6 +224,9 @@ edit \@12345 Test comment
 reset \@12345
 merge -c \@12345 HEAD,45876,\@ffeee12 Test comment
 End
+is_deeply (read_todo(\<<End, []), [{type => "merge", flags => {ours => 1}, parents => ["HEAD", "12345"], ahash => "6789a"}]);
+merge --ours -c 6789a HEAD,12345
+End
 } read_todo;
 
 t {

@@ -1111,8 +1111,8 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
                 $mode = "COMMENT_QUOTED";
                 $comment = "";
                 $quote_end = ($1 =~ tr/<{[(/>}])/r);
-            } elsif (/^merge( --ours| --no-ff| -c \@?[0-9a-zA-Z_\/]+)* (.+[^\n\r ])$/) {
-                my $pos_string = $2;
+            } elsif (/^merge(( --ours| --no-ff| -c \@?[0-9a-zA-Z_\/]+)*) (.+[^\n\r ])$/) {
+                my $pos_string = $3;
                 # TODO: verify as refs
                 my $ahash = undef;
                 my $flags = {};
