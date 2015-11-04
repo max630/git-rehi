@@ -1226,123 +1226,54 @@ sub get_single(\@) { my ($array) = @_;
 
 
 # $commits : { $hash => { parents => [ $hash ] } }
+# $through_list: [ $hash or "-" or "*" ]
 # returns: [ $hash ]
+# Returns a list of commits starting from $from and ending with any of $to
+# returns only those which contains some $through, if there are any, or the 1st-parentish chain
+# if $through contains '-', also always add the 1st-parentish chain
+# if $through contains '*', returns all commits
 sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
-    # deep-first search, coroutine-based approach
-    # fun X($v)
-    #  do in loop:
-    #   if $v == $from - stop and return the sequence (**)
-    #   if 0 parents - stop
-    #   if >1 children - pause and wait until all children are processed.
-    #    add their output to the end of the sequence and continue
-    #   if >1 children and you are not 1st - mark the children you came by as processed and store your sequence (*), then stop
-    #   otherwise add the current to sequence
-    #   fork itself for each parent, continuing the sequence
-    # (*) store only the portion which is not yet in the sequence. Looks like it should be enough just to filter it
-    # (**) here several returns should be sorted out
+    my %through;
+    @through{@$through_list} = ();
+    ## TODO:
+    # * initialize tcc
+    # * (optionally) verify here that sequence is solvable
+    # * run the find_sequence
+    # * (optionally) verify result
+    return find_sequence_step($commits, { }, $from, { $to => undef }, \%through);
+}
 
-    # thread info:
-    # { state => "READY" | "WAIT_CHILDREN" | "DONE" | "FINALIZE_MERGEBASES",
-    #   current => String,
-    #   todo => [ String ] }
-    # copied while forking
-    # children_waiters = { $hash => { todo_index => { String => () }, left => num, thread => ref to thread } }
-    # children_num => { $hash => num }
-    # terminating_commits = { $hash => undef }
+# $commits : { $hash => { parents => [ $hash ] } }
+# $cinfo: { $hash => ({ $hash => * } | undef) } undef if the commit not in ancestry path, otherwise set of contained through caches
+# $to: { $hash => .. } (set)
+# $through: { $hash => .. } (set) PREREQ: these throughs are findable in _this_ step alone
+# $flags: { keep_fp => bool, keep_all => bool }
+# returns: [ $hash ] of undef if there is no sequence.
+sub find_sequence_step($$$$) { my ($commits, $cinfo, $from, $to, $through, $flags) = @_;
+    # TODO
+    # * traverse starting from $from, at each step:
+    # ** if $current in $through, update it by removing current
+    # ** define minimal parent set to satisfy $through, preferring first parent
+    # ** for each of the selected parents calculate its own set of throughs it must pass, considering the ordering
+    # ** put selected parents which are not first to $current->side list
+    # ** if first parent is selected or $flags->keep_fp is true and it exists in $cinfo --> next
+    # * for each of the resulting sequence, going backward, then for each in the side list (decide direction):
+    # ** recurse with $though = remembred for this side,
+    #    $to = all commits from resulting sequence+so far expanded sides, expand result
 
-    my %children_num = ();
-    foreach my $h (keys %{$commits}) {
-        $children_num{$h} = 0;
-    }
-    $children_num{$from} = 0;
-    $children_num{$to} = 0;
-    # fill children_total for each commit
-    foreach my $h (keys %{$commits}) {
-        if(exists $commits->{$h}->{parents}) {
-            foreach my $p (@{$commits->{$h}->{parents}}) {
-                if (exists $children_num{$p}) {
-                    $children_num{$p}++;
-                } else {
-                    $children_num{$p} = 1;
-                }
-            }
-        }
-    }
-    my %children_waiters = ();
-    my @schedule = ({ state => "READY", current => $to, todo => []});
-    my %terminating_commits = ();
+    # seq: [ { hash => $hash, side => [ $hash ], merged => [ $hash ] } ]
+    my @seq = ();
+    my %left_through = %$through;
 
-    # FIXME: very slow, just to make it work
-    # non-branching regions should be recorded without recreating
-    # TODO: case of throughs in several branches is not covered
-    while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
-        my $i = 0;
-        while ($schedule[$i]->{state} ne "READY" && $schedule[$i]->{state} ne "FINALIZE_MERGEBASES") {
-            ++$i;
-            confess("No thread is READY") if ($i >= scalar @schedule);
+    for (my $current = $from;
+         exists $commits->{$current};
+         $current = $commits->{$current}{"parents"}[0]) {
+        if (exists $through->{$current}) {
+            delete $left_through{$current};
         }
 
-        my $hash = $schedule[$i]->{current};
-        if (exists $terminating_commits{$hash}) {
-            splice @schedule, $i, 1;
-        } elsif ($schedule[$i]->{state} eq "FINALIZE_MERGEBASES") {
-            if ($children_num{$hash} > 1) {
-                if (exists $children_waiters{$hash}) {
-                    $children_waiters{$hash}{thread}{state} = "FINALIZE_MERGEBASES";
-                }
-            }
-            $terminating_commits{$hash} = ();
-            my @new_tasks = map {
-                { state => "FINALIZE_MERGEBASES", current => $_ };
-            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
-            splice @schedule, $i, 1, @new_tasks;
-        } elsif ($hash eq $from) {
-            $schedule[$i]->{state} = "DONE";
-            my %todo_index = ();
-            @todo_index{@{$schedule[$i]->{todo}}} = ();
-            if ((grep { !exists $todo_index{$_}; } @{$through_list}) > 0) {
-                splice @schedule, $i, 1, ();
-            } else {
-                ++$i;
-            }
-            my @new_tasks = map {
-                { state => "FINALIZE_MERGEBASES", current => $_ };
-            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
-            splice @schedule, $i, 0, @new_tasks;
-        } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
-            if (exists $children_waiters{$hash}) {
-                foreach my $step (@{$schedule[$i]->{todo}}) {
-                    if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {
-                        push @{$children_waiters{$hash}->{thread}->{todo}}, $step;
-                        $children_waiters{$hash}->{todo_index}->{$step} = undef;
-                    }
-                }
-                $children_waiters{$hash}->{left}--;
-                if ($children_waiters{$hash}->{left} == 0) {
-                    $children_waiters{$hash}->{thread}->{state} = "READY";
-                }
-                splice @schedule, $i, 1, ();
-            } else {
-                my %todo_index = ();
-                @todo_index{@{$schedule[$i]->{todo}}} = ();
-                $children_waiters{$hash} = { todo_index => \%todo_index,
-                                              left => $children_num{$hash} - 1,
-                                              thread => $schedule[$i] };
-                $schedule[$i]->{state} = "WAIT_CHILDREN";
-            }
-        } else {
-            push @{$schedule[$i]->{todo}}, $hash;
-            my @new_tasks = map {
-                { state => "READY", current => $_, todo => [ @{$schedule[$i]->{todo}} ] };
-            } ((exists $commits->{$hash}) ? @{$commits->{$hash}->{parents}} : ());
-            splice @schedule, $i, 1, @new_tasks;
-        }
-    }
-
-    if (scalar @schedule > 0) {
-        return [ reverse @{$schedule[0]->{todo}} ];
-    } else {
-        confess("No path found");
+        my @side = @commits->{$current}{"parents"}[1 .. -1];
+        push @seq, { hash => $current, side => \@side };
     }
 }
 
