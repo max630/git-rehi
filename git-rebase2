@@ -1228,7 +1228,7 @@ sub get_single(\@) { my ($array) = @_;
 # $commits : { $hash => { parents => [ $hash ] } }
 # $through_list: [ $hash or "-" or "*" ]
 # returns: [ $hash ]
-# Returns a list of commits starting from $from and ending with any of $to
+# Returns a list of commits starting from $from and ending with any of $from
 # returns only those which contains some $through, if there are any, or the 1st-parentish chain
 # if $through contains '-', also always add the 1st-parentish chain
 # if $through contains '*', returns all commits
@@ -1240,12 +1240,12 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # * (optionally) verify here that sequence is solvable
     # * run the find_sequence
     # * (optionally) verify result
-    return find_sequence_step($commits, { }, $from, { $to => undef }, \%through);
+    return find_sequence_step($commits, { }, { $from => undef }, $to, \%through);
 }
 
 # $commits : { $hash => { parents => [ $hash ] } }
 # $cinfo: { $hash => ({ $hash => * } | undef) } undef if the commit not in ancestry path, otherwise set of contained through caches
-# $to: { $hash => .. } (set)
+# $from: { $hash => .. } (set)
 # $through: { $hash => .. } (set) PREREQ: these throughs are findable in _this_ step alone
 # $flags: { keep_fp => bool, keep_all => bool }
 # returns: [ $hash ] of undef if there is no sequence.
@@ -1259,22 +1259,75 @@ sub find_sequence_step($$$$) { my ($commits, $cinfo, $from, $to, $through, $flag
     # ** if first parent is selected or $flags->keep_fp is true and it exists in $cinfo --> next
     # * for each of the resulting sequence, going backward, then for each in the side list (decide direction):
     # ** recurse with $though = remembred for this side,
-    #    $to = all commits from resulting sequence+so far expanded sides, expand result
+    #    $from = all commits from resulting sequence+so far expanded sides, expand result
+    # * flatten the resulted sequence
 
-    # seq: [ { hash => $hash, side => [ $hash ], merged => [ $hash ] } ]
+    # seq: [ { hash => $hash, side (optional) => [ { hash => $hash, through (if no keep_all) => \%through } ] } ]
     my @seq = ();
     my %left_through = %$through;
 
-    for (my $current = $from;
-         exists $commits->{$current};
-         $current = $commits->{$current}{"parents"}[0]) {
-        if (exists $through->{$current}) {
+    my $next = undef;
+    for (my $current = $to;
+         defined($current) && !exists($from->{$current}) && defined(get_cinfo($commits->{$current}));
+         do { $current = $next; $next = undef; }) {
+        if (exists $left_through{$current}) {
             delete $left_through{$current};
         }
 
-        my @side = @commits->{$current}{"parents"}[1 .. -1];
-        push @seq, { hash => $current, side => \@side };
+        my $seq_item = {};
+        my @alive_parents = grep { defined(get_cinfo($cinfo, $_)) } @{$commits->{$current}{"parents"}};
+        my @follow_parents = ()
+        # TODO: pick parents to follow
+        if ($flags->{keep_all}) {
+            @follow_parents = @alive_parents;
+        } else {
+            my %through1 = %left_through;
+            if ($flags->{keep_fp}) {
+                push @follow_parents, $alive_parents[0];
+                delete @through1{keys %{get_cinfo($cinfo, $alive_parents[0])}};
+                delete $alive_parents[0];
+            }
+            push @follow_parents, grep {
+                my $ph = $_;
+                my $ci = get_cinfo($cinfo, $ph);
+                if (scalar(keys %through1) > 0 && set_intersects($ci, \%through1)) {
+                    delete @through1{keys %{$ci}};
+                    1;
+                } else {
+                    0;
+                }
+            } @alive_parents;
+            # TODO: remove extra from @follow_parents
+            my %through2;
+            foreach my $p (@follow_parents) {
+                foreach my $pt (keys %{get_cinfo($cinfo, $p)}) {
+                    if (exists $through2{$pt}) { $through2{$pt}++; } else { $through2{$pt} = 1; }
+                }
+            }
+            while (1) {
+                my $pi = (scalar @follow_parents) - 2;
+                my @pts = ();
+                while ($pi >= 0) {
+                    @pts = (keys %{get_cinfo($cinfo, $follow_parents[$pi])});
+                    if ((grep { $through2{$_} < 2 } @pts) > 0) {
+                        break;
+                    }
+                    $pi--;
+                }
+                foreach my 
+
+                    
+            }
+        }
+
+        # TODO: fill $seq_item->{side} from @follow_parents
+
+        $seq_item->{hash} = $current;
+        push @seq, $seq_item;
     }
+
+    # TODO: expand sides
+    # TODO: return sequence
 }
 
 # TODO: options parser
