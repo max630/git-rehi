@@ -1276,12 +1276,31 @@ sub find_sequence_step($$$$) { my ($commits, $cinfo, $from, $to, $through, $flag
         }
 
         my $seq_item = {};
-        my @alive_parents = grep { defined(get_cinfo($cinfo, $_)) } @{$commits->{$current}{"parents"}};
         my @follow_parents = ()
         # TODO: pick parents to follow
         if ($flags->{keep_all}) {
             @follow_parents = @alive_parents;
         } else {
+            my %through_counts = ();
+            my $first = 1;
+            foreach $p (@{$commits->{$current}{parents}}) {
+                my $ci = get_cinfo($cinfo, $p);
+                my $keep = 0;
+                if ($first && $flags->{keep_fp}) {
+                    $keep = 1;
+                } elsif (defined $ci) {
+                    foreach $t (grep { exists $left_through{$_}; } keys %{$ci}) {
+                        if (!exists $through_counts{$t}) {
+                            $keep = 1;
+                            break;
+                        }
+                    }
+                    if ($keep) {
+                    }
+                }
+                $first = 0;
+            }
+            
             my %through1 = %left_through;
             if ($flags->{keep_fp}) {
                 push @follow_parents, $alive_parents[0];
