@@ -103,7 +103,6 @@ data Step =
 
 data Env = Env { envGitDir :: RawFilePath }
 
-parse_cli :: [ByteString] -> CliMode
 parse_cli = parse_loop False
   where
     parse_loop _ ("-i" : argv') = parse_loop True argv'
