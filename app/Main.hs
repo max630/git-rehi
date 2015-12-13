@@ -1,3 +1,5 @@
 module Main where
 
-main = print "aa"
+import qualified Rehi
+
+main = Rehi.main
