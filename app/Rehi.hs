@@ -132,9 +132,21 @@ parse_cli = parse_loop False
     parse_loop _ argv = error ("Invalid arguments: " ++ show argv)
   
 
-main_run = undefined
+main_run dest source_from through source_to target_ref initial_branch interactive = do
+  (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
+  (todo', commits') <- if interactive
+    then (do
+      (todo'', commits'') <- add_info_to_todo todo commits
+      -- TODO: edit
+      pure (todo'', commits''))
+    else pure (todo, commits)
+  return undefined
 
 get_env = undefined
+
+init_rebase = undefined
+
+add_info_to_todo = undefined
 
 abort_rebase = undefined
 
