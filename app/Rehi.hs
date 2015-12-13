@@ -8,7 +8,7 @@ module Rehi where
 import Prelude hiding (putStrLn)
 
 import Data.ByteString(ByteString,putStrLn)
-import Data.Maybe(fromMaybe)
+import Data.Maybe(fromMaybe,isJust)
 import Control.Monad(liftM)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
 import Control.Monad.Trans.Class(lift)
@@ -117,7 +117,7 @@ parse_cli = parse_loop False
     parse_loop _ argv@("--current" : _ : _ ) = error ("Extra argument:" ++ show argv)
     parse_loop _ ["--current"] = Current
     parse_loop interactive [dest] = Run dest Nothing [] Nothing Nothing interactive
-    parse_loop interactive (arg0 : arg1 : arg2mb) | length arg2mb == 1 || length arg2mb == 0 && Just _ <- regex_match arg1 "\\.\\." = 
+    parse_loop interactive (arg0 : arg1 : arg2mb) | length arg2mb == 1 || length arg2mb == 0 && isJust (regex_match arg1 "\\.\\.") =
         let
           re_ref0 = "(?:[^\\.]|(?<!\\.)\\.)*"
           re_ref1 = "(?:[^\\.]|(?<!\\.)\\.)+"
