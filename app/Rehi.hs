@@ -21,7 +21,7 @@ import System.Posix.Env.ByteString(getArgs)
 
 import qualified Data.Map.Strict as Map
 
-main :: IO _
+main :: IO ()
 main = do
   env <- get_env
   flip runReaderT env $ do
@@ -51,11 +51,11 @@ main = do
             content <- lift $ read_file currentPath
             lift $ putStrLn ("Current: " `mappend` content)
           False -> error "No rehi in progress"
-      Run dest source_from_arg through source_to_arg (target_arg :: Maybe ByteString) interactive -> do
+      Run dest source_from_arg through source_to_arg target_arg interactive -> do
         git_verify_clean
-        (initial_branch :: ByteString) <- git_get_checkedout_branch
+        initial_branch <- git_get_checkedout_branch
         let
-          target_ref = (fromMaybe initial_branch target_arg :: ByteString)
+          target_ref = fromMaybe initial_branch target_arg
           source_to = fromMaybe target_ref source_to_arg
         source_from <- case source_from_arg of
           Just s -> pure s
@@ -135,7 +135,6 @@ parse_cli = parse_loop False
     parse_loop interactive [arg0, arg1] = Run arg0 Nothing [] Nothing (Just arg1) interactive
     parse_loop _ argv = error ("Invalid arguments: " ++ show argv)
   
-
 main_run dest source_from through source_to target_ref initial_branch interactive = do
   (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
   (todo, commits) <- if interactive
@@ -170,7 +169,7 @@ restore_rebase = do
     False -> pure Nothing)
   pure (todo, current, commits, target_ref)
 
-init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> _ ([_], _, _)
+init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> ReaderT Env IO ([_], _, _)
 init_rebase dest source_from through source_to target_ref initial_branch = do
   (dest_hash : source_from_hash : source_to_hash : through_hashes ) <- git_resolve_hashes (dest : source_from : source_to : through)
   init_save target_ref initial_branch
