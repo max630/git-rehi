@@ -2,14 +2,18 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 module Rehi where
 
 import Prelude hiding (putStrLn)
 
 import Data.ByteString(ByteString,putStrLn)
+import Data.List(find)
 import Data.Maybe(fromMaybe,isJust)
+import Data.Monoid((<>))
 import Control.Monad(liftM)
+import Control.Monad.Fix(fix)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
 import Control.Monad.Trans.Class(lift)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
@@ -47,11 +51,11 @@ main = do
             content <- lift $ read_file currentPath
             lift $ putStrLn ("Current: " `mappend` content)
           False -> error "No rehi in progress"
-      Run dest source_from_arg through source_to_arg target_arg interactive -> do
+      Run dest source_from_arg through source_to_arg (target_arg :: Maybe ByteString) interactive -> do
         git_verify_clean
-        initial_branch <- git_get_checkedout_branch
+        (initial_branch :: ByteString) <- git_get_checkedout_branch
         let
-          target_ref = fromMaybe initial_branch target_arg
+          target_ref = (fromMaybe initial_branch target_arg :: ByteString)
           source_to = fromMaybe target_ref source_to_arg
         source_from <- case source_from_arg of
           Just s -> pure s
@@ -70,7 +74,7 @@ data CliMode =
   | Current
   | Run ByteString (Maybe ByteString) [ByteString] (Maybe ByteString) (Maybe ByteString) Bool
 
-newtype Hash = Hash ByteString deriving (Eq, Ord, Show)
+newtype Hash = Hash { hashString :: ByteString } deriving (Eq, Ord, Show)
 
 data Head = Sync | Known Hash
 
@@ -134,33 +138,85 @@ parse_cli = parse_loop False
 
 main_run dest source_from through source_to target_ref initial_branch interactive = do
   (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
-  (todo', commits') <- if interactive
+  (todo, commits) <- if interactive
     then (do
-      (todo'', commits'') <- add_info_to_todo todo commits
-      -- TODO: edit
-      pure (todo'', commits''))
+      (todo, commits) <- add_info_to_todo todo commits
+      edit_todo (todo, commits) >>= \case
+        Just tc -> pure tc
+        Nothing -> do
+          cleanup_save
+          fail "Aborted")
     else pure (todo, commits)
-  return undefined
+  if any (\case { UserComment _ -> False ; _ -> True }) todo
+    then (do
+      let commits = commits{ stateHead = Known dest_hash }
+      gitDir <- askGitDir
+      save_todo todo (gitDir <> "/rehi/todo.backup") commits
+      lift (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
+      run_rebase todo commits target_ref)
+    else (do
+        lift(putStrLn "Nothing to do")
+        cleanup_save)
+
+restore_rebase = do
+  gitDir <- askGitDir
+  target_ref <- lift (read_file (gitDir <> "/rehi/target_ref"))
+  commits <- git_load_commits
+  todo <- read_todo (gitDir <> "/rehi/todo") commits
+  current <- lift (fileExist (gitDir <> "/rehi/current") >>= \case
+    True -> do
+      [step] <- read_todo (gitDir <> "/rehi/current") commits
+      pure (Just step)
+    False -> pure Nothing)
+  pure (todo, current, commits, target_ref)
+
+init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> _ ([_], _, _)
+init_rebase dest source_from through source_to target_ref initial_branch = do
+  (dest_hash : source_from_hash : source_to_hash : through_hashes ) <- git_resolve_hashes (dest : source_from : source_to : through)
+  init_save target_ref initial_branch
+  commits <- git_fetch_cli_commits source_from source_to
+  unknown_parents <- find_unknown_parents commits
+  commits <- git_fetch_commit_list commits unknown_parents
+  let todo = build_rebase_sequence commits source_from_hash source_to_hash through_hashes
+  pure (todo, commits, dest_hash)
+
+build_rebase_sequence = undefined
+
+git_resolve_hashes = undefined
+
+init_save = undefined
+
+git_fetch_cli_commits = undefined
+
+find_unknown_parents = undefined
+
+git_fetch_commit_list = undefined
 
 get_env = undefined
-
-init_rebase = undefined
 
 add_info_to_todo = undefined
 
 abort_rebase = undefined
 
-restore_rebase = undefined
-
 run_continue = undefined
 
+edit_todo = undefined
+
+save_todo = undefined
+
+cleanup_save = undefined
+
 read_file = undefined
+
+read_todo = undefined
 
 git_verify_clean = undefined
 
 git_get_checkedout_branch = undefined
 
 git_merge_base = undefined
+
+git_load_commits = undefined
 
 regex_match :: ByteString -> ByteString -> Maybe [ByteString]
 regex_match = undefined
@@ -171,5 +227,5 @@ run_rebase = undefined
 
 run_command = undefined
 
-listenGitDir :: Monad m => ReaderT Env m RawFilePath
-listenGitDir = ask >>= \r -> pure (envGitDir r)
+askGitDir :: Monad m => ReaderT Env m RawFilePath
+askGitDir = ask >>= \r -> pure (envGitDir r)
