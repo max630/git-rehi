@@ -14,18 +14,22 @@ import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
 import Control.Monad(liftM)
 import Control.Monad.Fix(fix)
+import Control.Monad.IO.Class(liftIO)
+import Control.Monad.Trans.Except(ExceptT)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
-import Control.Monad.Trans.Class(lift)
+import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
+import System.Posix.Temp.ByteString(mkstemp)
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 main :: IO ()
 main = do
   env <- get_env
   flip runReaderT env $ do
-    args <- lift getArgs
+    args <- liftIO getArgs
     let parsed = parse_cli args
     case parsed of
       Abort -> abort_rebase
@@ -34,7 +38,7 @@ main = do
         case current of
           Just c -> do
             run_continue c commits
-            lift (removeLink (envGitDir env `mappend` "/rehi/current"))
+            liftIO (removeLink (envGitDir env `mappend` "/rehi/current"))
           Nothing -> return ()
         let commits' = commits { stateHead = Sync }
         run_rebase todo commits' target_ref
@@ -42,14 +46,14 @@ main = do
         (todo, current, commits, target_ref) <- restore_rebase
         case current of
           Just c -> do
-            lift (run_command "git rest --hard HEAD")
-            lift (removeLink (envGitDir env `mappend` "/rehi/current"))
+            liftIO (run_command "git rest --hard HEAD")
+            liftIO (removeLink (envGitDir env `mappend` "/rehi/current"))
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
-        lift (fileExist currentPath) >>= \case
+        liftIO (fileExist currentPath) >>= \case
           True -> do
-            content <- lift $ read_file currentPath
-            lift $ putStrLn ("Current: " `mappend` content)
+            content <- liftIO $ read_file currentPath
+            liftIO $ putStrLn ("Current: " `mappend` content)
           False -> error "No rehi in progress"
       Run dest source_from_arg through source_to_arg target_arg interactive -> do
         git_verify_clean
@@ -94,9 +98,9 @@ data Entry = Entry {
   }
 
 data Step =
-    Pick Hash
-  | Fixup Hash
-  | Edit Hash
+    Pick ByteString
+  | Fixup ByteString
+  | Edit ByteString
   | Exec ByteString
   | Comment ByteString
   | Merge (Maybe ByteString) [ByteString] Bool Bool
@@ -106,6 +110,8 @@ data Step =
   | TailPickWithComment ByteString ByteString
 
 data Env = Env { envGitDir :: RawFilePath }
+
+newtype EditError = EditError ByteString
 
 parse_cli = parse_loop False
   where
@@ -139,8 +145,8 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
   (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
   (todo, commits) <- if interactive
     then (do
-      (todo, commits) <- add_info_to_todo todo commits
-      edit_todo (todo, commits) >>= \case
+      let todo = add_info_to_todo todo commits
+      edit_todo todo commits >>= \case
         Just tc -> pure tc
         Nothing -> do
           cleanup_save
@@ -151,18 +157,18 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
       let commits = commits{ stateHead = Known dest_hash }
       gitDir <- askGitDir
       save_todo todo (gitDir <> "/rehi/todo.backup") commits
-      lift (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
+      liftIO (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
       run_rebase todo commits target_ref)
     else (do
-        lift(putStrLn "Nothing to do")
+        liftIO(putStrLn "Nothing to do")
         cleanup_save)
 
 restore_rebase = do
   gitDir <- askGitDir
-  target_ref <- lift (read_file (gitDir <> "/rehi/target_ref"))
+  target_ref <- liftIO (read_file (gitDir <> "/rehi/target_ref"))
   commits <- git_load_commits
   todo <- read_todo (gitDir <> "/rehi/todo") commits
-  current <- lift (fileExist (gitDir <> "/rehi/current") >>= \case
+  current <- liftIO (fileExist (gitDir <> "/rehi/current") >>= \case
     True -> do
       [step] <- read_todo (gitDir <> "/rehi/current") commits
       pure (Just step)
@@ -174,10 +180,59 @@ init_rebase dest source_from through source_to target_ref initial_branch = do
   (dest_hash : source_from_hash : source_to_hash : through_hashes ) <- git_resolve_hashes (dest : source_from : source_to : through)
   init_save target_ref initial_branch
   commits <- git_fetch_cli_commits source_from source_to
-  unknown_parents <- find_unknown_parents commits
+  let unknown_parents = find_unknown_parents commits
   commits <- git_fetch_commit_list commits unknown_parents
   let todo = build_rebase_sequence commits source_from_hash source_to_hash through_hashes
   pure (todo, commits, dest_hash)
+
+find_unknown_parents commits =
+  Set.toList $ Set.fromList [ p | c <- Map.elems (stateByHash commits),
+                                  p <- entryParents c,
+                                  not (Map.member p (stateByHash commits)) ]
+
+help = "Commands:\n\
+       \\n\
+       \ pick\n\
+       \ fixup\n\
+       \ edit\n\
+       \ exec\n\
+       \ comment\n\
+       \ merge\n\
+       \ :\n\
+       \ reset\n\
+       \ end\n"
+
+comments_from_string content indent = map (\l -> UserComment (mconcat (replicate indent " ") <> l)) (regex_split content "\\r\\n|\\r|\\n")
+
+add_info_to_todo old_todo commits = old_todo ++ comments_from_string help 0 ++ [UserComment "", UserComment " Commits"] ++ comments
+  where
+    comments = concatMap (\case
+      Pick ah -> from_hash ah
+      Fixup ah -> from_hash ah
+      Edit ah -> from_hash ah
+      Merge (Just ah) _ _ _ -> from_hash ah
+      _ -> []) old_todo
+    from_hash ah = fromMaybe [] (do
+      h <- Map.lookup ah (stateRefs commits)
+      body <- Map.lookup h (stateByHash commits)
+      pure ([UserComment ("----- " <> ah <> " -----")] ++ comments_from_string body 0))
+
+edit_todo old_todo commits = do
+  gitDir <- askGitDir
+  (todoPath, todoHandle) <- liftIO (mkstemp (gitDir <> "/rehi/todo.XXXXXXXX"))
+  liftIO (hClose todoHandle)
+  save_todo old_todo todoPath commits
+  editor <- git_sequence_editor
+  retry (do
+    liftIO (run_command editor (" " <> todoPath))
+    todo_rc <- read_todo_check todoPath commits
+    verify_marks todo_rc
+    pure todo_rc)
+
+git_sequence_editor = undefined
+
+retry :: ExceptT EditError _m _x -> _m _x
+retry = undefined
 
 build_rebase_sequence = undefined
 
@@ -187,19 +242,13 @@ init_save = undefined
 
 git_fetch_cli_commits = undefined
 
-find_unknown_parents = undefined
-
 git_fetch_commit_list = undefined
 
 get_env = undefined
 
-add_info_to_todo = undefined
-
 abort_rebase = undefined
 
 run_continue = undefined
-
-edit_todo = undefined
 
 save_todo = undefined
 
@@ -208,6 +257,10 @@ cleanup_save = undefined
 read_file = undefined
 
 read_todo = undefined
+
+read_todo_check = undefined
+
+verify_marks = undefined
 
 git_verify_clean = undefined
 
@@ -221,6 +274,8 @@ regex_match :: ByteString -> ByteString -> Maybe [ByteString]
 regex_match = undefined
 
 regex_match_all = undefined
+
+regex_split = undefined
 
 run_rebase = undefined
 
