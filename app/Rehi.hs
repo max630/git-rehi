@@ -3,25 +3,27 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 module Rehi where
 
 import Prelude hiding (putStrLn)
 
-import Data.ByteString(ByteString,putStrLn)
+import Data.ByteString(ByteString,putStrLn,uncons)
 import Data.List(find)
 import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
-import Control.Monad(liftM)
+import Control.Monad(liftM,foldM,mapM_)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO)
-import Control.Monad.Trans.Except(ExceptT,runExceptT)
+import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
 import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
 import System.Posix.Temp.ByteString(mkstemp)
 
+import qualified Data.ByteString as ByteString
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -147,7 +149,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
     then (do
       let todo = add_info_to_todo todo commits
       edit_todo todo commits >>= \case
-        Just tc -> pure tc
+        Just todo -> pure (todo, commits)
         Nothing -> do
           cleanup_save
           fail "Aborted")
@@ -229,9 +231,24 @@ edit_todo old_todo commits = do
     verify_marks todo_rc
     pure todo_rc)
 
+verify_marks todo = do
+    foldM (\marks -> \case
+                      Mark m | Set.member m marks -> throwE (EditError ("Duplicated mark: " <> m))
+                      Mark m -> pure $ Set.insert m marks
+                      Pick ref -> check marks ref
+                      Fixup ref -> check marks ref
+                      Edit ref -> check marks ref
+                      Reset ref -> check marks ref
+                      Merge _ refs _ _ -> mapM_ (check marks) refs >> pure marks) Set.empty todo
+    pure ()
+  where
+    check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwE (EditError ("Unknown mark:" <> mark))
+    check marks _ = pure marks
+
+
 git_sequence_editor = undefined
 
-retry :: ExceptT EditError _m _x -> _m _x
+retry :: ExceptT EditError _m _x -> _m (Maybe _x)
 retry = undefined
 
 build_rebase_sequence = undefined
@@ -259,8 +276,6 @@ read_file = undefined
 
 read_todo :: _ -> _ -> ExceptT EditError _ _
 read_todo = undefined
-
-verify_marks = undefined
 
 git_verify_clean = undefined
 
