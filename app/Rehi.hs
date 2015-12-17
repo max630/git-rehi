@@ -11,7 +11,7 @@ import Prelude hiding (putStrLn)
 
 import Data.ByteString(ByteString,putStrLn,uncons)
 import Data.List(find)
-import Data.Maybe(fromMaybe,isJust)
+import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
 import Control.Monad(liftM,foldM,mapM_)
 import Control.Monad.Fix(fix)
@@ -110,6 +110,7 @@ data Step =
   | Reset ByteString
   | UserComment ByteString
   | TailPickWithComment ByteString ByteString
+  deriving Show
 
 data Env = Env { envGitDir :: RawFilePath }
 
@@ -226,7 +227,7 @@ edit_todo old_todo commits = do
   save_todo old_todo todoPath commits
   editor <- git_sequence_editor
   retry (do
-    liftIO (run_command editor (" " <> todoPath))
+    liftIO (run_command (editor <> " " <> todoPath))
     todo_rc <- read_todo todoPath commits
     verify_marks todo_rc
     pure todo_rc)
@@ -245,8 +246,33 @@ verify_marks todo = do
     check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwE (EditError ("Unknown mark:" <> mark))
     check marks _ = pure marks
 
+run_continue current commits = do
+  liftIO $ run_command ("git rev-parse --verify HEAD >/dev/null"
+                          <> " && git update-index --ignore-submodules --refresh"
+                          <> " && git diff-files --quiet --ignore-submodules")
+  case current of
+    Pick ah -> git_no_uncommitted_changes >>= \case
+      True -> pure ()
+      False -> liftIO $ run_command ("git commit -c " <> ah)
+    Merge ahM _ _ _ -> git_no_uncommitted_changes >>= \case
+      True -> pure ()
+      False -> liftIO $ run_command ("git commit " <> maybe "" ("-c" <>) ahM)
+    Edit _ -> git_no_uncommitted_changes >>= \case
+      True -> pure ()
+      False -> fail "No unstaged changes should be after 'edit'"
+    Fixup _ -> git_no_uncommitted_changes >>= \case
+      True -> pure ()
+      False -> liftIO $ run_command "git commit --amend"
+    Exec cmd -> fail ("Cannot continue '" ++ show cmd ++ "'; resolve it manually, then skip or abort")
+    Comment c -> comment c
+    _ -> fail ("run_continue: Unexpected " ++ show current)
+
 
 git_sequence_editor = undefined
+
+git_no_uncommitted_changes = undefined
+
+comment = undefined
 
 retry :: ExceptT EditError _m _x -> _m (Maybe _x)
 retry = undefined
@@ -264,8 +290,6 @@ git_fetch_commit_list = undefined
 get_env = undefined
 
 abort_rebase = undefined
-
-run_continue = undefined
 
 save_todo = undefined
 
@@ -294,6 +318,7 @@ regex_split = undefined
 
 run_rebase = undefined
 
+run_command :: ByteString -> IO ()
 run_command = undefined
 
 askGitDir :: Monad m => ReaderT Env m RawFilePath
