@@ -15,7 +15,7 @@ import Data.Monoid((<>))
 import Control.Monad(liftM)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO)
-import Control.Monad.Trans.Except(ExceptT)
+import Control.Monad.Trans.Except(ExceptT,runExceptT)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
 import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
@@ -111,7 +111,7 @@ data Step =
 
 data Env = Env { envGitDir :: RawFilePath }
 
-newtype EditError = EditError ByteString
+newtype EditError = EditError ByteString deriving Show
 
 parse_cli = parse_loop False
   where
@@ -167,10 +167,10 @@ restore_rebase = do
   gitDir <- askGitDir
   target_ref <- liftIO (read_file (gitDir <> "/rehi/target_ref"))
   commits <- git_load_commits
-  todo <- read_todo (gitDir <> "/rehi/todo") commits
+  todo <- fromExcept $ read_todo (gitDir <> "/rehi/todo") commits
   current <- liftIO (fileExist (gitDir <> "/rehi/current") >>= \case
     True -> do
-      [step] <- read_todo (gitDir <> "/rehi/current") commits
+      [step] <- fromExcept $ read_todo (gitDir <> "/rehi/current") commits
       pure (Just step)
     False -> pure Nothing)
   pure (todo, current, commits, target_ref)
@@ -225,7 +225,7 @@ edit_todo old_todo commits = do
   editor <- git_sequence_editor
   retry (do
     liftIO (run_command editor (" " <> todoPath))
-    todo_rc <- read_todo_check todoPath commits
+    todo_rc <- read_todo todoPath commits
     verify_marks todo_rc
     pure todo_rc)
 
@@ -256,9 +256,9 @@ cleanup_save = undefined
 
 read_file = undefined
 
-read_todo = undefined
 
-read_todo_check = undefined
+read_todo :: _ -> _ -> ExceptT EditError _ _
+read_todo = undefined
 
 verify_marks = undefined
 
@@ -283,3 +283,7 @@ run_command = undefined
 
 askGitDir :: Monad m => ReaderT Env m RawFilePath
 askGitDir = ask >>= \r -> pure (envGitDir r)
+
+fromExcept code = runExceptT code >>= \case
+  Right v -> pure v
+  Left e -> fail (show e)
