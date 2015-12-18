@@ -14,10 +14,13 @@ import Data.List(find)
 import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
 import Control.Monad(liftM,foldM,mapM_)
+import Control.Monad.Catch(finally,catch,SomeException)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO)
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
+import Control.Monad.Trans.State(StateT,evalStateT,put,get)
+import Control.Monad.Trans.Class(lift)
 import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
@@ -26,6 +29,7 @@ import System.Posix.Temp.ByteString(mkstemp)
 import qualified Data.ByteString as ByteString
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Prelude as Prelude
 
 main :: IO ()
 main = do
@@ -113,6 +117,8 @@ data Step =
   deriving Show
 
 data Env = Env { envGitDir :: RawFilePath }
+
+data StepResult = StepPause | StepNext
 
 newtype EditError = EditError ByteString deriving Show
 
@@ -267,6 +273,38 @@ run_continue current commits = do
     Comment c -> comment c
     _ -> fail ("run_continue: Unexpected " ++ show current)
 
+-- TODO mutable commits
+run_rebase todo commits target_ref = do
+    evalStateT (finally doJob release) (todo, commits)
+    liftIO $ run_command ("git checkout -B " <> target_ref)
+    cleanup_save
+  where
+    release = do
+      (catch :: _ -> (SomeException -> _) -> _)
+        sync_head
+        (\e -> do
+          liftIO $ Prelude.putStrLn ("Fatal error: " <> show e)
+          liftIO $ putStrLn "Not possible to continue"
+          gitDir <- lift askGitDir
+          liftIO $ removeLink (gitDir <> "/rehi/todo"))
+    doJob = fix $ \rec -> do
+                            (todo, commits) <- get
+                            case todo of
+                              (current : todo) -> do
+                                gitDir <- lift askGitDir
+                                lift $ save_todo todo (gitDir <> "/rehi/todo") commits
+                                lift $ save_todo current (gitDir <> "/rehi/current") commits
+                                put (todo, commits)
+                                run_step current commits >>= \case
+                                  StepPause -> pure ()
+                                  StepNext -> do
+                                    liftIO (removeLink (gitDir <> "/rehi/current"))
+                                    rec
+                              [] -> pure ()
+
+sync_head = undefined
+
+run_step = undefined
 
 git_sequence_editor = undefined
 
@@ -315,8 +353,6 @@ regex_match = undefined
 regex_match_all = undefined
 
 regex_split = undefined
-
-run_rebase = undefined
 
 run_command :: ByteString -> IO ()
 run_command = undefined
