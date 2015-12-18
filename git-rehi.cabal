@@ -20,6 +20,7 @@ executable git-rehi
   build-depends:       base
                        , bytestring
                        , containers
+                       , exceptions
                        , transformers
                        , directory
                        , unix
