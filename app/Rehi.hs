@@ -302,6 +302,13 @@ run_rebase todo commits target_ref = do
                                     rec
                               [] -> pure ()
 
+abort_rebase = do
+  gitDir <- askGitDir
+  initial_branch <- liftIO $ read_file (gitDir <> "/rehi/initial_branch")
+  liftIO $ run_command ("git reset --hard " <> initial_branch)
+  liftIO $ run_command ("git checkout -f " <> initial_branch)
+  cleanup_save
+
 sync_head = undefined
 
 run_step = undefined
@@ -326,8 +333,6 @@ git_fetch_cli_commits = undefined
 git_fetch_commit_list = undefined
 
 get_env = undefined
-
-abort_rebase = undefined
 
 save_todo = undefined
 
