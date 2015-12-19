@@ -336,12 +336,37 @@ run_step rebase_step = do
           liftIO $ run_command ("git reset --hard " <> hash_or_ref)
           modify' (modifySnd (\c -> c{stateHead = Sync}))
       pure StepNext
+    Exec cmd -> do
+      sync_head
+      liftIO $ run_command cmd
+      pure StepNext
+    Comment new_comment -> do
+      liftIO $ putStrLn "Updating comment"
+      sync_head
+      comment new_comment
+      pure StepNext
+    Mark mrk -> do
+      hashNow <- fmap (stateHead . snd) get >>= \case
+                    Known h -> pure h
+                    Sync -> do
+                      [hashNow] <- lift $ git_resolve_hashes ["HEAD"]
+                      pure hashNow
+      modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
+      gitDir <- lift askGitDir
+      liftIO $ appendToFile (gitDir <> "/rehi/current") (mrk <> " " <> hashString hashNow <> "\n")
+      pure StepNext
+    Merge commentFrom parents ours noff -> merge commentFrom parents ours noff >> pure StepNext
+    UserComment _ -> pure StepNext
+
+appendToFile = undefined
 
 resolve_ahash = undefined
 
 commits_get_subject = undefined
 
 pick = undefined
+
+merge = undefined
 
 sync_head = undefined
 
