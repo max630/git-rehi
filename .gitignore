@@ -1,2 +1,4 @@
 /test-repo/
 /.stack-work/
+*.hi
+*.o
