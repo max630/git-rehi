@@ -20,6 +20,7 @@ executable git-rehi
                        , bytestring
                        , containers
                        , exceptions
+                       , mtl
                        , transformers
                        , directory
                        , unix

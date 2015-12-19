@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE LambdaCase #-}
@@ -18,9 +19,10 @@ import Control.Monad(liftM,foldM,mapM_)
 import Control.Monad.Catch(finally,catch,SomeException)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO)
+import Control.Monad.State(put,get,modify')
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
-import Control.Monad.Trans.State(StateT,evalStateT,put,get,modify')
+import Control.Monad.Trans.State(StateT,evalStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Class(lift)
 import System.IO(hClose)
@@ -320,35 +322,35 @@ run_step rebase_step = do
       Edit ah -> do
         liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
         lift $ pick $ resolve_ahash ah commits
-        lift sync_head
+        sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
       Fixup ah -> do
         liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
-        lift sync_head
+        sync_head
         liftIO $ run_command ("git cherry-pick --allow-empty --allow-empty-message --no-commit " <> resolve_ahash ah commits
                                 <> " && git commit --amend --reset-author --no-edit")
       Reset ah -> do
         let hash_or_ref = resolve_ahash ah commits
         case Map.lookup hash_or_ref (stateRefs commits) of
-          Just _ -> lift $ modify' (modifySnd (\c -> c{stateHead = Known hash_or_ref}))
+          Just _ -> modify' (modifySnd (\c -> c{stateHead = Known hash_or_ref}))
           Nothing -> do
             liftIO $ run_command ("git reset --hard " <> hash_or_ref)
-            lift $ modify' (modifySnd (\c -> c{stateHead = Sync}))
+            modify' (modifySnd (\c -> c{stateHead = Sync}))
       Exec cmd -> do
-        lift $ sync_head
+        sync_head
         liftIO $ run_command cmd
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
-        lift sync_head
+        sync_head
         lift $ comment new_comment
       Mark mrk -> do
-        hashNow <- lift (fmap (stateHead . snd) get) >>= \case
+        hashNow <- fmap (stateHead . snd) get >>= \case
                       Known h -> pure h
                       Sync -> do
                         [hashNow] <- lift $ lift $ git_resolve_hashes ["HEAD"]
                         pure hashNow
-        lift $ modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
+        modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
         gitDir <- lift $ lift askGitDir
         liftIO $ appendToFile (gitDir <> "/rehi/current") (mrk <> " " <> hashString hashNow <> "\n")
       Merge commentFrom parents ours noff -> lift $ merge commentFrom parents ours noff
