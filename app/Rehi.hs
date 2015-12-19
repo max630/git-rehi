@@ -9,7 +9,8 @@ module Rehi where
 
 import Prelude hiding (putStrLn)
 
-import Data.ByteString(ByteString,putStrLn,uncons)
+import Data.ByteString(ByteString,uncons)
+import Data.ByteString.Char8(putStrLn)
 import Data.List(find)
 import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
@@ -19,7 +20,7 @@ import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO)
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
-import Control.Monad.Trans.State(StateT,evalStateT,put,get)
+import Control.Monad.Trans.State(StateT,evalStateT,put,get,modify')
 import Control.Monad.Trans.Class(lift)
 import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
@@ -295,7 +296,7 @@ run_rebase todo commits target_ref = do
                                 lift $ save_todo todo (gitDir <> "/rehi/todo") commits
                                 lift $ save_todo current (gitDir <> "/rehi/current") commits
                                 put (todo, commits)
-                                run_step current commits >>= \case
+                                run_step current >>= \case
                                   StepPause -> pure ()
                                   StepNext -> do
                                     liftIO (removeLink (gitDir <> "/rehi/current"))
@@ -309,9 +310,40 @@ abort_rebase = do
   liftIO $ run_command ("git checkout -f " <> initial_branch)
   cleanup_save
 
-sync_head = undefined
+run_step rebase_step = do
+  commits <- fmap snd get
+  case rebase_step of
+    Pick ah -> do
+      pick $ resolve_ahash ah commits
+      pure StepNext
+    Edit ah -> do
+      liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
+      pick $ resolve_ahash ah commits
+      sync_head
+      liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
+      pure StepPause
+    Fixup ah -> do
+      liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
+      sync_head
+      liftIO $ run_command ("git cherry-pick --allow-empty --allow-empty-message --no-commit " <> resolve_ahash ah commits
+                              <> " && git commit --amend --reset-author --no-edit")
+      pure StepNext
+    Reset ah -> do
+      let hash_or_ref = resolve_ahash ah commits
+      case Map.lookup hash_or_ref (stateRefs commits) of
+        Just _ -> modify' (modifySnd (\c -> c{stateHead = Known hash_or_ref}))
+        Nothing -> do
+          liftIO $ run_command ("git reset --hard " <> hash_or_ref)
+          modify' (modifySnd (\c -> c{stateHead = Sync}))
+      pure StepNext
 
-run_step = undefined
+resolve_ahash = undefined
+
+commits_get_subject = undefined
+
+pick = undefined
+
+sync_head = undefined
 
 git_sequence_editor = undefined
 
@@ -361,6 +393,8 @@ regex_split = undefined
 
 run_command :: ByteString -> IO ()
 run_command = undefined
+
+modifySnd f (x, y) = (x, f y)
 
 askGitDir :: Monad m => ReaderT Env m RawFilePath
 askGitDir = ask >>= \r -> pure (envGitDir r)
