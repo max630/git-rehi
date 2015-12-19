@@ -19,9 +19,10 @@ import Control.Monad(liftM,foldM,mapM_)
 import Control.Monad.Catch(finally,catch,SomeException)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO)
+import Control.Monad.Reader(MonadReader,ask)
 import Control.Monad.State(put,get,modify')
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
-import Control.Monad.Trans.Reader(ReaderT(runReaderT),ask)
+import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(StateT,evalStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Class(lift)
@@ -153,7 +154,7 @@ parse_cli = parse_loop False
         in Run arg0 (Just source_from) through (Just source_to) arg2 interactive
     parse_loop interactive [arg0, arg1] = Run arg0 Nothing [] Nothing (Just arg1) interactive
     parse_loop _ argv = error ("Invalid arguments: " ++ show argv)
-  
+
 main_run dest source_from through source_to target_ref initial_branch interactive = do
   (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
   (todo, commits) <- if interactive
@@ -167,10 +168,10 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
     else pure (todo, commits)
   if any (\case { UserComment _ -> False ; _ -> True }) todo
     then (do
-      let commits = commits{ stateHead = Known dest_hash }
+      let commits = commits{ stateHead = Known (Hash dest_hash) }
       gitDir <- askGitDir
       save_todo todo (gitDir <> "/rehi/todo.backup") commits
-      liftIO (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
+      liftIO (run_command ("git checkout --quiet --detach " <> dest_hash))
       run_rebase todo commits target_ref)
     else (do
         liftIO(putStrLn "Nothing to do")
@@ -289,13 +290,13 @@ run_rebase todo commits target_ref = do
         (\e -> do
           liftIO $ Prelude.putStrLn ("Fatal error: " <> show e)
           liftIO $ putStrLn "Not possible to continue"
-          gitDir <- lift askGitDir
+          gitDir <- askGitDir
           liftIO $ removeLink (gitDir <> "/rehi/todo"))
     doJob = fix $ \rec -> do
                             (todo, commits) <- get
                             case todo of
                               (current : todo) -> do
-                                gitDir <- lift askGitDir
+                                gitDir <- askGitDir
                                 lift $ save_todo todo (gitDir <> "/rehi/todo") commits
                                 lift $ save_todo current (gitDir <> "/rehi/current") commits
                                 put (todo, commits)
@@ -351,7 +352,7 @@ run_step rebase_step = do
                         [hashNow] <- lift $ lift $ git_resolve_hashes ["HEAD"]
                         pure hashNow
         modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
-        gitDir <- lift $ lift askGitDir
+        gitDir <- askGitDir
         liftIO $ appendToFile (gitDir <> "/rehi/current") (mrk <> " " <> hashString hashNow <> "\n")
       Merge commentFrom parents ours noff -> lift $ merge commentFrom parents ours noff
       UserComment _ -> pure ()
@@ -422,7 +423,7 @@ run_command = undefined
 
 modifySnd f (x, y) = (x, f y)
 
-askGitDir :: Monad m => ReaderT Env m RawFilePath
+askGitDir :: MonadReader Env m => m RawFilePath
 askGitDir = ask >>= \r -> pure (envGitDir r)
 
 fromExcept code = runExceptT code >>= \case
