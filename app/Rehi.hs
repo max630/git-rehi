@@ -25,7 +25,6 @@ import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(StateT,evalStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
-import Control.Monad.Trans.Class(lift)
 import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
@@ -297,8 +296,8 @@ run_rebase todo commits target_ref = do
                             case todo of
                               (current : todo) -> do
                                 gitDir <- askGitDir
-                                lift $ save_todo todo (gitDir <> "/rehi/todo") commits
-                                lift $ save_todo current (gitDir <> "/rehi/current") commits
+                                save_todo todo (gitDir <> "/rehi/todo") commits
+                                save_todo current (gitDir <> "/rehi/current") commits
                                 put (todo, commits)
                                 run_step current >>= \case
                                   StepPause -> pure ()
@@ -319,10 +318,10 @@ run_step rebase_step = do
   evalContT $ do
     case rebase_step of
       Pick ah -> do
-        lift $ pick $ resolve_ahash ah commits
+        pick $ resolve_ahash ah commits
       Edit ah -> do
         liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
-        lift $ pick $ resolve_ahash ah commits
+        pick $ resolve_ahash ah commits
         sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
@@ -344,17 +343,17 @@ run_step rebase_step = do
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
         sync_head
-        lift $ comment new_comment
+        comment new_comment
       Mark mrk -> do
         hashNow <- fmap (stateHead . snd) get >>= \case
                       Known h -> pure h
                       Sync -> do
-                        [hashNow] <- lift $ lift $ git_resolve_hashes ["HEAD"]
+                        [hashNow] <- git_resolve_hashes ["HEAD"]
                         pure hashNow
         modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
         gitDir <- askGitDir
         liftIO $ appendToFile (gitDir <> "/rehi/current") (mrk <> " " <> hashString hashNow <> "\n")
-      Merge commentFrom parents ours noff -> lift $ merge commentFrom parents ours noff
+      Merge commentFrom parents ours noff -> merge commentFrom parents ours noff
       UserComment _ -> pure ()
     pure StepNext
 
