@@ -357,6 +357,28 @@ run_step rebase_step = do
       UserComment _ -> pure ()
     pure StepNext
 
+merge commit_refMb merge_parents_refs ours noff = do
+  commits <- fmap snd get
+  case (stateHead commits, commit_refMb) of
+    (Known cachedHash, Just commit_ref)
+      | Just step_hash <- Map.lookup commit_ref (stateRefs commits)
+      , Just step_data <- Map.lookup step_hash (stateByHash commits)
+      , equalWith (\expect_ref actual_hash
+                      -> case expect_ref of
+                          "HEAD" -> cachedHash == actual_hash
+                          _ -> (resolve_ahash expect_ref commits) `ByteString.isPrefixOf` hashString actual_hash) -- FIXME: sometimes expected parent is unknown so need to do prefix compare here
+                  merge_parents_refs (entryParents step_data)
+      -> do
+          liftIO $ putStrLn ("Fast-forwarding unchanged merge: " <> commit_ref <> " " <> entrySubject step_data)
+          modify' (modifySnd (\c -> c{stateHead = Known step_hash}))
+    _ -> merge_new commit_refMb merge_parents_refs ours noff
+
+equalWith f [] [] = True
+equalWith f (x : xs) (y : ys) = if f x y then equalWith f xs ys else False
+equalWith _ _ _ = False
+
+merge_new = undefined
+
 returnC x = ContT $ const x
 
 appendToFile = undefined
@@ -366,8 +388,6 @@ resolve_ahash = undefined
 commits_get_subject = undefined
 
 pick = undefined
-
-merge = undefined
 
 sync_head = undefined
 
