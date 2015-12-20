@@ -18,9 +18,9 @@ import Data.Monoid((<>))
 import Control.Monad(liftM,foldM,mapM_)
 import Control.Monad.Catch(finally,catch,SomeException)
 import Control.Monad.Fix(fix)
-import Control.Monad.IO.Class(liftIO)
+import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
-import Control.Monad.State(put,get,modify')
+import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(StateT,evalStateT)
@@ -405,6 +405,14 @@ index_only x ys = fromMaybe (error "index_only: not found") (foldl' step Nothing
     step prev (n, y) | x == y = case prev of { Nothing -> Just n; Just _ -> error "index_only: duplicate" }
     step prev _ = prev
 
+sync_head :: (MonadState ([Step], Commits) m, MonadIO m) => m ()
+sync_head = do
+  fmap (stateHead . snd) get >>= \case
+    Known hash -> do
+      liftIO $ run_command ("git reset --hash " <> hashString hash)
+      modify' (modifySnd (\c -> c{stateHead = Sync}))
+    Sync -> pure ()
+
 returnC x = ContT $ const x
 
 appendToFile = undefined
@@ -414,8 +422,6 @@ resolve_ahash = undefined
 commits_get_subject = undefined
 
 pick = undefined
-
-sync_head = undefined
 
 git_sequence_editor = undefined
 
