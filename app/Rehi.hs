@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -29,11 +30,14 @@ import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
 import System.Posix.Temp.ByteString(mkstemp)
+import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
+import qualified "unix-bytestring" System.Posix.IO.ByteString as UB
+import qualified "unix" System.Posix.IO.ByteString as U
 
 main :: IO ()
 main = do
@@ -436,8 +440,6 @@ returnC x = ContT $ const x
 
 appendToFile = undefined
 
-writeFile = undefined
-
 resolve_ahash = undefined
 
 commits_get_subject = undefined
@@ -497,3 +499,13 @@ askGitDir = ask >>= \r -> pure (envGitDir r)
 fromExcept code = runExceptT code >>= \case
   Right v -> pure v
   Left e -> fail (show e)
+
+writeFile path content = do
+  fd <- U.createFile path (unionFileModes ownerReadMode ownerWriteMode)
+  fix (\rec content -> do
+                        cnt <- fmap (fromInteger . toInteger) $ UB.fdWrite fd content
+                        if cnt < ByteString.length content
+                          then rec (ByteString.drop cnt content)
+                          else pure ())
+      content
+  U.closeFd fd
