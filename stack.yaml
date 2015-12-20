@@ -3,6 +3,6 @@
 resolver: lts-3.17
 packages:
 - '.'
-extra-deps: []
+extra-deps: ['unix-bytestring-0.3.7.3']
 flags: {}
 extra-package-dbs: []
