@@ -413,6 +413,20 @@ sync_head = do
       modify' (modifySnd (\c -> c{stateHead = Sync}))
     Sync -> pure ()
 
+pick hash = do
+  commits <- fmap snd get
+  case stateHead commits of
+    Known currentHash
+      | Just pickData <- Map.lookup (Hash hash) (stateByHash commits)
+      , [pickParent] <- (entryParents pickData)
+      , pickParent == currentHash
+      -> do
+          liftIO $ putStrLn ("Fast-forwarding unchanged commit: " <> entryAHash pickData <> " " <> entrySubject pickData)
+          modify' (modifySnd (\c -> c{stateHead = Known (Hash hash)}))
+    _ -> do
+          sync_head
+          liftIO $ run_command ("git cherry-pick --allow-empty --allow-empty-message --ff " <> hash)
+
 returnC x = ContT $ const x
 
 appendToFile = undefined
@@ -420,8 +434,6 @@ appendToFile = undefined
 resolve_ahash = undefined
 
 commits_get_subject = undefined
-
-pick = undefined
 
 git_sequence_editor = undefined
 
