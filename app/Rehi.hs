@@ -8,7 +8,7 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 module Rehi where
 
-import Prelude hiding (putStrLn)
+import Prelude hiding (putStrLn,writeFile)
 
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn)
@@ -427,9 +427,16 @@ pick hash = do
           sync_head
           liftIO $ run_command ("git cherry-pick --allow-empty --allow-empty-message --ff " <> hash)
 
+comment new_comment = do
+  gitDir <- askGitDir
+  liftIO $ writeFile (gitDir <> "/rehi/commit_msg") new_comment
+  liftIO $ run_command ("git commit --amend -F \"" <> gitDir <> "/rehi/commit_msg\"")
+
 returnC x = ContT $ const x
 
 appendToFile = undefined
+
+writeFile = undefined
 
 resolve_ahash = undefined
 
@@ -438,8 +445,6 @@ commits_get_subject = undefined
 git_sequence_editor = undefined
 
 git_no_uncommitted_changes = undefined
-
-comment = undefined
 
 retry :: ExceptT EditError _m _x -> _m (Maybe _x)
 retry = undefined
