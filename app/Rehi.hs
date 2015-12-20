@@ -12,7 +12,7 @@ import Prelude hiding (putStrLn)
 
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn)
-import Data.List(find)
+import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
 import Control.Monad(liftM,foldM,mapM_)
@@ -377,7 +377,33 @@ equalWith f [] [] = True
 equalWith f (x : xs) (y : ys) = if f x y then equalWith f xs ys else False
 equalWith _ _ _ = False
 
-merge_new = undefined
+merge_new commit_refMb parents_refs ours noff = do
+  sync_head
+  liftIO $ putStrLn "Merging"
+  let
+    commandHead = "git merge"
+                    <> maybe " --no-edit" (const " --no-commit") commit_refMb
+                    <> (if ours then " --strategy=ours" else "")
+                    <> (if noff then " --no-ff" else "") :: ByteString
+    parents = map resolve_ahash parents_refs
+    head_pos = index_only "HEAD" parents_refs
+  parents <- if head_pos /= 0
+              then do
+                liftIO $ run_command ("git reset --hard " <> head parents)
+                let
+                  (pFirst : pInit, _ : pTail) = splitAt head_pos parents
+                pure (pInit ++ [pFirst] ++ pTail)
+              else pure (tail parents)
+  let command = commandHead <> foldl (<>) "" (map (" " <>) parents)
+  liftIO $ run_command command
+  case commit_refMb of
+    Just commit -> liftIO $ run_command ("git commit -C " <> commit <> " --reset-author")
+    _ -> pure ()
+
+index_only x ys = fromMaybe (error "index_only: not found") (foldl' step Nothing $ zip [0 .. ] ys)
+  where
+    step prev (n, y) | x == y = case prev of { Nothing -> Just n; Just _ -> error "index_only: duplicate" }
+    step prev _ = prev
 
 returnC x = ContT $ const x
 
