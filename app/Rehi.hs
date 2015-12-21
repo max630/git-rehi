@@ -12,7 +12,8 @@ module Rehi where
 import Prelude hiding (putStrLn,writeFile)
 
 import Data.ByteString(ByteString,uncons)
-import Data.ByteString.Char8(putStrLn)
+import Data.ByteString.Char8(putStrLn,pack)
+import Data.Foldable(toList,find)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
@@ -171,10 +172,10 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
     else pure (todo, commits)
   if any (\case { UserComment _ -> False ; _ -> True }) todo
     then (do
-      let commits = commits{ stateHead = Known (Hash dest_hash) }
+      let commits = commits{ stateHead = Known dest_hash }
       gitDir <- askGitDir
       save_todo todo (gitDir <> "/rehi/todo.backup") commits
-      liftIO (run_command ("git checkout --quiet --detach " <> dest_hash))
+      liftIO (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
       run_rebase todo commits target_ref)
     else (do
         liftIO(putStrLn "Nothing to do")
@@ -436,7 +437,51 @@ comment new_comment = do
   liftIO $ writeFile (gitDir <> "/rehi/commit_msg") new_comment
   liftIO $ run_command ("git commit --amend -F \"" <> gitDir <> "/rehi/commit_msg\"")
 
+build_rebase_sequence :: Commits -> Hash -> Hash -> [Hash] -> [Step]
+build_rebase_sequence commits source_from_hash source_to_hash through_hashes = from_mark ++ steps
+  where
+    sequence = find_sequence (stateByHash commits) source_from_hash source_to_hash through_hashes
+    (marks, _, _)
+          = foldl'
+              (\(marks, mark_num, prev_hash) step_hash ->
+                let (marks, mark_num) =
+                      foldl'
+                        (\v@(marks, mark_num) parent ->
+                          case Map.lookup parent marks of
+                            Just Nothing ->
+                              (Map.insert parent (Just ("tmp_" <> pack (show mark_num))) marks
+                              , mark_num + 1)
+                            _ -> v)
+                        (marks, mark_num)
+                        (entryParents (stateByHash commits Map.! step_hash))
+                in (marks, mark_num, step_hash))
+              (Map.fromList $ zip ([source_from_hash] ++ sequence) (repeat Nothing)
+               , 1
+               , source_from_hash)
+              sequence
+    from_mark = map (Mark . fromMaybe "build_rebase_sequence: unknown mark for from")
+                    (toList $ Map.lookup source_from_hash marks)
+    steps = concat $ zipWith makeStep sequence (source_from_hash : sequence)
+    makeStep this prev = reset ++ step
+      where
+        thisE = stateByHash commits Map.! this
+        (real_prev, reset) =
+          if prev `elem` entryParents thisE
+            then (prev, [])
+            else case filter (`Map.member` marks) (entryParents thisE) of
+              (h : _) | Just m <- marks Map.! h -> (h, [Reset m])
+                      | Nothing <- marks Map.! h -> error ("Unresolved mark for " <> show h)
+              [] -> error ("No known parents for found step " <> show this)
+        step = case entryParents thisE of
+          [p] -> [Pick $ entryAHash thisE]
+          ps -> make_merge_steps thisE real_prev commits marks
+
+make_merge_steps = undefined
+
 returnC x = ContT $ const x
+
+find_sequence :: _ -> _ -> _ -> _ -> [_]
+find_sequence = undefined
 
 appendToFile = undefined
 
@@ -450,8 +495,6 @@ git_no_uncommitted_changes = undefined
 
 retry :: ExceptT EditError _m _x -> _m (Maybe _x)
 retry = undefined
-
-build_rebase_sequence = undefined
 
 git_resolve_hashes = undefined
 
