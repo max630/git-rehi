@@ -476,7 +476,17 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
           [p] -> [Pick $ entryAHash thisE]
           ps -> make_merge_steps thisE real_prev commits marks
 
-make_merge_steps = undefined
+make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just ahash) parents ours False]
+  where
+    parents = map mkParent (entryParents thisE)
+    mkParent p | p == real_prev = "HEAD"
+               | Just (Just m) <- Map.lookup p marks = "@" <> m
+               | Just Nothing <- Map.lookup p marks = error ("Unresolved mark for " <> show p)
+               | Just e <- Map.lookup p (stateByHash commits) = entryAHash e
+               | True = error ("Unknown parent: " <> show p)
+    singleHead = index_only "HEAD" parents
+    ahash = entryAHash thisE
+    ours = entryTree thisE == entryTree (stateByHash commits Map.! head (entryParents thisE) )
 
 returnC x = ContT $ const x
 
