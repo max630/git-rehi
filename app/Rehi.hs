@@ -31,9 +31,11 @@ import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
 import System.Posix.Temp.ByteString(mkstemp)
+import System.Posix.Types(Fd)
 import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode)
 
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
@@ -520,9 +522,9 @@ git_fetch_commits cmd commits = do
 git_load_commits = do
     gitDir <- askGitDir
     execStateT (do
-      foldFileM git_parse_commit_line (gitDir <> "/rehi/commits") "\0"
+      mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") "\0"
       liftIO (fileExist (gitDir <> "/rehi/marks")) >>= \case
-        True -> foldFileM addMark (gitDir <> "/rehi/marks") "\n"
+        True -> mapFileLinesM addMark (gitDir <> "/rehi/marks") "\n"
         False -> pure ()) commitsEmpty
   where
     addMark line = do
@@ -530,12 +532,33 @@ git_load_commits = do
         Just [_, mName, mValue] -> modify' (\c -> c{ stateMarks = Map.insert mName (Hash mValue) (stateMarks c) })
         Nothing -> fail ("Ivalid mark line: " <> show line)
 
-foldFileM :: MonadIO m => (ByteString -> m ()) -> ByteString -> ByteString -> m ()
-foldFileM = undefined
+git_parse_commit_line line = do
+  case regex_match line "^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$" of
+    Nothing -> fail ("Could not parse line: " <> show line)
+    Just [_, Hash -> hash, ahash, Hash -> tree, map Hash . BC.split ' ' -> parents, trim -> body] -> do
+      verify_hash hash
+      mapM_ verify_hash parents
+      let
+        (subject : _) = BC.split '\n' body
+        obj = Entry ahash hash subject parents tree
+      modify' (\c -> c{ stateByHash = Map.insertWith (const id) hash obj (stateByHash c)
+                      , stateRefs = Map.insertWith (\hNew hOld -> if hNew == hOld then hOld else error ("Duplicated ref with different hash: " <> show ahash <> "=>" <> show hOld <> ", " <> show hNew))
+                                              ahash
+                                              hash
+                                              (stateRefs c)})
+
+verify_hash = undefined
+
+mapFileLinesM :: MonadIO m => (ByteString -> m ()) -> ByteString -> ByteString -> m ()
+mapFileLinesM func path sep = do
+  fd <- liftIO $ U.openFd path U.ReadOnly Nothing U.defaultFileFlags
+  mapFdLinesM func fd sep
+  liftIO $ U.closeFd fd
+
+mapFdLinesM :: MonadIO m => (ByteString -> m ()) -> Fd -> ByteString -> m ()
+mapFdLinesM = undefined
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
-
-git_parse_commit_line = undefined
 
 command_lines :: ByteString -> IO [ByteString]
 command_lines = undefined
