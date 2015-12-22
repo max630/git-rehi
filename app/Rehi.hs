@@ -488,6 +488,26 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
     ahash = entryAHash thisE
     ours = entryTree thisE == entryTree (stateByHash commits Map.! head (entryParents thisE) )
 
+git_resolve_hashes :: MonadIO m => [ByteString] -> m [Hash]
+git_resolve_hashes refs = do
+  mapM_ verify_cmdarg refs
+  hashes <- fmap (map (Hash . trim)) $ liftIO $ command_lines ("git rev-parse " <> (mconcat $ map (" " <>) refs))
+  if length hashes == length refs
+    then pure hashes
+    else error "Hash number does not match"
+
+git_fetch_cli_commits from to = do
+  verify_cmdarg from
+  verify_cmdarg to
+  git_fetch_commits ("git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> from <> ".." <> to)
+                    (Commits Sync Map.empty Map.empty Map.empty)
+
+git_fetch_commits = undefined
+
+command_lines = undefined
+
+verify_cmdarg = undefined
+
 returnC x = ContT $ const x
 
 find_sequence :: _ -> _ -> _ -> _ -> [_]
@@ -506,11 +526,7 @@ git_no_uncommitted_changes = undefined
 retry :: ExceptT EditError _m _x -> _m (Maybe _x)
 retry = undefined
 
-git_resolve_hashes = undefined
-
 init_save = undefined
-
-git_fetch_cli_commits = undefined
 
 git_fetch_commit_list = undefined
 
@@ -552,6 +568,10 @@ askGitDir = ask >>= \r -> pure (envGitDir r)
 fromExcept code = runExceptT code >>= \case
   Right v -> pure v
   Left e -> fail (show e)
+
+trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
+  where
+    space = (`ByteString.elem` " \t\n\r")
 
 writeFile path content = do
   fd <- U.createFile path (unionFileModes ownerReadMode ownerWriteMode)
