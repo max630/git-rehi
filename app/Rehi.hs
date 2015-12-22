@@ -534,7 +534,6 @@ git_load_commits = do
 
 git_parse_commit_line line = do
   case regex_match line "^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$" of
-    Nothing -> fail ("Could not parse line: " <> show line)
     Just [_, Hash -> hash, ahash, Hash -> tree, map Hash . BC.split ' ' -> parents, trim -> body] -> do
       verify_hash hash
       mapM_ verify_hash parents
@@ -546,6 +545,9 @@ git_parse_commit_line line = do
                                               ahash
                                               hash
                                               (stateRefs c)})
+    _ -> fail ("Could not parse line: " <> show line)
+
+git_merge_base = undefined
 
 verify_hash = undefined
 
@@ -602,8 +604,6 @@ read_todo = undefined
 git_verify_clean = undefined
 
 git_get_checkedout_branch = undefined
-
-git_merge_base = undefined
 
 regex_match :: ByteString -> ByteString -> Maybe [ByteString]
 regex_match = undefined
