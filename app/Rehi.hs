@@ -517,6 +517,24 @@ git_fetch_commits cmd commits = do
   liftIO $ U.closeFd fd
   pure commits
 
+git_load_commits = do
+    gitDir <- askGitDir
+    execStateT (do
+      foldFileM git_parse_commit_line (gitDir <> "/rehi/commits") "\0"
+      liftIO (fileExist (gitDir <> "/rehi/marks")) >>= \case
+        True -> foldFileM addMark (gitDir <> "/rehi/marks") "\n"
+        False -> pure ()) commitsEmpty
+  where
+    addMark line = do
+      case regex_match line "^([0-9a-zA-Z_\\/]+) ([0-9a-fA-F]+)$" of
+        Just [_, mName, mValue] -> modify' (\c -> c{ stateMarks = Map.insert mName (Hash mValue) (stateMarks c) })
+        Nothing -> fail ("Ivalid mark line: " <> show line)
+
+foldFileM :: MonadIO m => (ByteString -> m ()) -> ByteString -> ByteString -> m ()
+foldFileM = undefined
+
+commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
+
 git_parse_commit_line = undefined
 
 command_lines :: ByteString -> IO [ByteString]
@@ -563,8 +581,6 @@ git_verify_clean = undefined
 git_get_checkedout_branch = undefined
 
 git_merge_base = undefined
-
-git_load_commits = undefined
 
 regex_match :: ByteString -> ByteString -> Maybe [ByteString]
 regex_match = undefined
