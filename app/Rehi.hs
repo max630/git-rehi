@@ -25,7 +25,7 @@ import Control.Monad.Reader(MonadReader,ask)
 import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
-import Control.Monad.Trans.State(StateT,evalStateT)
+import Control.Monad.Trans.State(StateT,evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
@@ -502,8 +502,24 @@ git_fetch_cli_commits from to = do
   git_fetch_commits ("git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> from <> ".." <> to)
                     (Commits Sync Map.empty Map.empty Map.empty)
 
-git_fetch_commits = undefined
+git_fetch_commits cmd commits = do
+  gitDir <- askGitDir
+  fd <- liftIO$ U.openFd (gitDir <> "/rehi/commits")
+                 (U.WriteOnly)
+                 (Just (unionFileModes ownerReadMode ownerWriteMode))
+                 U.defaultFileFlags{ U.append = True }
+  commits <- execStateT ((liftIO $ command_lines cmd) >>= mapM (\case
+      "\n" -> pure ()
+      line -> do
+        git_parse_commit_line line
+        liftIO $ fdWriteAll fd line
+    )) commits
+  liftIO $ U.closeFd fd
+  pure commits
 
+git_parse_commit_line = undefined
+
+command_lines :: ByteString -> IO [ByteString]
 command_lines = undefined
 
 verify_cmdarg = undefined
@@ -575,10 +591,13 @@ trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
 
 writeFile path content = do
   fd <- U.createFile path (unionFileModes ownerReadMode ownerWriteMode)
+  fdWriteAll fd content
+  U.closeFd fd
+
+fdWriteAll fd content =
   fix (\rec content -> do
                         cnt <- fmap (fromInteger . toInteger) $ UB.fdWrite fd content
                         if cnt < ByteString.length content
                           then rec (ByteString.drop cnt content)
                           else pure ())
       content
-  U.closeFd fd
