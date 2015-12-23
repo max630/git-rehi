@@ -17,6 +17,7 @@ import Data.Foldable(toList,find)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
+import Data.Text.Encoding(decodeUtf8')
 import Control.Monad(liftM,foldM,mapM_)
 import Control.Monad.Catch(finally,catch,SomeException)
 import Control.Monad.Fix(fix)
@@ -27,6 +28,8 @@ import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(StateT,evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
+import Control.Monad.Trans.Writer(execWriterT)
+import Control.Monad.Writer(tell)
 import System.IO(hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
@@ -522,9 +525,9 @@ git_fetch_commits cmd commits = do
 git_load_commits = do
     gitDir <- askGitDir
     execStateT (do
-      mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") "\0"
+      mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") '\0'
       liftIO (fileExist (gitDir <> "/rehi/marks")) >>= \case
-        True -> mapFileLinesM addMark (gitDir <> "/rehi/marks") "\n"
+        True -> mapFileLinesM addMark (gitDir <> "/rehi/marks") '\n'
         False -> pure ()) commitsEmpty
   where
     addMark line = do
@@ -547,17 +550,24 @@ git_parse_commit_line line = do
                                               (stateRefs c)})
     _ -> fail ("Could not parse line: " <> show line)
 
-git_merge_base = undefined
+git_merge_base b1 b2 = do
+  verify_cmdarg b1
+  verify_cmdarg b2
+  [base] <- execWriterT $ mapCmdLinesM (tell . (: []) . trim) ("git merge-base -a " <> b1 <> " " <> b2) '\n'
+  pure base
 
 verify_hash = undefined
 
-mapFileLinesM :: MonadIO m => (ByteString -> m ()) -> ByteString -> ByteString -> m ()
+mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
+mapCmdLinesM = undefined
+
+mapFileLinesM :: MonadIO m => (ByteString -> m ()) -> ByteString -> Char -> m ()
 mapFileLinesM func path sep = do
   fd <- liftIO $ U.openFd path U.ReadOnly Nothing U.defaultFileFlags
   mapFdLinesM func fd sep
   liftIO $ U.closeFd fd
 
-mapFdLinesM :: MonadIO m => (ByteString -> m ()) -> Fd -> ByteString -> m ()
+mapFdLinesM :: MonadIO m => (ByteString -> m ()) -> Fd -> Char -> m ()
 mapFdLinesM = undefined
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
