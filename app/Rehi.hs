@@ -19,7 +19,7 @@ import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
 import Data.Text.Encoding(decodeUtf8')
 import Control.Monad(liftM,foldM,mapM_)
-import Control.Monad.Catch(finally,catch,SomeException)
+import Control.Monad.Catch(MonadMask,finally,catch,SomeException,bracket)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
@@ -30,7 +30,7 @@ import Control.Monad.Trans.State(StateT,evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
-import System.IO(hClose)
+import System.IO(Handle,hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs)
 import System.Posix.Temp.ByteString(mkstemp)
@@ -42,8 +42,7 @@ import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
-import qualified "unix-bytestring" System.Posix.IO.ByteString as UB
-import qualified "unix" System.Posix.IO.ByteString as U
+import qualified System.Posix.IO.ByteString as U
 
 main :: IO ()
 main = do
@@ -507,20 +506,24 @@ git_fetch_cli_commits from to = do
   git_fetch_commits ("git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> from <> ".." <> to)
                     (Commits Sync Map.empty Map.empty Map.empty)
 
+git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader Env m) => ByteString -> Commits -> m Commits
 git_fetch_commits cmd commits = do
   gitDir <- askGitDir
-  fd <- liftIO$ U.openFd (gitDir <> "/rehi/commits")
-                 (U.WriteOnly)
-                 (Just (unionFileModes ownerReadMode ownerWriteMode))
-                 U.defaultFileFlags{ U.append = True }
-  commits <- execStateT ((liftIO $ command_lines cmd) >>= mapM (\case
-      "\n" -> pure ()
-      line -> do
-        git_parse_commit_line line
-        liftIO $ fdWriteAll fd line
-    )) commits
-  liftIO $ U.closeFd fd
-  pure commits
+  h <- liftIO $ (U.openFd (gitDir <> "/rehi/commits")
+                    (U.WriteOnly)
+                    (Just (unionFileModes ownerReadMode ownerWriteMode))
+                    U.defaultFileFlags{ U.append = True }
+                  >>= U.fdToHandle)
+  finally
+    (do
+      execStateT
+        ((liftIO $ command_lines cmd) >>= mapM (\case
+          "\n" -> pure ()
+          line -> do
+            git_parse_commit_line line
+            liftIO $ BC.hPut h line))
+        commits)
+    (liftIO $ hClose h)
 
 git_load_commits = do
     gitDir <- askGitDir
@@ -561,14 +564,15 @@ verify_hash = undefined
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
 
-mapFileLinesM :: MonadIO m => (ByteString -> m ()) -> ByteString -> Char -> m ()
+mapFileLinesM :: (MonadIO m, MonadMask m) => (ByteString -> m ()) -> ByteString -> Char -> m ()
 mapFileLinesM func path sep = do
-  fd <- liftIO $ U.openFd path U.ReadOnly Nothing U.defaultFileFlags
-  mapFdLinesM func fd sep
-  liftIO $ U.closeFd fd
+  h <- liftIO (U.openFd path U.ReadOnly Nothing U.defaultFileFlags >>= U.fdToHandle)
+  finally
+    (liftIO $ hClose h)
+    (mapHandleLinesM_ func sep h)
 
-mapFdLinesM :: MonadIO m => (ByteString -> m ()) -> Fd -> Char -> m ()
-mapFdLinesM = undefined
+mapHandleLinesM_ :: MonadIO m => (ByteString -> m a) -> Char -> Handle -> m ()
+mapHandleLinesM_ = undefined
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 
@@ -639,14 +643,5 @@ trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
     space = (`ByteString.elem` " \t\n\r")
 
 writeFile path content = do
-  fd <- U.createFile path (unionFileModes ownerReadMode ownerWriteMode)
-  fdWriteAll fd content
-  U.closeFd fd
-
-fdWriteAll fd content =
-  fix (\rec content -> do
-                        cnt <- fmap (fromInteger . toInteger) $ UB.fdWrite fd content
-                        if cnt < ByteString.length content
-                          then rec (ByteString.drop cnt content)
-                          else pure ())
-      content
+  h <- U.createFile path (unionFileModes ownerReadMode ownerWriteMode) >>= U.fdToHandle
+  finally (hClose h) (BC.hPut h content)
