@@ -26,7 +26,6 @@ executable git-rehi
                        , directory
                        , text
                        , unix
-                       , unix-bytestring
   default-language:    Haskell2010
 
 executable git-rehi-test
