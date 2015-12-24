@@ -2,9 +2,10 @@ module System.Process.ByteString (
     CreateProcess(..),
     CmdSpec(..),
     ProcessHandle,
-    StdStream,
+    StdStream(..),
     createProcess,
     shell,
+    system,
     waitForProcess,getProcessExitCode,terminateProcess
   ) where
 
@@ -12,6 +13,7 @@ import Control.Exception (throwIO)
 import Data.ByteString (ByteString)
 import Data.Text (unpack)
 import Data.Text.Encoding (decodeUtf8')
+import System.Exit (ExitCode)
 import System.IO (Handle)
 import System.Posix.ByteString (RawFilePath)
 import System.Process (StdStream(..),ProcessHandle,waitForProcess,getProcessExitCode,
@@ -63,3 +65,6 @@ decode :: ByteString -> IO String
 decode bs = case decodeUtf8' bs of
   Left e -> throwIO e
   Right s -> pure $ unpack s
+
+system :: ByteString -> IO ExitCode
+system s = decode s >>= SP.system
