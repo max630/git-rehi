@@ -21,6 +21,7 @@ executable git-rehi
                        , containers
                        , exceptions
                        , mtl
+                       , process
                        , transformers
                        , directory
                        , text
