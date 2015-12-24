@@ -27,15 +27,18 @@ import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(StateT,evalStateT,execStateT)
+import Control.Monad.Trans.Class(lift)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
+import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 import System.IO(Handle,hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Posix.Env.ByteString(getArgs,getEnv)
 import System.Posix.Temp.ByteString(mkstemp)
 import System.Posix.Types(Fd)
 import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode)
+import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
@@ -570,12 +573,23 @@ git_sequence_editor =
       Nothing -> fail "Editor not found"
 
 findM :: (Foldable t, Monad m) => (a -> m Bool) -> t a -> m (Maybe a)
-findM = undefined
+findM pred xs = evalContT $ do
+  mapM_ (\x -> lift (pred x) >>= \case { True -> returnC $ pure $ Just x; _ -> pure () }) xs
+  pure Nothing
 
-verify_hash = undefined
+run_command :: ByteString -> IO ()
+run_command s = system s >>= \case
+  ExitSuccess -> pure ()
+  err -> fail ("Command failed: " <> show err) -- TODO: allow non-zero and handle it in clients
 
 readPopen :: ByteString -> IO ByteString
-readPopen = undefined
+readPopen cmd = do
+  (Nothing, Just out, Nothing, pHandle) <- createProcess (shell cmd){ std_out = CreatePipe }
+  finally
+    (ByteString.hGetContents out)
+    (waitForProcess pHandle)
+
+verify_hash = undefined
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
@@ -639,9 +653,6 @@ regex_match = undefined
 regex_match_all = undefined
 
 regex_split = undefined
-
-run_command :: ByteString -> IO ()
-run_command = undefined
 
 modifySnd f (x, y) = (x, f y)
 
