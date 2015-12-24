@@ -32,7 +32,7 @@ import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
 import System.IO(Handle,hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
-import System.Posix.Env.ByteString(getArgs)
+import System.Posix.Env.ByteString(getArgs,getEnv)
 import System.Posix.Temp.ByteString(mkstemp)
 import System.Posix.Types(Fd)
 import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode)
@@ -244,7 +244,7 @@ edit_todo old_todo commits = do
   (todoPath, todoHandle) <- liftIO (mkstemp (gitDir <> "/rehi/todo.XXXXXXXX"))
   liftIO (hClose todoHandle)
   save_todo old_todo todoPath commits
-  editor <- git_sequence_editor
+  editor <- liftIO git_sequence_editor
   retry (do
     liftIO (run_command (editor <> " " <> todoPath))
     todo_rc <- read_todo todoPath commits
@@ -559,7 +559,23 @@ git_merge_base b1 b2 = do
   [base] <- execWriterT $ mapCmdLinesM (tell . (: []) . trim) ("git merge-base -a " <> b1 <> " " <> b2) '\n'
   pure base
 
+git_sequence_editor =
+  getEnv "GIT_SEQUENCE_EDITOR" >>= \case
+    Just ed -> pure ed
+    Nothing -> findM
+                  (\cmd -> do { c <- readPopen cmd; pure (c /= "") })
+                  ["git config sequence.editor || true", "git var GIT_EDITOR || true"]
+                >>= \case
+      Just ed -> pure ed
+      Nothing -> fail "Editor not found"
+
+findM :: (Foldable t, Monad m) => (a -> m Bool) -> t a -> m (Maybe a)
+findM = undefined
+
 verify_hash = undefined
+
+readPopen :: ByteString -> IO ByteString
+readPopen = undefined
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
@@ -591,8 +607,6 @@ appendToFile = undefined
 resolve_ahash = undefined
 
 commits_get_subject = undefined
-
-git_sequence_editor = undefined
 
 git_no_uncommitted_changes = undefined
 
