@@ -34,10 +34,11 @@ import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 import System.IO(Handle,hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
+import System.Posix.Directory.ByteString (createDirectory)
 import System.Posix.Env.ByteString(getArgs,getEnv)
 import System.Posix.Temp.ByteString(mkstemp)
 import System.Posix.Types(Fd)
-import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode)
+import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode,ownerModes)
 import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
 
 import qualified Data.ByteString as ByteString
@@ -589,7 +590,24 @@ readPopen cmd = do
     (ByteString.hGetContents out)
     (waitForProcess pHandle)
 
-verify_hash = undefined
+verify_hash :: Monad m => Hash -> m ()
+verify_hash (Hash h) = case regex_match "^[0-9a-f]{40}$" h of
+  Just _ -> pure ()
+  Nothing -> fail ("Invalid hash: " <> show h)
+
+verify_cmdarg :: Monad m => ByteString -> m ()
+verify_cmdarg str = case regex_match "[\"'\\\\\\(\\)#]|[\0- ]" str of
+  Just _ -> fail ("Invalid cmdarg: " <> show str)
+  Nothing -> pure ()
+
+init_save target_ref initial_branch = do
+  gitDir <- askGitDir
+  liftIO (fileExist (gitDir <> "/rehi")) >>= \case
+    True -> fail "already in progress"
+    False -> do
+      liftIO $ createDirectory (gitDir <> "/rehi") ownerModes
+      liftIO $ writeFile (gitDir <> "/reh/target_ref") target_ref
+      liftIO $ writeFile (gitDir <> "/reh/initial_branch") initial_branch
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
@@ -609,8 +627,6 @@ commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 command_lines :: ByteString -> IO [ByteString]
 command_lines = undefined
 
-verify_cmdarg = undefined
-
 returnC x = ContT $ const x
 
 find_sequence :: _ -> _ -> _ -> _ -> [_]
@@ -626,8 +642,6 @@ git_no_uncommitted_changes = undefined
 
 retry :: ExceptT EditError _m _x -> _m (Maybe _x)
 retry = undefined
-
-init_save = undefined
 
 git_fetch_commit_list = undefined
 
