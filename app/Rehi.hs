@@ -12,13 +12,13 @@ module Rehi where
 import Prelude hiding (putStrLn,writeFile)
 
 import Data.ByteString(ByteString,uncons)
-import Data.ByteString.Char8(putStrLn,pack)
+import Data.ByteString.Char8(putStrLn,pack,hPutStrLn)
 import Data.Foldable(toList,find)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
 import Data.Text.Encoding(decodeUtf8')
-import Control.Monad(liftM,foldM,mapM_)
+import Control.Monad(liftM,foldM,mapM_,forM_)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,bracket)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
@@ -32,7 +32,8 @@ import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
-import System.IO(Handle,hClose)
+import System.File.ByteString (withFile)
+import System.IO(Handle,hClose,IOMode(WriteMode))
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Directory.ByteString (createDirectory,removeDirectoryRecursive)
 import System.Posix.Env.ByteString(getArgs,getEnv)
@@ -182,7 +183,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
     then (do
       let commits = commits{ stateHead = Known dest_hash }
       gitDir <- askGitDir
-      save_todo todo (gitDir <> "/rehi/todo.backup") commits
+      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") commits
       liftIO (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
       run_rebase todo commits target_ref)
     else (do
@@ -247,7 +248,7 @@ edit_todo old_todo commits = do
   gitDir <- askGitDir
   (todoPath, todoHandle) <- liftIO (mkstemp (gitDir <> "/rehi/todo.XXXXXXXX"))
   liftIO (hClose todoHandle)
-  save_todo old_todo todoPath commits
+  liftIO $ save_todo old_todo todoPath commits
   editor <- liftIO git_sequence_editor
   retry (do
     liftIO (run_command (editor <> " " <> todoPath))
@@ -309,8 +310,8 @@ run_rebase todo commits target_ref = do
                             case todo of
                               (current : todo) -> do
                                 gitDir <- askGitDir
-                                save_todo todo (gitDir <> "/rehi/todo") commits
-                                save_todo current (gitDir <> "/rehi/current") commits
+                                liftIO $ save_todo todo (gitDir <> "/rehi/todo") commits
+                                liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits
                                 put (todo, commits)
                                 run_step current >>= \case
                                   StepPause -> pure ()
@@ -624,7 +625,40 @@ commits_get_subject commits ah =
         (\h -> maybe "???" entrySubject $ Map.lookup h $ stateByHash commits)
         (Map.lookup ah $ stateRefs commits)
 
-save_todo todo path commits = undefined
+save_todo todo path commits = do
+  let
+    (reverse -> main, reverse -> tail) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) todo
+  withFile path WriteMode $ \out -> do
+    forM_ main $ hPutStrLn out . \case
+      Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
+      Edit ah -> "edit " <> ah <> " " <> commits_get_subject commits ah
+      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject commits ah
+      Reset tgt -> "reset " <> tgt
+      Exec cmd -> case regex_match cmd "\\n" of
+                    Just _ -> error "multiline command canot be saved"
+                    Nothing -> "exec " <> cmd
+      Comment cmt -> string_from_todo_comment cmt
+      Merge ref ps ours noff ->
+        ("merge"
+          <> if ours then " --ours" else ""
+          <> if noff then " --no-ff" else ""
+          <> maybe "" (" -c" <>) ref
+          <> " " <> ByteString.intercalate "," ps
+          <> maybe "" (commits_get_subject commits) ref)
+      Mark mrk -> ": " <> mrk
+      UserComment cmt -> "# " <> cmt
+    if (not $ null tail)
+      then do
+        hPutStrLn out "end"
+        forM_ tail $ hPutStrLn out . \case
+          UserComment cmt -> cmt
+          TailPickWithComment ah msg
+            -> "----- " <> ah <> " -----\n"
+                <> string_from_todo_comment msg
+      else pure ()
+
+string_from_todo_comment :: ByteString -> ByteString
+string_from_todo_comment = undefined
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
