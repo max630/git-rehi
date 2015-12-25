@@ -62,9 +62,7 @@ data CmdSpec
     | RawCommand RawFilePath [ByteString]
 
 decode :: ByteString -> IO String
-decode bs = case decodeUtf8' bs of
-  Left e -> throwIO e
-  Right s -> pure $ unpack s
+decode = either throwIO (pure . unpack) . decodeUtf8'
 
 system :: ByteString -> IO ExitCode
 system s = decode s >>= SP.system
