@@ -727,5 +727,4 @@ trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
     space = (`ByteString.elem` " \t\n\r")
 
 writeFile path content = do
-  h <- U.createFile path (unionFileModes ownerReadMode ownerWriteMode) >>= U.fdToHandle
-  finally (hClose h) (BC.hPut h content)
+  withFile path WriteMode (\h -> BC.hPut h content)
