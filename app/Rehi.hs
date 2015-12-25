@@ -34,11 +34,11 @@ import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 import System.IO(Handle,hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
-import System.Posix.Directory.ByteString (createDirectory)
+import System.Directory.ByteString (createDirectory)
 import System.Posix.Env.ByteString(getArgs,getEnv)
 import System.Posix.Temp.ByteString(mkstemp)
 import System.Posix.Types(Fd)
-import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode,ownerModes)
+import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode)
 import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
 
 import qualified Data.ByteString as ByteString
@@ -605,9 +605,20 @@ init_save target_ref initial_branch = do
   liftIO (fileExist (gitDir <> "/rehi")) >>= \case
     True -> fail "already in progress"
     False -> do
-      liftIO $ createDirectory (gitDir <> "/rehi") ownerModes
+      liftIO $ createDirectory (gitDir <> "/rehi")
       liftIO $ writeFile (gitDir <> "/reh/target_ref") target_ref
       liftIO $ writeFile (gitDir <> "/reh/initial_branch") initial_branch
+
+cleanup_save = do
+  gitDir <- askGitDir
+  liftIO (fileExist (gitDir <> "/rehi")) >>= \case
+    False -> pure ()
+    True -> do
+      liftIO (fileExist (gitDir <> "/rehi/todo.backup")) >>= \case
+        True -> liftIO $ run_command ("cp -f " <> gitDir <> "/rehi/todo.backup " <> gitDir <> "/rehi_todo.backup")
+        False -> pure ()
+
+
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
@@ -648,8 +659,6 @@ git_fetch_commit_list = undefined
 get_env = undefined
 
 save_todo = undefined
-
-cleanup_save = undefined
 
 read_file = undefined
 
