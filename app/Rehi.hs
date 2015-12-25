@@ -34,7 +34,7 @@ import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 import System.IO(Handle,hClose)
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
-import System.Directory.ByteString (createDirectory)
+import System.Directory.ByteString (createDirectory,removeDirectoryRecursive)
 import System.Posix.Env.ByteString(getArgs,getEnv)
 import System.Posix.Temp.ByteString(mkstemp)
 import System.Posix.Types(Fd)
@@ -617,8 +617,14 @@ cleanup_save = do
       liftIO (fileExist (gitDir <> "/rehi/todo.backup")) >>= \case
         True -> liftIO $ run_command ("cp -f " <> gitDir <> "/rehi/todo.backup " <> gitDir <> "/rehi_todo.backup")
         False -> pure ()
+      liftIO $ removeDirectoryRecursive (gitDir <> "/rehi")
 
+commits_get_subject commits ah =
+  maybe "???"
+        (\h -> maybe "???" entrySubject $ Map.lookup h $ stateByHash commits)
+        (Map.lookup ah $ stateRefs commits)
 
+save_todo todo path commits = undefined
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
@@ -647,8 +653,6 @@ appendToFile = undefined
 
 resolve_ahash = undefined
 
-commits_get_subject = undefined
-
 git_no_uncommitted_changes = undefined
 
 retry :: ExceptT EditError _m _x -> _m (Maybe _x)
@@ -657,8 +661,6 @@ retry = undefined
 git_fetch_commit_list = undefined
 
 get_env = undefined
-
-save_todo = undefined
 
 read_file = undefined
 
