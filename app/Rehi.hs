@@ -20,9 +20,11 @@ import Data.Monoid((<>))
 import Data.Text.Encoding(decodeUtf8')
 import Control.Monad(liftM,foldM,mapM_,forM_)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,bracket)
+import Control.Monad.Except(throwError)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
+import Control.Monad.RWS(execRWST)
 import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
@@ -127,7 +129,7 @@ data Step =
   | Edit ByteString
   | Exec ByteString
   | Comment ByteString
-  | Merge (Maybe ByteString) [ByteString] Bool Bool
+  | Merge { mergeRef :: Maybe ByteString, mergeParents :: [ByteString], mergeOurs :: Bool, mergeNoff :: Bool }
   | Mark ByteString
   | Reset ByteString
   | UserComment ByteString
@@ -658,7 +660,65 @@ save_todo todo path commits = do
       else pure ()
 
 string_from_todo_comment :: ByteString -> ByteString
-string_from_todo_comment = undefined
+string_from_todo_comment cmt =
+  case regex_match cmt "[^\\n]\\.[$\\n]|[^\\n]$|[^\\n]#" of
+    Just _ -> quoted
+    Nothing -> "comment\n" <> cmt <> if BC.last cmt == '\n' then "" else "\n" <> ".\n"
+  where
+    quoted = "comment " <> BC.replicate (BC.length endMark) '{' <> "\n" <> cmt <> endMark <> "\n"
+    endMark = fix (\rec p -> if p `ByteString.isInfixOf` cmt then rec (p <> "}") else p) "}}}"
+
+data ReadState = RStCommand | RStDone | RStCommentPlain ByteString | RStCommentQuoted ByteString ByteString deriving Show
+
+read_todo :: _ -> _ -> ExceptT EditError _ _
+read_todo path commits = do
+    (s, todo) <- execRWST (mapFileLinesM parseLine path '\n') () RStCommand
+    case s of
+      RStCommand -> pure todo
+      RStDone -> pure todo
+      mode -> throwE $ EditError "Unterminated comment"
+  where
+    parseLine line = do
+      get >>= \case
+        RStCommand
+          | Just [_, cmt] <- regex_match line "^# (.*)$" -> tell [UserComment cmt]
+          | Just _ <- regex_match line "^end$" -> put RStDone
+          | Just (_ : _ : ah : _) <- regex_match line "^(f|fixup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
+              -> tell [Fixup ah]
+          | Just (_ : _ : ah : _) <- regex_match line "^(p|pickup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
+              -> tell [Pick ah]
+          | Just (_ : ah : _) <- regex_match line "^reset (\\@?[0-9a-zA-Z_\\/]+)$"
+              -> tell [Reset ah]
+          | Just (_ : cmd : _) <- regex_match line "^exec (.*)$"
+              -> tell [Exec cmd]
+          | Just _ <- regex_match line "^comment$" -> put $ RStCommentPlain ""
+          | Just [_, b] <- regex_match line "^comment (\\{+)$"
+              -> put $ RStCommentQuoted "" (BC.length b `BC.replicate` '}')
+          | Just [_, options, _, parents] <- regex_match line "merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)$"
+              -> do
+                merge <- fix ((\rec m l -> if
+                                  | null l -> pure m
+                                  | Just [_, rest] <- regex_match l "^ --ours( .*)$" -> rec m{ mergeOurs = True } rest
+                                  | Just [_, rest] <- regex_match l "^ --no-ff( .*)$" -> rec m{ mergeNoff = True } rest
+                                  | Just [_, ref, rest] <- regex_match l "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)$" -> rec m{mergeRef = Just ref} rest
+                                  | _ -> throwError $ EditError ("Unexpected merge options: " <> l)) :: (Step -> ByteString -> Step) -> Step -> ByteString -> Step)
+                              (Merge Nothing (BC.split ',' parents) False False)
+                              options
+                tell [merge]
+          | Just [_, mrk] <- regex_match line "^: (.*)$"
+              -> maybe (tell [Mark mrk])
+                  (const $ throwError (EditError ("Dangerous symbols in mark name: " <> mrk)))
+                  (regex_match mrk "[^0-9a-zA-Z_]")
+          | Just _ <- regex_match line "^[ \\t]*$" -> pure ()
+        RStCommentPlain cmt0
+          | Just [_, cmt] <- regex_match line "^# (.*)$" -> tell [UserComment cmt]
+          | line == "." -> tell [UserComment cmt0] >> put RStCommand
+          | otherwise -> put RStCommentPlain (cmt0 <> line <> "\n")
+        RStCommentQuoted cmt0 quote
+          | quote `ByteString.isSuffixOf` cmt0 -> tell [UserComment cmt0] >> put RStCommand
+          | otherwise -> put RStCommentPlain (cmt0 <> line <> "\n")
+        RStDone -> tell [UserComment line]
+        mode -> throwError $ EditError ("Unexpected line in mode " <> show mode <> ": " <> line)
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
@@ -698,9 +758,6 @@ get_env = undefined
 
 read_file = undefined
 
-
-read_todo :: _ -> _ -> ExceptT EditError _ _
-read_todo = undefined
 
 git_verify_clean = undefined
 
