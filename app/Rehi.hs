@@ -17,7 +17,6 @@ import Data.Foldable(toList,find)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
-import Data.Text.Encoding(decodeUtf8')
 import Control.Monad(liftM,foldM,mapM_,forM_)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,bracket,throwM,Exception)
 import Control.Monad.Fix(fix)
@@ -32,14 +31,10 @@ import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
-import System.File.ByteString (withFile,readFile)
-import System.IO(Handle,hClose,IOMode(WriteMode))
-import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
-import System.Directory.ByteString (createDirectory,removeDirectoryRecursive)
-import System.Posix.Env.ByteString(getArgs,getEnv)
-import System.Posix.Temp.ByteString(mkstemp)
-import System.Posix.Types(Fd)
-import System.Posix.Files(unionFileModes,ownerReadMode,ownerWriteMode)
+import System.File.ByteString (withFile,readFile,openFile,openBinaryTempFile)
+import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
+import System.Directory.ByteString (createDirectory,removeDirectoryRecursive,removeFile,doesFileExist)
+import System.Environment.ByteString(getArgs,getEnv)
 import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
 
 import qualified Data.ByteString as ByteString
@@ -47,7 +42,6 @@ import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
-import qualified System.Posix.IO.ByteString as U
 
 main :: IO ()
 main = do
@@ -62,7 +56,7 @@ main = do
         case current of
           Just c -> do
             run_continue c commits
-            liftIO (removeLink (envGitDir env `mappend` "/rehi/current"))
+            liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
           Nothing -> return ()
         let commits' = commits { stateHead = Sync }
         run_rebase todo commits' target_ref
@@ -71,10 +65,10 @@ main = do
         case current of
           Just c -> do
             liftIO (run_command "git rest --hard HEAD")
-            liftIO (removeLink (envGitDir env `mappend` "/rehi/current"))
+            liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
-        liftIO (fileExist currentPath) >>= \case
+        liftIO (doesFileExist currentPath) >>= \case
           True -> do
             content <- liftIO $ readFile currentPath
             liftIO $ putStrLn ("Current: " `mappend` content)
@@ -134,7 +128,7 @@ data Step =
   | TailPickWithComment ByteString ByteString
   deriving Show
 
-data Env = Env { envGitDir :: RawFilePath }
+data Env = Env { envGitDir :: ByteString }
 
 data StepResult = StepPause | StepNext
 
@@ -197,7 +191,7 @@ restore_rebase = do
   target_ref <- liftIO (readFile (gitDir <> "/rehi/target_ref"))
   commits <- git_load_commits
   todo <- read_todo (gitDir <> "/rehi/todo") commits
-  current <- liftIO (fileExist (gitDir <> "/rehi/current") >>= \case
+  current <- liftIO (doesFileExist (gitDir <> "/rehi/current") >>= \case
     True -> do
       [step] <- read_todo (gitDir <> "/rehi/current") commits
       pure (Just step)
@@ -248,7 +242,7 @@ add_info_to_todo old_todo commits = old_todo ++ comments_from_string help 0 ++ [
 
 edit_todo old_todo commits = do
   gitDir <- askGitDir
-  (todoPath, todoHandle) <- liftIO (mkstemp (gitDir <> "/rehi/todo.XXXXXXXX"))
+  (todoPath, todoHandle) <- liftIO (openBinaryTempFile (gitDir <> "/rehi") "todo.XXXXXXXX")
   liftIO (hClose todoHandle)
   liftIO $ save_todo old_todo todoPath commits
   editor <- liftIO git_sequence_editor
@@ -306,7 +300,7 @@ run_rebase todo commits target_ref = do
           liftIO $ Prelude.putStrLn ("Fatal error: " <> show e)
           liftIO $ putStrLn "Not possible to continue"
           gitDir <- askGitDir
-          liftIO $ removeLink (gitDir <> "/rehi/todo"))
+          liftIO $ removeFile (gitDir <> "/rehi/todo"))
     doJob = fix $ \rec -> do
                             (todo, commits) <- get
                             case todo of
@@ -318,7 +312,7 @@ run_rebase todo commits target_ref = do
                                 run_step current >>= \case
                                   StepPause -> pure ()
                                   StepNext -> do
-                                    liftIO (removeLink (gitDir <> "/rehi/current"))
+                                    liftIO (removeFile (gitDir <> "/rehi/current"))
                                     rec
                               [] -> pure ()
 
@@ -516,11 +510,8 @@ git_fetch_cli_commits from to = do
 git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader Env m) => ByteString -> Commits -> m Commits
 git_fetch_commits cmd commits = do
   gitDir <- askGitDir
-  h <- liftIO $ (U.openFd (gitDir <> "/rehi/commits")
-                    (U.WriteOnly)
-                    (Just (unionFileModes ownerReadMode ownerWriteMode))
-                    U.defaultFileFlags{ U.append = True }
-                  >>= U.fdToHandle)
+  h <- liftIO $ openFile (gitDir <> "/rehi/commits") (AppendMode)
+  liftIO $ hSetBinaryMode h True
   finally
     (do
       execStateT
@@ -536,7 +527,7 @@ git_load_commits = do
     gitDir <- askGitDir
     execStateT (do
       mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") '\0'
-      liftIO (fileExist (gitDir <> "/rehi/marks")) >>= \case
+      liftIO (doesFileExist (gitDir <> "/rehi/marks")) >>= \case
         True -> mapFileLinesM addMark (gitDir <> "/rehi/marks") '\n'
         False -> pure ()) commitsEmpty
   where
@@ -568,8 +559,8 @@ git_merge_base b1 b2 = do
 
 git_sequence_editor =
   getEnv "GIT_SEQUENCE_EDITOR" >>= \case
-    Just ed -> pure ed
-    Nothing -> findM
+    ed | not (BC.null ed) -> pure ed
+    _ -> findM
                   (\cmd -> do { c <- readPopen cmd; pure (c /= "") })
                   ["git config sequence.editor || true", "git var GIT_EDITOR || true"]
                 >>= \case
@@ -605,7 +596,7 @@ verify_cmdarg str = case regex_match "[\"'\\\\\\(\\)#]|[\0- ]" str of
 
 init_save target_ref initial_branch = do
   gitDir <- askGitDir
-  liftIO (fileExist (gitDir <> "/rehi")) >>= \case
+  liftIO (doesFileExist (gitDir <> "/rehi")) >>= \case
     True -> fail "already in progress"
     False -> do
       liftIO $ createDirectory (gitDir <> "/rehi")
@@ -614,10 +605,10 @@ init_save target_ref initial_branch = do
 
 cleanup_save = do
   gitDir <- askGitDir
-  liftIO (fileExist (gitDir <> "/rehi")) >>= \case
+  liftIO (doesFileExist (gitDir <> "/rehi")) >>= \case
     False -> pure ()
     True -> do
-      liftIO (fileExist (gitDir <> "/rehi/todo.backup")) >>= \case
+      liftIO (doesFileExist (gitDir <> "/rehi/todo.backup")) >>= \case
         True -> liftIO $ run_command ("cp -f " <> gitDir <> "/rehi/todo.backup " <> gitDir <> "/rehi_todo.backup")
         False -> pure ()
       liftIO $ removeDirectoryRecursive (gitDir <> "/rehi")
@@ -725,7 +716,8 @@ mapCmdLinesM = undefined
 
 mapFileLinesM :: (MonadIO m, MonadMask m) => (ByteString -> m ()) -> ByteString -> Char -> m ()
 mapFileLinesM func path sep = do
-  h <- liftIO (U.openFd path U.ReadOnly Nothing U.defaultFileFlags >>= U.fdToHandle)
+  h <- liftIO $ openFile path ReadMode
+  liftIO $ hSetBinaryMode h True
   finally
     (liftIO $ hClose h)
     (mapHandleLinesM_ func sep h)
@@ -780,7 +772,7 @@ regex_split = undefined
 
 modifySnd f (x, y) = (x, f y)
 
-askGitDir :: MonadReader Env m => m RawFilePath
+askGitDir :: MonadReader Env m => m ByteString
 askGitDir = ask >>= \r -> pure (envGitDir r)
 
 trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
