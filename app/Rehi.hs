@@ -9,7 +9,7 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 module Rehi where
 
-import Prelude hiding (putStrLn,writeFile)
+import Prelude hiding (putStrLn,writeFile,readFile)
 
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn,pack,hPutStrLn)
@@ -32,7 +32,7 @@ import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
-import System.File.ByteString (withFile)
+import System.File.ByteString (withFile,readFile)
 import System.IO(Handle,hClose,IOMode(WriteMode))
 import System.Posix.ByteString(RawFilePath,removeLink,fileExist)
 import System.Directory.ByteString (createDirectory,removeDirectoryRecursive)
@@ -76,7 +76,7 @@ main = do
         let currentPath = envGitDir env `mappend` "/rehi/current"
         liftIO (fileExist currentPath) >>= \case
           True -> do
-            content <- liftIO $ read_file currentPath
+            content <- liftIO $ readFile currentPath
             liftIO $ putStrLn ("Current: " `mappend` content)
           False -> error "No rehi in progress"
       Run dest source_from_arg through source_to_arg target_arg interactive -> do
@@ -194,7 +194,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
 
 restore_rebase = do
   gitDir <- askGitDir
-  target_ref <- liftIO (read_file (gitDir <> "/rehi/target_ref"))
+  target_ref <- liftIO (readFile (gitDir <> "/rehi/target_ref"))
   commits <- git_load_commits
   todo <- read_todo (gitDir <> "/rehi/todo") commits
   current <- liftIO (fileExist (gitDir <> "/rehi/current") >>= \case
@@ -324,7 +324,7 @@ run_rebase todo commits target_ref = do
 
 abort_rebase = do
   gitDir <- askGitDir
-  initial_branch <- liftIO $ read_file (gitDir <> "/rehi/initial_branch")
+  initial_branch <- liftIO $ readFile (gitDir <> "/rehi/initial_branch")
   liftIO $ run_command ("git reset --hard " <> initial_branch)
   liftIO $ run_command ("git checkout -f " <> initial_branch)
   cleanup_save
@@ -731,7 +731,17 @@ mapFileLinesM func path sep = do
     (mapHandleLinesM_ func sep h)
 
 mapHandleLinesM_ :: MonadIO m => (ByteString -> m a) -> Char -> Handle -> m ()
-mapHandleLinesM_ = undefined
+mapHandleLinesM_ func sep handle = step "" (Just handle)
+  where
+    step buf hM | (chunk, rest) <- BC.span (/= sep) buf, not(BC.null rest) = func chunk >> step (BC.drop 1 rest) hM
+    step buf (Just h) = do
+      next <- liftIO $ ByteString.hGetSome h 2048
+      if BC.null next
+        then do
+          liftIO $ hClose h
+          step buf Nothing
+        else step (buf <> next) (Just h)
+    step buf Nothing = func buf >> pure ()
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 
@@ -755,8 +765,6 @@ retry = undefined
 git_fetch_commit_list = undefined
 
 get_env = undefined
-
-read_file = undefined
 
 
 git_verify_clean = undefined
