@@ -696,12 +696,12 @@ read_todo path commits = do
               -> put $ RStCommentQuoted "" (BC.length b `BC.replicate` '}')
           | Just [_, options, _, parents] <- regex_match line "merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)$"
               -> do
-                merge <- fix ((\rec m l -> if
-                                  | null l -> pure m
+                merge <- fix (\rec m l -> if
+                                  | ByteString.null l -> pure m
                                   | Just [_, rest] <- regex_match l "^ --ours( .*)$" -> rec m{ mergeOurs = True } rest
                                   | Just [_, rest] <- regex_match l "^ --no-ff( .*)$" -> rec m{ mergeNoff = True } rest
                                   | Just [_, ref, rest] <- regex_match l "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)$" -> rec m{mergeRef = Just ref} rest
-                                  | _ -> throwError $ EditError ("Unexpected merge options: " <> l)) :: (Step -> ByteString -> Step) -> Step -> ByteString -> Step)
+                                  | otherwise -> throwError $ EditError ("Unexpected merge options: " <> l))
                               (Merge Nothing (BC.split ',' parents) False False)
                               options
                 tell [merge]
@@ -713,12 +713,12 @@ read_todo path commits = do
         RStCommentPlain cmt0
           | Just [_, cmt] <- regex_match line "^# (.*)$" -> tell [UserComment cmt]
           | line == "." -> tell [UserComment cmt0] >> put RStCommand
-          | otherwise -> put RStCommentPlain (cmt0 <> line <> "\n")
+          | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
         RStCommentQuoted cmt0 quote
           | quote `ByteString.isSuffixOf` cmt0 -> tell [UserComment cmt0] >> put RStCommand
-          | otherwise -> put RStCommentPlain (cmt0 <> line <> "\n")
+          | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
         RStDone -> tell [UserComment line]
-        mode -> throwError $ EditError ("Unexpected line in mode " <> show mode <> ": " <> line)
+        mode -> throwError $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
