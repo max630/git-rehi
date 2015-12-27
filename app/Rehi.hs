@@ -13,19 +13,19 @@ import Prelude hiding (putStrLn,writeFile,readFile)
 
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn,pack,hPutStrLn)
-import Data.Foldable(toList,find)
+import Data.Foldable(toList)
 import Data.List(foldl')
-import Data.Maybe(fromMaybe,isJust,maybe)
+import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
-import Control.Monad(liftM,foldM,mapM_,forM_)
-import Control.Monad.Catch(MonadMask,finally,catch,SomeException,bracket,throwM,Exception)
+import Control.Monad(foldM,forM_)
+import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
 import Control.Monad.RWS(execRWST)
 import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
-import Control.Monad.Trans.State(StateT,evalStateT,execStateT)
+import Control.Monad.Trans.State(evalStateT,execStateT)
 import Control.Monad.Trans.Class(lift)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
@@ -342,9 +342,9 @@ run_step rebase_step = do
                                 <> " && git commit --amend --reset-author --no-edit")
       Reset ah -> do
         let hash_or_ref = resolve_ahash ah commits
-        case Map.lookup hash_or_ref (stateRefs commits) of
-          Just _ -> modify' (modifySnd (\c -> c{stateHead = Known hash_or_ref}))
-          Nothing -> do
+        if (Hash hash_or_ref) `Map.member` stateByHash commits
+          then modify' (modifySnd (\c -> c{stateHead = Known $ Hash hash_or_ref}))
+          else do
             liftIO $ run_command ("git reset --hard " <> hash_or_ref)
             modify' (modifySnd (\c -> c{stateHead = Sync}))
       Exec cmd -> do
@@ -362,7 +362,7 @@ run_step rebase_step = do
                         pure hashNow
         modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
         gitDir <- askGitDir
-        liftIO $ appendToFile (gitDir <> "/rehi/current") (mrk <> " " <> hashString hashNow <> "\n")
+        liftIO $ appendToFile (gitDir <> "/rehi/marks") (mrk <> " " <> hashString hashNow <> "\n")
       Merge commentFrom parents ours noff -> merge commentFrom parents ours noff
       UserComment _ -> pure ()
     pure StepNext
@@ -390,12 +390,13 @@ equalWith _ _ _ = False
 merge_new commit_refMb parents_refs ours noff = do
   sync_head
   liftIO $ putStrLn "Merging"
+  commits <- fmap snd get
   let
     commandHead = "git merge"
                     <> maybe " --no-edit" (const " --no-commit") commit_refMb
                     <> (if ours then " --strategy=ours" else "")
                     <> (if noff then " --no-ff" else "") :: ByteString
-    parents = map resolve_ahash parents_refs
+    parents = map (\a -> resolve_ahash a commits) parents_refs
     head_pos = index_only "HEAD" parents_refs
   parents <- if head_pos /= 0
               then do
@@ -464,7 +465,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
                , 1
                , source_from_hash)
               sequence
-    from_mark = map (Mark . fromMaybe "build_rebase_sequence: unknown mark for from")
+    from_mark = map (Mark . fromMaybe (error "build_rebase_sequence: unknown mark for from"))
                     (toList $ Map.lookup source_from_hash marks)
     steps = concat $ zipWith makeStep sequence (source_from_hash : sequence)
     makeStep this prev = reset ++ step
@@ -711,8 +712,12 @@ read_todo path commits = do
         RStDone -> tell [UserComment line]
         mode -> throwM $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
 
-mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
-mapCmdLinesM = undefined
+mapCmdLinesM :: (MonadIO m, MonadMask m) => (ByteString -> m a) -> ByteString -> Char -> m ()
+mapCmdLinesM func cmd sep = do
+  (Nothing, Just out, Nothing, p) <- liftIO $ createProcess (shell "git rev-parse --git-dir"){ std_out = CreatePipe}
+  finally
+    (mapHandleLinesM_ func sep out)
+    (liftIO $ waitForProcess p)
 
 mapFileLinesM :: (MonadIO m, MonadMask m) => (ByteString -> m ()) -> ByteString -> Char -> m ()
 mapFileLinesM func path sep = do
@@ -738,16 +743,16 @@ mapHandleLinesM_ func sep handle = step "" (Just handle)
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 
 command_lines :: ByteString -> IO [ByteString]
-command_lines = undefined
+command_lines cmd = execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
 
 returnC x = ContT $ const x
 
 find_sequence :: _ -> _ -> _ -> _ -> [_]
 find_sequence = undefined
 
-appendToFile = undefined
-
-resolve_ahash = undefined
+resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
+  Just [_,mrk] -> maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk $ stateMarks commits)
+  Nothing -> maybe ah hashString (Map.lookup ah $ stateRefs commits)
 
 git_no_uncommitted_changes = undefined
 
@@ -779,5 +784,6 @@ trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
   where
     space = (`ByteString.elem` " \t\n\r")
 
-writeFile path content = do
-  withFile path WriteMode (\h -> BC.hPut h content)
+writeFile path content = withFile path WriteMode (\h -> BC.hPut h content)
+
+appendToFile path content = withFile path AppendMode (\h -> BC.hPut h content)
