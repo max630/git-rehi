@@ -19,14 +19,12 @@ import Data.Maybe(fromMaybe,isJust,maybe)
 import Data.Monoid((<>))
 import Data.Text.Encoding(decodeUtf8')
 import Control.Monad(liftM,foldM,mapM_,forM_)
-import Control.Monad.Catch(MonadMask,finally,catch,SomeException,bracket)
-import Control.Monad.Except(throwError)
+import Control.Monad.Catch(MonadMask,finally,catch,SomeException,bracket,throwM,Exception)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
 import Control.Monad.RWS(execRWST)
 import Control.Monad.State(put,get,modify',MonadState)
-import Control.Monad.Trans.Except(ExceptT,runExceptT,throwE)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(StateT,evalStateT,execStateT)
 import Control.Monad.Trans.Class(lift)
@@ -142,6 +140,8 @@ data StepResult = StepPause | StepNext
 
 newtype EditError = EditError ByteString deriving Show
 
+instance Exception EditError
+
 parse_cli = parse_loop False
   where
     parse_loop _ ("-i" : argv') = parse_loop True argv'
@@ -196,10 +196,10 @@ restore_rebase = do
   gitDir <- askGitDir
   target_ref <- liftIO (read_file (gitDir <> "/rehi/target_ref"))
   commits <- git_load_commits
-  todo <- fromExcept $ read_todo (gitDir <> "/rehi/todo") commits
+  todo <- read_todo (gitDir <> "/rehi/todo") commits
   current <- liftIO (fileExist (gitDir <> "/rehi/current") >>= \case
     True -> do
-      [step] <- fromExcept $ read_todo (gitDir <> "/rehi/current") commits
+      [step] <- read_todo (gitDir <> "/rehi/current") commits
       pure (Just step)
     False -> pure Nothing)
   pure (todo, current, commits, target_ref)
@@ -260,7 +260,7 @@ edit_todo old_todo commits = do
 
 verify_marks todo = do
     foldM (\marks -> \case
-                      Mark m | Set.member m marks -> throwE (EditError ("Duplicated mark: " <> m))
+                      Mark m | Set.member m marks -> throwM (EditError ("Duplicated mark: " <> m))
                       Mark m -> pure $ Set.insert m marks
                       Pick ref -> check marks ref
                       Fixup ref -> check marks ref
@@ -269,7 +269,7 @@ verify_marks todo = do
                       Merge _ refs _ _ -> mapM_ (check marks) refs >> pure marks) Set.empty todo
     pure ()
   where
-    check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwE (EditError ("Unknown mark:" <> mark))
+    check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwM (EditError ("Unknown mark:" <> mark))
     check marks _ = pure marks
 
 run_continue current commits = do
@@ -670,13 +670,13 @@ string_from_todo_comment cmt =
 
 data ReadState = RStCommand | RStDone | RStCommentPlain ByteString | RStCommentQuoted ByteString ByteString deriving Show
 
-read_todo :: _ -> _ -> ExceptT EditError _ _
+read_todo :: (MonadIO m, MonadMask m) => ByteString -> Commits -> m [Step]
 read_todo path commits = do
     (s, todo) <- execRWST (mapFileLinesM parseLine path '\n') () RStCommand
     case s of
       RStCommand -> pure todo
       RStDone -> pure todo
-      mode -> throwE $ EditError "Unterminated comment"
+      mode -> throwM $ EditError "Unterminated comment"
   where
     parseLine line = do
       get >>= \case
@@ -701,13 +701,13 @@ read_todo path commits = do
                                   | Just [_, rest] <- regex_match l "^ --ours( .*)$" -> rec m{ mergeOurs = True } rest
                                   | Just [_, rest] <- regex_match l "^ --no-ff( .*)$" -> rec m{ mergeNoff = True } rest
                                   | Just [_, ref, rest] <- regex_match l "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)$" -> rec m{mergeRef = Just ref} rest
-                                  | otherwise -> throwError $ EditError ("Unexpected merge options: " <> l))
+                                  | otherwise -> throwM $ EditError ("Unexpected merge options: " <> l))
                               (Merge Nothing (BC.split ',' parents) False False)
                               options
                 tell [merge]
           | Just [_, mrk] <- regex_match line "^: (.*)$"
               -> maybe (tell [Mark mrk])
-                  (const $ throwError (EditError ("Dangerous symbols in mark name: " <> mrk)))
+                  (const $ throwM (EditError ("Dangerous symbols in mark name: " <> mrk)))
                   (regex_match mrk "[^0-9a-zA-Z_]")
           | Just _ <- regex_match line "^[ \\t]*$" -> pure ()
         RStCommentPlain cmt0
@@ -718,7 +718,7 @@ read_todo path commits = do
           | quote `ByteString.isSuffixOf` cmt0 -> tell [UserComment cmt0] >> put RStCommand
           | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
         RStDone -> tell [UserComment line]
-        mode -> throwError $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
+        mode -> throwM $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
 
 mapCmdLinesM :: MonadIO m => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM = undefined
@@ -749,7 +749,7 @@ resolve_ahash = undefined
 
 git_no_uncommitted_changes = undefined
 
-retry :: ExceptT EditError _m _x -> _m (Maybe _x)
+retry :: (MonadMask m) => m _x -> m (Maybe _x)
 retry = undefined
 
 git_fetch_commit_list = undefined
@@ -774,10 +774,6 @@ modifySnd f (x, y) = (x, f y)
 
 askGitDir :: MonadReader Env m => m RawFilePath
 askGitDir = ask >>= \r -> pure (envGitDir r)
-
-fromExcept code = runExceptT code >>= \case
-  Right v -> pure v
-  Left e -> fail (show e)
 
 trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
   where
