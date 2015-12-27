@@ -754,15 +754,36 @@ resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
   Just [_,mrk] -> maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk $ stateMarks commits)
   Nothing -> maybe ah hashString (Map.lookup ah $ stateRefs commits)
 
-git_no_uncommitted_changes = undefined
+git_no_uncommitted_changes = liftIO (system "git diff-index --quiet --ignore-submodules HEAD") >>= \case
+  ExitSuccess -> pure True
+  _ -> pure False
 
-retry :: (MonadMask m) => m _x -> m (Maybe _x)
-retry = undefined
+retry :: (MonadMask m, MonadIO m) => m x -> m (Maybe x)
+retry func = fix $ \rec -> do
+  res <- catch
+          (func >>= (pure . Right))
+          (\(EditError msg) -> pure $ Left msg)
+  case res of
+    Right x -> pure (Just x)
+    Left msg -> do
+      liftIO $ putStrLn ("Error: " <> msg)
+      liftIO $ putStrLn "Retry (y/N)?"
+      answer <- liftIO $ ByteString.getLine
+      if "y" `ByteString.isPrefixOf` answer || "Y" `ByteString.isPrefixOf` answer
+        then rec
+        else pure Nothing
 
-git_fetch_commit_list = undefined
+git_fetch_commit_list commits [] = pure commits
+git_fetch_commit_list commits unknowns = do
+  let
+    (map hashString -> us, usRest) = Prelude.splitAt 20 unknowns
+  mapM_ verify_cmdarg us
+  commits <- git_fetch_commits
+    ("git show -z --no-patch --pretty=format:%H:%h:%T:%P:%B" <> ByteString.concat (map (" " <>) us))
+    commits
+  git_fetch_commit_list commits usRest
 
 get_env = undefined
-
 
 git_verify_clean = undefined
 
