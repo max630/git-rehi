@@ -783,9 +783,23 @@ git_fetch_commit_list commits unknowns = do
     commits
   git_fetch_commit_list commits usRest
 
-get_env = undefined
+get_env = do
+  gitDir <- readPopen "git rev-parse --git-dir"
+  case regex_match gitDir "^[-a-z0-9_\\.,\\/ ]+$" of
+    Just _ -> pure $ Env gitDir
+    Nothing -> fail ("Some unsupported symbols in: " <> show gitDir)
 
-git_verify_clean = undefined
+git_verify_clean = do
+  liftIO git_no_uncommitted_changes >>= \case
+    False -> fail "Not clean working directory"
+    True -> do
+      gitDir <- askGitDir
+      liftIO (doesFileExist (gitDir <> "/rebase-apply")) >>= \case
+        True -> fail "git-am or rebase in progress"
+        False -> liftIO (doesFileExist (gitDir <> "/rebase-merge")) >>= \case
+          True -> fail "rebase in progress"
+          False -> pure ()
+          -- TODO: partial?
 
 git_get_checkedout_branch = undefined
 
