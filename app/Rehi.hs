@@ -68,11 +68,9 @@ main = do
             liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
-        liftIO (doesFileExist currentPath) >>= \case
-          True -> do
-            content <- liftIO $ readFile currentPath
-            liftIO $ putStrLn ("Current: " `mappend` content)
-          False -> error "No rehi in progress"
+        liftIO (doesFileExist currentPath) `unlessM` error "No rehi in progress"
+        content <- liftIO $ readFile currentPath
+        liftIO $ putStrLn ("Current: " `mappend` content)
       Run dest source_from_arg through source_to_arg target_arg interactive -> do
         git_verify_clean
         initial_branch <- git_get_checkedout_branch
@@ -191,11 +189,11 @@ restore_rebase = do
   target_ref <- liftIO (readFile (gitDir <> "/rehi/target_ref"))
   commits <- git_load_commits
   todo <- read_todo (gitDir <> "/rehi/todo") commits
-  current <- liftIO (doesFileExist (gitDir <> "/rehi/current") >>= \case
-    True -> do
-      [step] <- read_todo (gitDir <> "/rehi/current") commits
-      pure (Just step)
-    False -> pure Nothing)
+  current <- ifM (liftIO (doesFileExist (gitDir <> "/rehi/current")))
+                (do
+                  [step] <- read_todo (gitDir <> "/rehi/current") commits
+                  pure (Just step))
+                (pure Nothing)
   pure (todo, current, commits, target_ref)
 
 init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> ReaderT Env IO ([_], _, _)
@@ -271,18 +269,10 @@ run_continue current commits = do
                           <> " && git update-index --ignore-submodules --refresh"
                           <> " && git diff-files --quiet --ignore-submodules")
   case current of
-    Pick ah -> git_no_uncommitted_changes >>= \case
-      True -> pure ()
-      False -> liftIO $ run_command ("git commit -c " <> ah)
-    Merge ahM _ _ _ -> git_no_uncommitted_changes >>= \case
-      True -> pure ()
-      False -> liftIO $ run_command ("git commit " <> maybe "" ("-c" <>) ahM)
-    Edit _ -> git_no_uncommitted_changes >>= \case
-      True -> pure ()
-      False -> fail "No unstaged changes should be after 'edit'"
-    Fixup _ -> git_no_uncommitted_changes >>= \case
-      True -> pure ()
-      False -> liftIO $ run_command "git commit --amend"
+    Pick ah -> git_no_uncommitted_changes `unlessM` liftIO (run_command ("git commit -c " <> ah))
+    Merge ahM _ _ _ -> git_no_uncommitted_changes `unlessM` liftIO (run_command ("git commit " <> maybe "" ("-c" <>) ahM))
+    Edit _ -> git_no_uncommitted_changes `unlessM` fail "No unstaged changes should be after 'edit'"
+    Fixup _ -> git_no_uncommitted_changes `unlessM` liftIO (run_command "git commit --amend")
     Exec cmd -> fail ("Cannot continue '" ++ show cmd ++ "'; resolve it manually, then skip or abort")
     Comment c -> comment c
     _ -> fail ("run_continue: Unexpected " ++ show current)
@@ -526,11 +516,11 @@ git_fetch_commits cmd commits = do
 
 git_load_commits = do
     gitDir <- askGitDir
+    let marksFile = gitDir <> "/rehi/marks"
     execStateT (do
-      mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") '\0'
-      liftIO (doesFileExist (gitDir <> "/rehi/marks")) >>= \case
-        True -> mapFileLinesM addMark (gitDir <> "/rehi/marks") '\n'
-        False -> pure ()) commitsEmpty
+                  mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") '\0'
+                  liftIO (doesFileExist marksFile) `whenM` mapFileLinesM addMark marksFile '\n')
+               commitsEmpty
   where
     addMark line = do
       case regex_match line "^([0-9a-zA-Z_\\/]+) ([0-9a-fA-F]+)$" of
@@ -570,7 +560,7 @@ git_sequence_editor =
 
 findM :: (Foldable t, Monad m) => (a -> m Bool) -> t a -> m (Maybe a)
 findM pred xs = evalContT $ do
-  mapM_ (\x -> lift (pred x) >>= \case { True -> returnC $ pure $ Just x; _ -> pure () }) xs
+  mapM_ (\x -> lift (pred x) `whenM` (returnC $ pure $ Just x)) xs
   pure Nothing
 
 run_command :: ByteString -> IO ()
@@ -597,22 +587,18 @@ verify_cmdarg str = case regex_match "[\"'\\\\\\(\\)#]|[\0- ]" str of
 
 init_save target_ref initial_branch = do
   gitDir <- askGitDir
-  liftIO (doesFileExist (gitDir <> "/rehi")) >>= \case
-    True -> fail "already in progress"
-    False -> do
-      liftIO $ createDirectory (gitDir <> "/rehi")
-      liftIO $ writeFile (gitDir <> "/reh/target_ref") target_ref
-      liftIO $ writeFile (gitDir <> "/reh/initial_branch") initial_branch
+  liftIO (doesFileExist (gitDir <> "/rehi")) `whenM` fail "already in progress"
+  liftIO $ createDirectory (gitDir <> "/rehi")
+  liftIO $ writeFile (gitDir <> "/reh/target_ref") target_ref
+  liftIO $ writeFile (gitDir <> "/reh/initial_branch") initial_branch
 
 cleanup_save = do
   gitDir <- askGitDir
-  liftIO (doesFileExist (gitDir <> "/rehi")) >>= \case
-    False -> pure ()
-    True -> do
-      liftIO (doesFileExist (gitDir <> "/rehi/todo.backup")) >>= \case
-        True -> liftIO $ run_command ("cp -f " <> gitDir <> "/rehi/todo.backup " <> gitDir <> "/rehi_todo.backup")
-        False -> pure ()
-      liftIO $ removeDirectoryRecursive (gitDir <> "/rehi")
+  liftIO (doesFileExist (gitDir <> "/rehi")) `whenM` (do
+    let newBackup = gitDir <> "/rehi/todo.backup"
+    liftIO (doesFileExist newBackup) `whenM`
+              liftIO (run_command ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))
+    liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
 commits_get_subject commits ah =
   maybe "???"
@@ -790,7 +776,7 @@ get_env = do
     Nothing -> fail ("Some unsupported symbols in: " <> show gitDir)
 
 git_verify_clean = do
-  fmap not git_no_uncommitted_changes `whenM` fail "Not clean working directory"
+  git_no_uncommitted_changes `unlessM` fail "Not clean working directory"
   gitDir <- askGitDir
   liftIO (doesFileExist (gitDir <> "/rebase-apply")) `whenM` fail "git-am or rebase in progress"
   liftIO (doesFileExist (gitDir <> "/rebase-merge")) `whenM` fail "rebase in progress"
@@ -820,4 +806,10 @@ writeFile path content = withFile path WriteMode (\h -> BC.hPut h content)
 appendToFile path content = withFile path AppendMode (\h -> BC.hPut h content)
 
 whenM :: Monad m => m Bool -> m () -> m ()
-whenM p f = p >>= \pv -> if pv then f else pure ()
+whenM p f = ifM p f (pure ())
+
+unlessM :: Monad m => m Bool -> m () -> m ()
+unlessM p f = ifM p (pure ()) f
+
+ifM :: Monad m => m Bool -> m a -> m a -> m a
+ifM p ft ff = p >>= \pv -> if pv then ft else ff
