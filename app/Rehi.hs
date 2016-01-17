@@ -801,7 +801,9 @@ git_verify_clean = do
           False -> pure ()
           -- TODO: partial?
 
-git_get_checkedout_branch = undefined
+git_get_checkedout_branch = do
+  head_path <- liftIO $ readPopen "git symbolic-ref -q HEAD"
+  return undefined
 
 regex_match :: ByteString -> ByteString -> Maybe [ByteString]
 regex_match = undefined
