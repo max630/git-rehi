@@ -790,16 +790,10 @@ get_env = do
     Nothing -> fail ("Some unsupported symbols in: " <> show gitDir)
 
 git_verify_clean = do
-  liftIO git_no_uncommitted_changes >>= \case
-    False -> fail "Not clean working directory"
-    True -> do
-      gitDir <- askGitDir
-      liftIO (doesFileExist (gitDir <> "/rebase-apply")) >>= \case
-        True -> fail "git-am or rebase in progress"
-        False -> liftIO (doesFileExist (gitDir <> "/rebase-merge")) >>= \case
-          True -> fail "rebase in progress"
-          False -> pure ()
-          -- TODO: partial?
+  fmap not git_no_uncommitted_changes `whenM` fail "Not clean working directory"
+  gitDir <- askGitDir
+  liftIO (doesFileExist (gitDir <> "/rebase-apply")) `whenM` fail "git-am or rebase in progress"
+  liftIO (doesFileExist (gitDir <> "/rebase-merge")) `whenM` fail "rebase in progress"
 
 git_get_checkedout_branch = do
   head_path <- liftIO $ readPopen "git symbolic-ref -q HEAD"
@@ -824,3 +818,6 @@ trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
 writeFile path content = withFile path WriteMode (\h -> BC.hPut h content)
 
 appendToFile path content = withFile path AppendMode (\h -> BC.hPut h content)
+
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM p f = p >>= \pv -> if pv then f else pure ()
