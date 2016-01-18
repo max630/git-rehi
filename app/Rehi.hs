@@ -783,7 +783,9 @@ git_verify_clean = do
 
 git_get_checkedout_branch = do
   head_path <- liftIO $ readPopen "git symbolic-ref -q HEAD"
-  return undefined
+  case regex_match head_path "^refs/heads/(.*)" of
+    Just [_, p] -> pure p
+    _ -> fail ("Unsupported ref checked-out: " ++ show head_path)
 
 regex_match :: ByteString -> ByteString -> Maybe [ByteString]
 regex_match = undefined
