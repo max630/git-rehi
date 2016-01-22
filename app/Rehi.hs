@@ -33,9 +33,11 @@ import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 import System.File.ByteString (withFile,readFile,openFile,openBinaryTempFile)
 import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
+import System.IO.Unsafe (unsafePerformIO)
 import System.Directory.ByteString (createDirectory,removeDirectoryRecursive,removeFile,doesFileExist)
 import System.Environment.ByteString(getArgs,getEnv)
 import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
+import Text.Regex.PCRE.ByteString (compile, regexec, compBlank, execBlank)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
@@ -223,7 +225,9 @@ help = "Commands:\n\
        \ reset\n\
        \ end\n"
 
-comments_from_string content indent = map (\l -> UserComment (mconcat (replicate indent " ") <> l)) (regex_split content "\\r\\n|\\r|\\n")
+comments_from_string content indent =
+  map (\l -> UserComment (mconcat (replicate indent " ") <> l))
+      (regex_split content "\\r\\n|\\r|\\n")
 
 add_info_to_todo old_todo commits = old_todo ++ comments_from_string help 0 ++ [UserComment "", UserComment " Commits"] ++ comments
   where
@@ -788,9 +792,30 @@ git_get_checkedout_branch = do
     _ -> fail ("Unsupported ref checked-out: " ++ show head_path)
 
 regex_match :: ByteString -> ByteString -> Maybe [ByteString]
-regex_match = undefined
+regex_match str pattern = unsafePerformIO match
+  where
+    match =
+      compile compBlank execBlank pattern >>= \case
+        Left (_, msg) -> error msg
+        Right regex -> regexec regex str >>= \case
+          Left (_, msg) -> error msg
+          Right Nothing -> pure Nothing
+          Right (Just (_, self, _, groups)) -> pure (Just (self : groups))
 
-regex_match_all = undefined
+regex_match_all :: ByteString -> ByteString -> [ByteString]
+regex_match_all str pat = unsafePerformIO match
+  where
+    match =
+      compile compBlank execBlank pat >>= \case
+        Left (_, msg) -> error msg
+        Right re -> fix (\ret rest parsed ->
+            regexec re str >>= \case
+              Left (_, msg) -> error msg
+              Right (Just ("", _, rest, [next]))
+                | rest == "" -> pure (parsed ++ [next])
+                | otherwise -> ret rest (parsed ++ [next])
+              Right _ -> error "cannot parse throughs"
+          ) str []
 
 regex_split = undefined
 
