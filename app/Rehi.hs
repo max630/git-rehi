@@ -225,6 +225,7 @@ help = "Commands:\n\
        \ reset\n\
        \ end\n"
 
+comments_from_string :: ByteString -> Int -> [Step]
 comments_from_string content indent =
   map (\l -> UserComment (mconcat (replicate indent " ") <> l))
       (regex_split content "\\r\\n|\\r|\\n")
@@ -794,30 +795,43 @@ git_get_checkedout_branch = do
 regex_match :: ByteString -> ByteString -> Maybe [ByteString]
 regex_match str pattern = unsafePerformIO match
   where
-    match =
-      compile compBlank execBlank pattern >>= \case
-        Left (_, msg) -> error msg
-        Right regex -> regexec regex str >>= \case
-          Left (_, msg) -> error msg
-          Right Nothing -> pure Nothing
-          Right (Just (_, self, _, groups)) -> pure (Just (self : groups))
+    match = do
+      re <- compile1 pattern
+      re str >>= (pure . fmap (\(_, self, _, groups) -> self : groups))
+
+compile1 pat = do
+  compile compBlank execBlank pat >>= \case
+    Left (_, msg) -> error msg
+    Right re -> pure $ \str -> regexec re str >>= \case
+      Left (_, msg) -> error msg
+      Right result -> pure result
 
 regex_match_all :: ByteString -> ByteString -> [ByteString]
 regex_match_all str pat = unsafePerformIO match
   where
-    match =
-      compile compBlank execBlank pat >>= \case
-        Left (_, msg) -> error msg
-        Right re -> fix (\ret rest parsed ->
-            regexec re str >>= \case
-              Left (_, msg) -> error msg
-              Right (Just ("", _, rest, [next]))
-                | rest == "" -> pure (parsed ++ [next])
-                | otherwise -> ret rest (parsed ++ [next])
-              Right _ -> error "cannot parse throughs"
+    match = do
+      re <- compile1 pat
+      fix (\ret rest parsed ->
+            if rest == ""
+              then pure parsed
+              else re rest >>= \case
+                Just ("", _, rest, [next]) -> ret rest (parsed ++ [next])
+                _ -> error "regex_match_all: chunk not matched"
           ) str []
 
-regex_split = undefined
+regex_split :: ByteString -> ByteString -> [ByteString]
+regex_split content pat = unsafePerformIO match
+  where
+    match = do
+      re <- compile1 pat
+      fix (\next content result ->
+              if content == ""
+                then pure result
+                else re content >>= \case
+                  Just (chunk, _, rest, _) -> next rest (result ++ [chunk])
+                  Nothing -> pure result)
+          content []
+  
 
 modifySnd f (x, y) = (x, f y)
 
