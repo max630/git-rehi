@@ -22,6 +22,7 @@ executable git-rehi
                        , exceptions
                        , mtl
                        , process
+                       , regex-pcre
                        , transformers
                        , directory
                        , text
