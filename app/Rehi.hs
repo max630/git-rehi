@@ -113,6 +113,7 @@ data Entry = Entry {
   , entrySubject :: ByteString
   , entryParents :: [Hash]
   , entryTree :: Hash
+  , entryBody :: ByteString
   }
 
 data Step =
@@ -240,8 +241,8 @@ add_info_to_todo old_todo commits = old_todo ++ comments_from_string help 0 ++ [
       _ -> []) old_todo
     from_hash ah = fromMaybe [] (do
       h <- Map.lookup ah (stateRefs commits)
-      body <- Map.lookup h (stateByHash commits)
-      pure ([UserComment ("----- " <> ah <> " -----")] ++ comments_from_string body 0))
+      e <- Map.lookup h (stateByHash commits)
+      pure ([UserComment ("----- " <> ah <> " -----")] ++ comments_from_string (entryBody e) 0))
 
 edit_todo old_todo commits = do
   gitDir <- askGitDir
@@ -539,7 +540,7 @@ git_parse_commit_line line = do
       mapM_ verify_hash parents
       let
         (subject : _) = BC.split '\n' body
-        obj = Entry ahash hash subject parents tree
+        obj = Entry ahash hash subject parents tree body
       modify' (\c -> c{ stateByHash = Map.insertWith (const id) hash obj (stateByHash c)
                       , stateRefs = Map.insertWith (\hNew hOld -> if hNew == hOld then hOld else error ("Duplicated ref with different hash: " <> show ahash <> "=>" <> show hOld <> ", " <> show hNew))
                                               ahash
