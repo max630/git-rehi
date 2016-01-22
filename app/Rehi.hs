@@ -739,7 +739,7 @@ command_lines cmd = execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
 
 returnC x = ContT $ const x
 
-find_sequence :: _ -> _ -> _ -> _ -> [_]
+find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
 find_sequence = undefined
 
 resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
