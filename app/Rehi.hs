@@ -17,12 +17,14 @@ import Data.Foldable(toList)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
+import Data.STRef (newSTRef, readSTRef, writeSTRef, modifySTRef')
 import Control.Monad(foldM,forM_)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
 import Control.Monad.RWS(execRWST)
+import Control.Monad.ST(runST)
 import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(evalStateT,execStateT)
@@ -739,8 +741,29 @@ command_lines cmd = execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
 
 returnC x = ContT $ const x
 
+data FsScheduleState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone deriving Eq
+
+data FsScheduleThread = FsScheduleThread { fsstState :: FsScheduleState, fsstCurrent :: Hash, fsstTodo :: [Hash] }
+
 find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
-find_sequence = undefined
+find_sequence commits from to through =
+  step (Map.singleton 1 (FsScheduleThread FsReady to [])) [1] 2 Map.empty Map.empty
+  where
+    children_num = 
+    step threads schedule next_thread children_waiters terminating_commits =
+      case map (threads Map.!) schedule of
+        [] -> error "No path found"
+        (n : _) | fsstState (threads Map.! n) == FsDone -> Just (reverse $ fsstTodo (threads Map.! n))
+          | otherwise ->
+            if schedule
+            let (sHead, (sCurrent : sTail)) =
+              span ((`elem` [FsReady, FsFinalizeMergebases]) . fsstState . (threads Map.!))
+                   schedule
+            in case fsstState (threads Map.! sCurrent) of
+              _ | sCurrent Map.member terminating_commits -> step threads (sHead ++ sTail) next_thread children_waiters terminating_commits
+              FsFinalizeMergebases ->
+                
+  
 
 resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
   Just [_,mrk] -> maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk $ stateMarks commits)
