@@ -739,27 +739,48 @@ command_lines cmd = execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
 
 returnC x = ContT $ const x
 
-data FsScheduleState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone deriving Eq
+data FsThreadState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone deriving Eq
 
-data FsScheduleThread = FsScheduleThread { fsstState :: FsScheduleState, fsstCurrent :: Hash, fsstTodo :: [Hash] }
+data FsThread = FsThread { fsstState :: FsThreadState, fsstCurrent :: Hash, fsstTodo :: [Hash] }
+
+data FS = FS {
+                         fssThreads :: Map.Map Int FsThread,
+                         fssSchedule :: [Int],
+                         fssNextThreadId :: Int,
+                         fssChildrenWaiters :: Map.Map Hash Int,
+                         fssTerminatingCommits :: Set.Set Hash }
 
 find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
 find_sequence commits from to through =
-  step (Map.singleton 1 (FsScheduleThread FsReady to [])) [1] 2 Map.empty Map.empty
+  step (FS (Map.singleton 1 (FsThread FsReady to [])) [1] 2 Map.empty Set.empty)
   where
-    children_num = 
-    step threads schedule next_thread children_waiters terminating_commits =
-      case map (threads Map.!) schedule of
-        [] -> error "No path found"
-        (n : _) | fsstState (threads Map.! n) == FsDone -> Just (reverse $ fsstTodo (threads Map.! n))
-          | otherwise ->
-            if schedule
-            let (sHead, (sCurrent : sTail)) =
-              span ((`elem` [FsReady, FsFinalizeMergebases]) . fsstState . (threads Map.!))
-                   schedule
-            in case fsstState (threads Map.! sCurrent) of
-              _ | sCurrent Map.member terminating_commits -> step threads (sHead ++ sTail) next_thread children_waiters terminating_commits
-              FsFinalizeMergebases ->
+    children_num =  undefined
+    step = \case
+      FS { fssSchedule = [] } -> error "No path found"
+      s@(FS ts sc@(n : _) nextId childerWaiters terminatingCommits)
+        | FsDone <- fsstState (ts Map.! n) -> reverse $ fsstTodo (ts Map.! n)
+        | otherwise -> case span ((`elem` [FsReady, FsFinalizeMergebases]) . fsstState . (ts Map.!)) sc of
+            (_, []) -> error "No thread is READY"
+            (scH, (scC@((ts Map.!) -> FsThread curState curHash curTodo) : scT))
+              | Set.member curHash terminatingCommits -> step s{ fssSchedule = scH ++ scT }
+              | curState == FsFinalizeMergebases ->
+                let
+                  ts' = if children_num Map.! curHash == 1
+                          then ts
+                          else case Map.lookup curHash childerWaiters of
+                            Nothing -> ts
+                            Just waiter -> Map.adjust (\ws -> ws { fsstState = FsFinalizeMergebases }) waiter ts
+                  new_tasks = zip [nextId ..]
+                                  $ map (\p -> FsThread FsFinalizeMergebases p [])
+                                  $ maybe [] entryParents
+                                  $ Map.lookup curHash commits
+                  nextId' = last (nextId : map ((+ 1) . fst) new_tasks)
+                in step (FS (Map.union (Map.fromList new_tasks) ts')
+                            (scH ++ map fst new_tasks ++ scT)
+                            nextId'
+                            childerWaiters
+                            (Set.insert curHash terminatingCommits))
+              -- "} elsif ($hash eq $from) {"...
                 
   
 
