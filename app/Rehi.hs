@@ -746,7 +746,22 @@ data FsScheduleState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone 
 data FsScheduleThread = FsScheduleThread { fsstState :: FsScheduleState, fsstCurrent :: Hash, fsstTodo :: [Hash] }
 
 find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
-find_sequence commits from to through =
+find_sequence commits from to through = runST find
+  where
+    find = do
+      children_waiters <- newSTRef Map.empty
+      terminating_commits <- newSTRef Map.empty
+      t <- newSTRef $ FsScheduleThread FsReady to []
+      fix (\next schedule -> case schedule of
+        [] -> []
+        (h : _) -> (fsstState $ readSTRef h) >>= \case
+          FsDone -> 
+          
+          spanM (\tR -> readSTRef >>= (pure . (`elem` [FsReady, FsFinalizeMergebases]) . fsstState)) schedule >>=
+            \case
+              ()
+          )
+    children_num =
   step (Map.singleton 1 (FsScheduleThread FsReady to [])) [1] 2 Map.empty Map.empty
   where
     children_num = 
