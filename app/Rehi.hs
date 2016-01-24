@@ -779,15 +779,31 @@ find_sequence commits from to through =
                             nextId'
                             childerWaiters
                             (Set.insert curHash terminatingCommits))
-              | curHash == from -> let
+              | curHash == from ->
+                let
                   ts' = Map.adjust (\t -> t { fsstState = FsDone }) scC ts
-                  todoSet = Set.fromList curTodo
                   keepCurrent = all (`Set.member` todoSet) through
                   (new_tasks, nextId') = makeParentTasks nextId
-                  in step s { fssThreads = Map.union (Map.fromList new_tasks) ts',
-                              fssSchedule = scH ++ (if keepCurrent then [scC] else []) ++ map fst new_tasks ++ scT }
+                in step s { fssThreads = Map.union (Map.fromList new_tasks) ts',
+                            fssSchedule = scH ++ (if keepCurrent then [scC] else []) ++ map fst new_tasks ++ scT }
+              | children_num Map.! curHash > 1 && not (Map.member curHash childerWaiters) ->
+                step s { fssThreads = Map.adjust (\t -> t { fsstState = FsWaitChildren }) scC ts,
+                         fssChildrenWaiters = Map.insert curHash
+                                                         (FsWaiter scC ((children_num Map.! curHash) - 1) todoSet)
+                                                         childerWaiters }
+              | children_num Map.! curHash > 1, Just waiter <- Map.lookup curHash childerWaiters, fswLeft waiter > 1 ->
+                let
+                  (todo', todoIdx') = foldl' (\(t, i) h -> if Set.member h i then (t,i) else (t ++ [h], Set.insert h i))
+                                             (fsstTodo (ts Map.! (fswThread waiter)), fswTodo waiter)
+                                             curTodo
+                  left' = fswLeft waiter - 1
+                in step s{ fssThreads = Map.adjust (\t -> t{fsstTodo = todo'}) (fswThread waiter) $
+                                        (if left' == 0 then Map.adjust (\t -> t{fsstState = FsReady}) scC else id)
+                                        ts,
+                           fssChildrenWaiters = Map.adjust (\w -> w{ fswLeft = left', fswTodo = todoIdx' }) curHash childerWaiters }
               -- } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
               where
+                todoSet = Set.fromList curTodo
                 makeParentTasks fromId =
                   let tasks = zip [fromId ..] $ map (\p -> FsThread FsFinalizeMergebases p [])
                                               $ maybe [] entryParents $ Map.lookup curHash commits
