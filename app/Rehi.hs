@@ -743,11 +743,13 @@ data FsThreadState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone de
 
 data FsThread = FsThread { fsstState :: FsThreadState, fsstCurrent :: Hash, fsstTodo :: [Hash] }
 
+data FsWaiter = FsWaiter { fswThread :: Int, fswLeft :: Int, fswTodo :: Set.Set Hash }
+
 data FS = FS {
                          fssThreads :: Map.Map Int FsThread,
                          fssSchedule :: [Int],
                          fssNextThreadId :: Int,
-                         fssChildrenWaiters :: Map.Map Hash Int,
+                         fssChildrenWaiters :: Map.Map Hash FsWaiter,
                          fssTerminatingCommits :: Set.Set Hash }
 
 find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
@@ -769,7 +771,8 @@ find_sequence commits from to through =
                           then ts
                           else case Map.lookup curHash childerWaiters of
                             Nothing -> ts
-                            Just waiter -> Map.adjust (\ws -> ws { fsstState = FsFinalizeMergebases }) waiter ts
+                            Just (FsWaiter { fswThread = waiter }) ->
+                              Map.adjust (\ws -> ws { fsstState = FsFinalizeMergebases }) waiter ts
                   (new_tasks, nextId') = makeParentTasks nextId
                 in step (FS (Map.union (Map.fromList new_tasks) ts')
                             (scH ++ map fst new_tasks ++ scT)
