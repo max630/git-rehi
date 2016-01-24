@@ -776,13 +776,20 @@ find_sequence commits from to through =
                             nextId'
                             childerWaiters
                             (Set.insert curHash terminatingCommits))
+              | curHash == from -> let
+                  ts' = Map.adjust (\t -> t { fsstState = FsDone }) scC ts
+                  todoSet = Set.fromList curTodo
+                  keepCurrent = all (`Set.member` todoSet) through
+                  (new_tasks, nextId') = makeParentTasks nextId
+                  in step s { fssThreads = Map.union (Map.fromList new_tasks) ts',
+                              fssSchedule = scH ++ (if keepCurrent then [scC] else []) ++ map fst new_tasks ++ scT }
+              -- } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
               where
                 makeParentTasks fromId =
                   let tasks = zip [fromId ..] $ map (\p -> FsThread FsFinalizeMergebases p [])
                                               $ maybe [] entryParents $ Map.lookup curHash commits
                       id = last (fromId : map ((+ 1) . fst) tasks)
                   in (tasks, id)
-              -- "} elsif ($hash eq $from) {"...
                 
   
 
