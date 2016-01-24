@@ -770,16 +770,18 @@ find_sequence commits from to through =
                           else case Map.lookup curHash childerWaiters of
                             Nothing -> ts
                             Just waiter -> Map.adjust (\ws -> ws { fsstState = FsFinalizeMergebases }) waiter ts
-                  new_tasks = zip [nextId ..]
-                                  $ map (\p -> FsThread FsFinalizeMergebases p [])
-                                  $ maybe [] entryParents
-                                  $ Map.lookup curHash commits
-                  nextId' = last (nextId : map ((+ 1) . fst) new_tasks)
+                  (new_tasks, nextId') = makeParentTasks nextId
                 in step (FS (Map.union (Map.fromList new_tasks) ts')
                             (scH ++ map fst new_tasks ++ scT)
                             nextId'
                             childerWaiters
                             (Set.insert curHash terminatingCommits))
+              where
+                makeParentTasks fromId =
+                  let tasks = zip [fromId ..] $ map (\p -> FsThread FsFinalizeMergebases p [])
+                                              $ maybe [] entryParents $ Map.lookup curHash commits
+                      id = last (fromId : map ((+ 1) . fst) tasks)
+                  in (tasks, id)
               -- "} elsif ($hash eq $from) {"...
                 
   
