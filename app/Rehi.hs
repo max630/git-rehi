@@ -785,7 +785,8 @@ find_sequence commits from to through =
                   keepCurrent = all (`Set.member` todoSet) through
                   (new_tasks, nextId') = makeParentTasks nextId
                 in step s { fssThreads = Map.union (Map.fromList new_tasks) ts',
-                            fssSchedule = scH ++ (if keepCurrent then [scC] else []) ++ map fst new_tasks ++ scT }
+                            fssSchedule = scH ++ (if keepCurrent then [scC] else []) ++ map fst new_tasks ++ scT,
+                            fssNextThreadId = nextId' }
               | children_num Map.! curHash > 1 && not (Map.member curHash childerWaiters) ->
                 step s { fssThreads = Map.adjust (\t -> t { fsstState = FsWaitChildren }) scC ts,
                          fssChildrenWaiters = Map.insert curHash
@@ -802,7 +803,13 @@ find_sequence commits from to through =
                                         ts,
                            fssChildrenWaiters = Map.adjust (\w -> w{ fswLeft = left', fswTodo = todoIdx' }) curHash childerWaiters,
                            fssSchedule = scH ++ scT }
-              -- } else {
+              | otherwise ->
+                let
+                  curTodo' = curTodo ++ [curHash]
+                  (newTasks, nextId') = makeParentTasksEx (\p -> FsThread FsReady p curTodo') nextId
+                in step s{ fssThreads = Map.union (Map.fromList newTasks) ts,
+                           fssSchedule = scH ++ map fst newTasks ++ scT,
+                           fssNextThreadId = nextId' }
               where
                 todoSet = Set.fromList curTodo
                 makeParentTasksEx newThread fromId =
@@ -811,8 +818,6 @@ find_sequence commits from to through =
                       id = last (fromId : map ((+ 1) . fst) tasks)
                   in (tasks, id)
                 makeParentTasks = makeParentTasksEx (\p -> FsThread FsFinalizeMergebases p [])
-                
-  
 
 resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
   Just [_,mrk] -> maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk $ stateMarks commits)
