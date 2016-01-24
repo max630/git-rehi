@@ -800,15 +800,17 @@ find_sequence commits from to through =
                 in step s{ fssThreads = Map.adjust (\t -> t{fsstTodo = todo'}) (fswThread waiter) $
                                         (if left' == 0 then Map.adjust (\t -> t{fsstState = FsReady}) scC else id)
                                         ts,
-                           fssChildrenWaiters = Map.adjust (\w -> w{ fswLeft = left', fswTodo = todoIdx' }) curHash childerWaiters }
-              -- } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
+                           fssChildrenWaiters = Map.adjust (\w -> w{ fswLeft = left', fswTodo = todoIdx' }) curHash childerWaiters,
+                           fssSchedule = scH ++ scT }
+              -- } else {
               where
                 todoSet = Set.fromList curTodo
-                makeParentTasks fromId =
-                  let tasks = zip [fromId ..] $ map (\p -> FsThread FsFinalizeMergebases p [])
+                makeParentTasksEx newThread fromId =
+                  let tasks = zip [fromId ..] $ map newThread
                                               $ maybe [] entryParents $ Map.lookup curHash commits
                       id = last (fromId : map ((+ 1) . fst) tasks)
                   in (tasks, id)
+                makeParentTasks = makeParentTasksEx (\p -> FsThread FsFinalizeMergebases p [])
                 
   
 
