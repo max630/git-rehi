@@ -579,7 +579,7 @@ readPopen :: ByteString -> IO ByteString
 readPopen cmd = do
   (Nothing, Just out, Nothing, pHandle) <- createProcess (shell cmd){ std_out = CreatePipe }
   finally
-    (ByteString.hGetContents out)
+    (fmap trim $ ByteString.hGetContents out)
     (waitForProcess pHandle)
 
 verify_hash :: Monad m => Hash -> m ()
@@ -858,8 +858,8 @@ git_fetch_commit_list commits unknowns = do
 
 get_env = do
   gitDir <- readPopen "git rev-parse --git-dir"
-  case regex_match gitDir "^([-a-z0-9_\\.,\\/ ]+)$" of
-    Just [_, dir] -> pure $ Env dir
+  case regex_match gitDir "^[-a-z0-9_\\.,\\/ ]+$" of
+    Just _ -> pure $ Env gitDir
     Nothing -> fail ("Some unsupported symbols in: " <> show gitDir)
 
 git_verify_clean = do
