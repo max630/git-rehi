@@ -890,9 +890,9 @@ regex_match str (Regex pattern) = unsafePerformIO match
 
 compile1 pat = do
   compile compBlank execBlank pat >>= \case
-    Left (_, msg) -> error msg
+    Left (_, msg) -> error ("regex compile: " ++ msg ++ ", pat=" ++ show pat)
     Right re -> pure $ \str -> regexec re str >>= \case
-      Left (_, msg) -> error msg
+      Left (_, msg) -> error ("regex run: " ++ msg)
       Right result -> pure result
 
 regex_match_all :: ByteString -> Regex -> [ByteString]
