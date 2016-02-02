@@ -597,8 +597,8 @@ init_save target_ref initial_branch = do
   liftIO $ print ("gitDir", gitDir)
   liftIO (doesFileExist (gitDir <> "/rehi")) `whenM` fail "already in progress"
   liftIO $ createDirectory (gitDir <> "/rehi")
-  liftIO $ writeFile (gitDir <> "/reh/target_ref") target_ref
-  liftIO $ writeFile (gitDir <> "/reh/initial_branch") initial_branch
+  liftIO $ writeFile (gitDir <> "/rehi/target_ref") target_ref
+  liftIO $ writeFile (gitDir <> "/rehi/initial_branch") initial_branch
 
 cleanup_save = do
   gitDir <- askGitDir
