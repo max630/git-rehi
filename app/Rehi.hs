@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 module Rehi where
@@ -756,7 +757,9 @@ find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
 find_sequence commits from to through =
   step (FS (Map.singleton 1 (FsThread FsReady to [])) [1] 2 Map.empty Set.empty)
   where
-    children_num =  undefined
+    children_num = Map.unionsWith (+)
+                        ((Map.fromList $ map (,0) (from : to : Map.keys commits))
+                        : map (Map.fromList . map (,1) . entryParents) (Map.elems commits))
     step = \case
       FS { fssSchedule = [] } -> error "No path found"
       s@(FS ts sc@(n : _) nextId childerWaiters terminatingCommits)
