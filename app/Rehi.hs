@@ -732,6 +732,7 @@ mapHandleLinesM_ func sep handle = step "" (Just handle)
           liftIO $ hClose h
           step buf Nothing
         else step (buf <> next) (Just h)
+    step "" Nothing = pure ()
     step buf Nothing = func buf >> pure ()
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
