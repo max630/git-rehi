@@ -583,12 +583,12 @@ readPopen cmd = do
     (waitForProcess pHandle)
 
 verify_hash :: Monad m => Hash -> m ()
-verify_hash (Hash h) = case regex_match "^[0-9a-f]{40}$" h of
+verify_hash (Hash h) = case regex_match h "^[0-9a-f]{40}$" of
   Just _ -> pure ()
   Nothing -> fail ("Invalid hash: " <> show h)
 
 verify_cmdarg :: Monad m => ByteString -> m ()
-verify_cmdarg str = case regex_match "[\"'\\\\\\(\\)#]|[\0- ]" str of
+verify_cmdarg str = case regex_match str "[\"'\\\\\\(\\)#]|[\0- ]" of
   Just _ -> fail ("Invalid cmdarg: " <> show str)
   Nothing -> pure ()
 
