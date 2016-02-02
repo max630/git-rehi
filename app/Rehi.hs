@@ -707,7 +707,7 @@ read_todo path commits = do
 
 mapCmdLinesM :: (MonadIO m, MonadMask m) => (ByteString -> m a) -> ByteString -> Char -> m ()
 mapCmdLinesM func cmd sep = do
-  (Nothing, Just out, Nothing, p) <- liftIO $ createProcess (shell "git rev-parse --git-dir"){ std_out = CreatePipe}
+  (Nothing, Just out, Nothing, p) <- liftIO $ createProcess (shell cmd){ std_out = CreatePipe}
   finally
     (mapHandleLinesM_ func sep out)
     (liftIO $ waitForProcess p)
