@@ -863,8 +863,8 @@ git_fetch_commit_list commits unknowns = do
 
 get_env = do
   gitDir <- readPopen "git rev-parse --git-dir"
-  case regex_match gitDir "^[-a-z0-9_\\.,\\/ ]+$" of
-    Just _ -> pure $ Env gitDir
+  case regex_match gitDir "^([-a-z0-9_\\.,\\/ ]+)$" of
+    Just [_, dir] -> pure $ Env dir
     Nothing -> fail ("Some unsupported symbols in: " <> show gitDir)
 
 git_verify_clean = do
