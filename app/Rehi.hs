@@ -594,7 +594,6 @@ verify_cmdarg str = case regex_match "[\"'\\\\\\(\\)#]|[\0- ]" str of
 
 init_save target_ref initial_branch = do
   gitDir <- askGitDir
-  liftIO $ print ("gitDir", gitDir)
   liftIO (doesFileExist (gitDir <> "/rehi")) `whenM` fail "already in progress"
   liftIO $ createDirectory (gitDir <> "/rehi")
   liftIO $ writeFile (gitDir <> "/rehi/target_ref") target_ref
