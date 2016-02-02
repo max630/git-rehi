@@ -923,7 +923,7 @@ modifySnd f (x, y) = (x, f y)
 askGitDir :: MonadReader Env m => m ByteString
 askGitDir = ask >>= \r -> pure (envGitDir r)
 
-trim = snd . (ByteString.spanEnd space) . ByteString.dropWhile space
+trim = fst . (ByteString.spanEnd space) . ByteString.dropWhile space
   where
     space = (`ByteString.elem` " \t\n\r")
 
