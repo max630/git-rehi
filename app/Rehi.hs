@@ -590,7 +590,7 @@ verify_hash (Hash h) = case regex_match h "^[0-9a-f]{40}$" of
   Nothing -> fail ("Invalid hash: " <> show h)
 
 verify_cmdarg :: Monad m => ByteString -> m ()
-verify_cmdarg str = case regex_match str "[\"'\\\\\\(\\)#]|[\0- ]" of
+verify_cmdarg str = case regex_match str "[\"'\\\\\\(\\)#]|[\001- ]" of
   Just _ -> fail ("Invalid cmdarg: " <> show str)
   Nothing -> pure ()
 
