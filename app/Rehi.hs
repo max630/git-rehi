@@ -497,7 +497,7 @@ git_resolve_hashes refs = do
   hashes <- fmap (map (Hash . trim)) $ liftIO $ command_lines ("git rev-parse " <> (mconcat $ map (" " <>) refs))
   if length hashes == length refs
     then pure hashes
-    else error ("Hash number does not match: " ++ show refs ++ " --> " ++ show hashes)
+    else error "Hash number does not match"
 
 git_fetch_cli_commits from to = do
   verify_cmdarg from
@@ -726,7 +726,6 @@ mapHandleLinesM_ func sep handle = step "" (Just handle)
     step buf hM | (chunk, rest) <- BC.span (/= sep) buf, not(BC.null rest) = func chunk >> step (BC.drop 1 rest) hM
     step buf (Just h) = do
       next <- liftIO $ ByteString.hGetSome h 2048
-      liftIO $ print ("next",next)
       if BC.null next
         then do
           liftIO $ hClose h
@@ -738,10 +737,7 @@ mapHandleLinesM_ func sep handle = step "" (Just handle)
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 
 command_lines :: ByteString -> IO [ByteString]
-command_lines cmd = do
-  ls <- execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
-  print (cmd,ls)
-  pure ls
+command_lines cmd = execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
 
 returnC x = ContT $ const x
 
