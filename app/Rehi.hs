@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PackageImports #-}
@@ -18,6 +19,7 @@ import Data.Foldable(toList)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
+import Data.String(IsString,fromString)
 import Control.Monad(foldM,forM_)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
 import Control.Monad.Fix(fix)
@@ -874,8 +876,13 @@ git_get_checkedout_branch = do
     Just [_, p] -> pure p
     _ -> fail ("Unsupported ref checked-out: " ++ show head_path)
 
-regex_match :: ByteString -> ByteString -> Maybe [ByteString]
-regex_match str pattern = unsafePerformIO match
+newtype Regex = Regex ByteString deriving (Show,Eq,Monoid)
+
+instance IsString Regex where
+  fromString s = Regex (fromString s)
+
+regex_match :: ByteString -> Regex -> Maybe [ByteString]
+regex_match str (Regex pattern) = unsafePerformIO match
   where
     match = do
       re <- compile1 pattern
@@ -888,8 +895,8 @@ compile1 pat = do
       Left (_, msg) -> error msg
       Right result -> pure result
 
-regex_match_all :: ByteString -> ByteString -> [ByteString]
-regex_match_all str pat = unsafePerformIO match
+regex_match_all :: ByteString -> Regex -> [ByteString]
+regex_match_all str (Regex pat) = unsafePerformIO match
   where
     match = do
       re <- compile1 pat
