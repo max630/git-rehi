@@ -1,5 +1,5 @@
 module System.Environment.ByteString (
-    getArgs, getEnv
+    getArgs, getEnv, lookupEnv
   ) where
 
 import Control.Exception (throwIO)
@@ -12,6 +12,8 @@ import qualified System.Environment as SE
 getArgs = SE.getArgs >>= mapM (pure . encodeUtf8 . pack)
 
 getEnv v = decode v >>= SE.getEnv >>= (pure . encodeUtf8 . pack)
+
+lookupEnv v = decode v >>= SE.lookupEnv >>= (pure . fmap (encodeUtf8 . pack))
 
 decode :: ByteString -> IO String
 decode = either throwIO (pure . unpack) . decodeUtf8'

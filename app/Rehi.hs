@@ -38,7 +38,7 @@ import System.File.ByteString (withFile,readFile,openFile,openBinaryTempFile)
 import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
 import System.IO.Unsafe (unsafePerformIO)
 import System.Directory.ByteString (createDirectory,removeDirectoryRecursive,removeFile,doesFileExist)
-import System.Environment.ByteString(getArgs,getEnv)
+import System.Environment.ByteString(getArgs,lookupEnv)
 import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
 import Text.Regex.PCRE.ByteString (compile, regexec, compBlank, execBlank)
 
@@ -558,9 +558,9 @@ git_merge_base b1 b2 = do
   pure base
 
 git_sequence_editor =
-  getEnv "GIT_SEQUENCE_EDITOR" >>= \case
-    ed | not (BC.null ed) -> pure ed
-    _ -> findM
+  lookupEnv "GIT_SEQUENCE_EDITOR" >>= \case
+    Just ed -> pure ed
+    Nothing -> findM
                   (\cmd -> do { c <- readPopen cmd; pure (c /= "") })
                   ["git config sequence.editor || true", "git var GIT_EDITOR || true"]
                 >>= \case
