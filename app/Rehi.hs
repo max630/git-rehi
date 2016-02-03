@@ -172,8 +172,8 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
   (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
   (todo, commits) <- if interactive
     then (do
-      let todo = add_info_to_todo todo commits
-      edit_todo todo commits >>= \case
+      let todo' = add_info_to_todo todo commits
+      edit_todo todo' commits >>= \case
         Just todo -> pure (todo, commits)
         Nothing -> do
           cleanup_save
@@ -181,11 +181,11 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
     else pure (todo, commits)
   if any (\case { UserComment _ -> False ; _ -> True }) todo
     then (do
-      let commits = commits{ stateHead = Known dest_hash }
+      let commits' = commits{ stateHead = Known dest_hash }
       gitDir <- askGitDir
-      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") commits
+      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") commits'
       liftIO (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
-      run_rebase todo commits target_ref)
+      run_rebase todo commits' target_ref)
     else (do
         liftIO(putStrLn "Nothing to do")
         cleanup_save)
@@ -449,7 +449,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
     (marks, _, _)
           = foldl'
               (\(marks, mark_num, prev_hash) step_hash ->
-                let (marks, mark_num) =
+                let (marks', mark_num') =
                       foldl'
                         (\v@(marks, mark_num) parent ->
                           case Map.lookup parent marks of
@@ -459,7 +459,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
                             _ -> v)
                         (marks, mark_num)
                         (entryParents (stateByHash commits Map.! step_hash))
-                in (marks, mark_num, step_hash))
+                in (marks', mark_num', step_hash))
               (Map.fromList $ zip ([source_from_hash] ++ sequence) (repeat Nothing)
                , 1
                , source_from_hash)
