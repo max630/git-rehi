@@ -29,11 +29,11 @@ executable git-rehi
                        , unix
   default-language:    Haskell2010
 
-executable git-rehi-test
-  hs-source-dirs:      app
-  main-is:             Test.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                       , transformers
-                       , directory
-  default-language:    Haskell2010
+-- executable git-rehi-test
+--   hs-source-dirs:      app
+--   main-is:             Test.hs
+--   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+--   build-depends:       base
+--                        , transformers
+--                        , directory
+--   default-language:    Haskell2010
