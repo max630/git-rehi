@@ -48,6 +48,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
+import Debug.Trace (trace,traceShow,traceShowId)
+
 main :: IO ()
 main = do
   env <- get_env
@@ -101,14 +103,14 @@ data CliMode =
 
 newtype Hash = Hash { hashString :: ByteString } deriving (Eq, Ord, Show)
 
-data Head = Sync | Known Hash
+data Head = Sync | Known Hash deriving Show
 
 data Commits = Commits {
     stateHead :: Head
   , stateRefs :: Map.Map ByteString Hash
   , stateMarks :: Map.Map ByteString Hash
   , stateByHash :: Map.Map Hash Entry
-  }
+  } deriving Show
 
 data Entry = Entry {
     entryAHash :: ByteString
@@ -117,7 +119,7 @@ data Entry = Entry {
   , entryParents :: [Hash]
   , entryTree :: Hash
   , entryBody :: ByteString
-  }
+  } deriving Show
 
 data Step =
     Pick ByteString
@@ -617,6 +619,8 @@ commits_get_subject commits ah =
 save_todo todo path commits = do
   let
     (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
+  print ("main", main)
+  print ("tail", tail)
   withFile path WriteMode $ \out -> do
     forM_ main $ hPutStrLn out . \case
       Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
@@ -743,22 +747,22 @@ command_lines cmd = execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
 
 returnC x = ContT $ const x
 
-data FsThreadState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone deriving Eq
+data FsThreadState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone deriving (Eq,Show)
 
-data FsThread = FsThread { fsstState :: FsThreadState, fsstCurrent :: Hash, fsstTodo :: [Hash] }
+data FsThread = FsThread { fsstState :: FsThreadState, fsstCurrent :: Hash, fsstTodo :: [Hash] } deriving Show
 
-data FsWaiter = FsWaiter { fswThread :: Int, fswLeft :: Int, fswTodo :: Set.Set Hash }
+data FsWaiter = FsWaiter { fswThread :: Int, fswLeft :: Int, fswTodo :: Set.Set Hash } deriving Show
 
 data FS = FS {
                          fssThreads :: Map.Map Int FsThread,
                          fssSchedule :: [Int],
                          fssNextThreadId :: Int,
                          fssChildrenWaiters :: Map.Map Hash FsWaiter,
-                         fssTerminatingCommits :: Set.Set Hash }
+                         fssTerminatingCommits :: Set.Set Hash } deriving Show
 
 find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
 find_sequence commits from to through =
-  step (FS (Map.singleton 1 (FsThread FsReady to [])) [1] 2 Map.empty Set.empty)
+  traceShow (commits,from,to,through) $ step (FS (Map.singleton 1 (FsThread FsReady to [])) [1] 2 Map.empty Set.empty)
   where
     children_num = Map.unionsWith (+)
                         ((Map.fromList $ map (,0) (from : to : Map.keys commits))
@@ -766,7 +770,7 @@ find_sequence commits from to through =
     step = \case
       FS { fssSchedule = [] } -> error "No path found"
       s@(FS ts sc@(n : _) nextId childerWaiters terminatingCommits)
-        | FsDone <- fsstState (ts Map.! n) -> reverse $ fsstTodo (ts Map.! n)
+        | FsDone <- traceShow s (fsstState (ts Map.! n)) -> reverse $ fsstTodo (ts Map.! n)
         | otherwise -> case break ((`elem` [FsReady, FsFinalizeMergebases]) . fsstState . (ts Map.!)) sc of
             (_, []) -> error "No thread is READY"
             (scH, (scC@((ts Map.!) -> FsThread curState curHash curTodo) : scT))
