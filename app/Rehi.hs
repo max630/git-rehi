@@ -616,7 +616,7 @@ commits_get_subject commits ah =
 
 save_todo todo path commits = do
   let
-    (reverse -> main, reverse -> tail) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) todo
+    (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
   withFile path WriteMode $ \out -> do
     forM_ main $ hPutStrLn out . \case
       Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
@@ -767,7 +767,7 @@ find_sequence commits from to through =
       FS { fssSchedule = [] } -> error "No path found"
       s@(FS ts sc@(n : _) nextId childerWaiters terminatingCommits)
         | FsDone <- fsstState (ts Map.! n) -> reverse $ fsstTodo (ts Map.! n)
-        | otherwise -> case span ((`elem` [FsReady, FsFinalizeMergebases]) . fsstState . (ts Map.!)) sc of
+        | otherwise -> case break ((`elem` [FsReady, FsFinalizeMergebases]) . fsstState . (ts Map.!)) sc of
             (_, []) -> error "No thread is READY"
             (scH, (scC@((ts Map.!) -> FsThread curState curHash curTodo) : scT))
               | Set.member curHash terminatingCommits -> step s{ fssSchedule = scH ++ scT }
