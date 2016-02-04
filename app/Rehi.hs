@@ -470,7 +470,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
               sequence
     from_mark = maybe [] ((:[]) . Mark) (marks Map.! source_from_hash)
     steps = concat $ zipWith makeStep sequence (source_from_hash : sequence)
-    makeStep this prev = reset ++ step
+    makeStep this prev = reset ++ step ++ maybe [] ((:[]) . Mark) (marks Map.! this)
       where
         thisE = stateByHash commits Map.! this
         (real_prev, reset) =
