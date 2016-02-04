@@ -267,7 +267,11 @@ verify_marks todo = do
                       Fixup ref -> check marks ref
                       Edit ref -> check marks ref
                       Reset ref -> check marks ref
-                      Merge _ refs _ _ -> mapM_ (check marks) refs >> pure marks) Set.empty todo
+                      Merge _ refs _ _ -> mapM_ (check marks) refs >> pure marks
+                      UserComment _ -> pure marks
+                      TailPickWithComment _ _ -> pure marks
+                      Comment _ -> pure marks
+                      Exec _ -> pure marks) Set.empty todo
     pure ()
   where
     check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwM (EditError ("Unknown mark:" <> mark))
