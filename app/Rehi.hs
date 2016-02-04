@@ -462,14 +462,13 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
                               , mark_num + 1)
                             _ -> v)
                         (marks, mark_num)
-                        (entryParents (stateByHash commits Map.! step_hash))
+                        (filter (/= prev_hash) $ entryParents (stateByHash commits Map.! step_hash))
                 in (marks', mark_num', step_hash))
               (Map.fromList $ zip ([source_from_hash] ++ sequence) (repeat Nothing)
                , 1
                , source_from_hash)
               sequence
-    from_mark = map (Mark . fromMaybe (error "build_rebase_sequence: unknown mark for from"))
-                    (toList $ Map.lookup source_from_hash marks)
+    from_mark = maybe [] ((:[]) . Mark) (marks Map.! source_from_hash)
     steps = concat $ zipWith makeStep sequence (source_from_hash : sequence)
     makeStep this prev = reset ++ step
       where
