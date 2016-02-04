@@ -37,7 +37,7 @@ import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 import System.File.ByteString (withFile,readFile,openFile,openBinaryTempFile)
 import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
 import System.IO.Unsafe (unsafePerformIO)
-import System.Directory.ByteString (createDirectory,removeDirectoryRecursive,removeFile,doesFileExist)
+import System.Directory.ByteString (createDirectory,removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist)
 import System.Environment.ByteString(getArgs,lookupEnv)
 import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
 import Text.Regex.PCRE.ByteString (compile, regexec, compBlank, execBlank)
@@ -601,7 +601,7 @@ init_save target_ref initial_branch = do
 
 cleanup_save = do
   gitDir <- askGitDir
-  liftIO (doesFileExist (gitDir <> "/rehi")) `whenM` (do
+  liftIO (doesDirectoryExist (gitDir <> "/rehi")) `whenM` (do
     let newBackup = gitDir <> "/rehi/todo.backup"
     liftIO (doesFileExist newBackup) `whenM`
               liftIO (run_command ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))

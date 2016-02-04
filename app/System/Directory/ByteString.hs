@@ -1,6 +1,7 @@
 module System.Directory.ByteString (
     createDirectory,
     doesFileExist,
+    doesDirectoryExist,
     removeDirectoryRecursive,
     removeFile
   ) where
@@ -15,6 +16,8 @@ import qualified System.Directory as SD
 createDirectory p = SD.createDirectory =<< decode p
 
 doesFileExist p = SD.doesFileExist =<< decode p
+
+doesDirectoryExist p = SD.doesDirectoryExist =<< decode p
 
 removeDirectoryRecursive p = SD.removeDirectoryRecursive =<< decode p
 
