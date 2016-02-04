@@ -419,7 +419,7 @@ sync_head :: (MonadState ([Step], Commits) m, MonadIO m) => m ()
 sync_head = do
   fmap (stateHead . snd) get >>= \case
     Known hash -> do
-      liftIO $ run_command ("git reset --hash " <> hashString hash)
+      liftIO $ run_command ("git reset --hard " <> hashString hash)
       modify' (modifySnd (\c -> c{stateHead = Sync}))
     Sync -> pure ()
 
