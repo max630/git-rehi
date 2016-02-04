@@ -713,8 +713,8 @@ mapFileLinesM func path sep = do
   h <- liftIO $ openFile path ReadMode
   liftIO $ hSetBinaryMode h True
   finally
-    (liftIO $ hClose h)
     (mapHandleLinesM_ func sep h)
+    (liftIO $ hClose h)
 
 mapHandleLinesM_ :: MonadIO m => (ByteString -> m a) -> Char -> Handle -> m ()
 mapHandleLinesM_ func sep handle = step "" (Just handle)
