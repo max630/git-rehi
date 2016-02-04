@@ -1277,6 +1277,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
     # non-branching regions should be recorded without recreating
     # TODO: case of throughs in several branches is not covered
     while (scalar @schedule > 0 && $schedule[0]->{state} ne "DONE") {
+        print join ";", (map {$_->{state} . "," . $_->{current}} @schedule), "\n";
         my $i = 0;
         while ($schedule[$i]->{state} ne "READY" && $schedule[$i]->{state} ne "FINALIZE_MERGEBASES") {
             ++$i;
@@ -1312,6 +1313,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
             splice @schedule, $i, 0, @new_tasks;
         } elsif ($children_num{$hash} > 1 && (!exists $children_waiters{$hash} || $children_waiters{$hash}->{left} > 0)) {
             if (exists $children_waiters{$hash}) {
+                print "cw 1\n";
                 foreach my $step (@{$schedule[$i]->{todo}}) {
                     if (!exists $children_waiters{$hash}->{todo_index}->{$step}) {
                         push @{$children_waiters{$hash}->{thread}->{todo}}, $step;
@@ -1324,6 +1326,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
                 }
                 splice @schedule, $i, 1, ();
             } else {
+                print "cw 2\n";
                 my %todo_index = ();
                 @todo_index{@{$schedule[$i]->{todo}}} = ();
                 $children_waiters{$hash} = { todo_index => \%todo_index,
