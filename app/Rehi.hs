@@ -795,15 +795,16 @@ find_sequence commits from to through =
                          fssChildrenWaiters = Map.insert curHash
                                                          (FsWaiter scC ((children_num Map.! curHash) - 1) todoSet)
                                                          childerWaiters }
-              | children_num Map.! curHash > 1, Just waiter <- Map.lookup curHash childerWaiters, fswLeft waiter > 1 ->
+              | children_num Map.! curHash > 1, Just waiter <- Map.lookup curHash childerWaiters, fswLeft waiter > 0 ->
                 let
                   (todo', todoIdx') = foldl' (\(t, i) h -> if Set.member h i then (t,i) else (t ++ [h], Set.insert h i))
                                              (fsstTodo (ts Map.! (fswThread waiter)), fswTodo waiter)
                                              curTodo
                   left' = fswLeft waiter - 1
-                in step s{ fssThreads = Map.adjust (\t -> t{fsstTodo = todo'}) (fswThread waiter) $
-                                        (if left' == 0 then Map.adjust (\t -> t{fsstState = FsReady}) scC else id)
-                                        ts,
+                in step s{ fssThreads = Map.adjust (\t -> t{fsstTodo = todo',
+                                                            fsstState = if left' == 0 then FsReady else fsstState t})
+                                                   (fswThread waiter)
+                                                   ts,
                            fssChildrenWaiters = Map.adjust (\w -> w{ fswLeft = left', fswTodo = todoIdx' }) curHash childerWaiters,
                            fssSchedule = scH ++ scT }
               | otherwise ->
