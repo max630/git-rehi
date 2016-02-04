@@ -14,7 +14,8 @@ if (! -e "/tmp/git-rebase/test-repo") {
 }
 my $SOURCE_DIR = getcwd;
 chdir("/tmp/git-rebase/test-repo") or die("Unable to chdir to /tmp/git-rebase/test-repo: $!");
-my $testee = "$SOURCE_DIR/git-rehi";
+# my $testee = "$SOURCE_DIR/git-rehi";
+my $testee = "$SOURCE_DIR/.stack-work/dist/i386-linux/Cabal-1.22.4.0/build/git-rehi/git-rehi";
 # my $testee = "git rehi";
 # }}}
 
