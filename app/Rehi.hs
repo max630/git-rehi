@@ -666,7 +666,7 @@ read_todo path commits = do
           | Just _ <- regex_match line "^end$" -> put RStDone
           | Just (_ : _ : ah : _) <- regex_match line "^(f|fixup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
               -> tell [Fixup ah]
-          | Just (_ : _ : ah : _) <- regex_match line "^(p|pickup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
+          | Just (_ : _ : ah : _) <- regex_match line "^(p|pick) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
               -> tell [Pick ah]
           | Just (_ : ah : _) <- regex_match line "^reset (\\@?[0-9a-zA-Z_\\/]+)$"
               -> tell [Reset ah]
