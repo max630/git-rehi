@@ -560,17 +560,11 @@ git_merge_base b1 b2 = do
 git_sequence_editor =
   lookupEnv "GIT_SEQUENCE_EDITOR" >>= \case
     Just ed -> pure ed
-    Nothing -> findM
-                  (\cmd -> do { c <- readPopen cmd; pure (c /= "") })
-                  ["git config sequence.editor || true", "git var GIT_EDITOR || true"]
-                >>= \case
-      Just ed -> pure ed
-      Nothing -> fail "Editor not found"
-
-findM :: (Foldable t, Monad m) => (a -> m Bool) -> t a -> m (Maybe a)
-findM pred xs = evalContT $ do
-  mapM_ (\x -> lift (pred x) `whenM` (returnC $ pure $ Just x)) xs
-  pure Nothing
+    Nothing -> readPopen "git config sequence.editor || true" >>= \case
+      "" -> readPopen "git var GIT_EDITOR || true" >>= \case
+        "" -> fail "Editor not found"
+        ed -> pure ed
+      ed -> pure ed
 
 run_command :: ByteString -> IO ()
 run_command s = system s >>= \case
