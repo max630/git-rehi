@@ -569,7 +569,7 @@ git_sequence_editor =
 run_command :: ByteString -> IO ()
 run_command s = system s >>= \case
   ExitSuccess -> pure ()
-  err -> fail ("Command failed: " <> show err) -- TODO: allow non-zero and handle it in clients
+  err -> fail ("Command " <> show s <> " failed: " <> show err) -- TODO: allow non-zero and handle it in clients
 
 readPopen :: ByteString -> IO ByteString
 readPopen cmd = do
