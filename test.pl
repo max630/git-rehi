@@ -33,12 +33,12 @@ t { is_deeply (find_sequence({ 1 => {parents => [2]},
 # 1 -- 2
 #  \    \
 #   3 -- 4 - 5
-t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
-                           2 => {parents => [4]},
-                           3 => {parents => [4]},
-                           4 => {parents => [5]},},
-                           5, 1, []),
-                        [4, 3, 2, 1]) } diamond;
+t { is_deeply (find_sequence({ 4 => {parents => [2, 3]},
+                           2 => {parents => [1]},
+                           3 => {parents => [1]},
+                           1 => {parents => [0]},},
+                           0, 4, []),
+                        [1, 3, 2, 4]) } diamond;
 
 t { is_deeply (find_sequence({ 1 => {parents => [2, 3]},
                            2 => {parents => [3,5]}  },
