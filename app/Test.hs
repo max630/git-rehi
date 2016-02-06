@@ -34,4 +34,5 @@ brs2 = test_brs [(1, [0]),(2, [1])] 2 2 []
 -- p 1, mark, p 2, reset, p 3, merge
 brs3 = test_brs [(1, [0]),(2, [1]),(3,[1]),(4,[2,3])] 0 4 []
 
+-- Run "origin/b4" Nothing [] (Just "origin/base") Nothing True
 p1 = parse_cli ["-i","origin/b4","..origin/base"]
