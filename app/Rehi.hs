@@ -485,7 +485,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
           if prev `elem` entryParents thisE
             then (prev, [])
             else case filter (`Map.member` marks) (entryParents thisE) of
-              (h : _) | Just m <- marks Map.! h -> (h, [Reset m])
+              (h : _) | Just m <- marks Map.! h -> (h, [Reset ("@" <> m)])
                       | Nothing <- marks Map.! h -> error ("Unresolved mark for " <> show h)
               [] -> error ("No known parents for found step " <> show this)
         step = case entryParents thisE of
@@ -636,9 +636,9 @@ save_todo todo path commits = do
         ("merge"
           <> if ours then " --ours" else ""
           <> if noff then " --no-ff" else ""
-          <> maybe "" (" -c" <>) ref
+          <> maybe "" (" -c " <>) ref
           <> " " <> ByteString.intercalate "," ps
-          <> maybe "" (commits_get_subject commits) ref)
+          <> maybe "" ((" " <>) . commits_get_subject commits) ref)
       Mark mrk -> ": " <> mrk
       UserComment cmt -> "# " <> cmt
     if (not $ null tail)
