@@ -106,14 +106,14 @@ data CliMode =
 
 newtype Hash = Hash { hashString :: ByteString } deriving (Eq, Ord, Show)
 
-data Head = Sync | Known Hash
+data Head = Sync | Known Hash deriving Show
 
 data Commits = Commits {
     stateHead :: Head
   , stateRefs :: Map.Map ByteString Hash
   , stateMarks :: Map.Map ByteString Hash
   , stateByHash :: Map.Map Hash Entry
-  }
+  } deriving Show
 
 data Entry = Entry {
     entryAHash :: ByteString
@@ -122,7 +122,7 @@ data Entry = Entry {
   , entryParents :: [Hash]
   , entryTree :: Hash
   , entryBody :: ByteString
-  }
+  } deriving Show
 
 data Step =
     Pick ByteString
