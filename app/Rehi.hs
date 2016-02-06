@@ -672,7 +672,7 @@ read_todo path commits = do
     parseLine line = do
       get >>= \case
         RStCommand
-          | Just [_, cmt] <- regex_match line "^# (.*)$" -> tell [UserComment cmt]
+          | Just [_, cmt] <- regex_match line "^#(.*)$" -> tell [UserComment cmt]
           | Just _ <- regex_match line "^end$" -> put RStDone
           | Just (_ : _ : ah : _) <- regex_match line "^(f|fixup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
               -> tell [Fixup ah]
