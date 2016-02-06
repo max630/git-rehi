@@ -685,13 +685,13 @@ read_todo path commits = do
           | Just _ <- regex_match line "^comment$" -> put $ RStCommentPlain ""
           | Just [_, b] <- regex_match line "^comment (\\{+)$"
               -> put $ RStCommentQuoted "" (BC.length b `BC.replicate` '}')
-          | Just [_, options, _, parents] <- regex_match line "merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)$"
+          | Just [_, options, _, parents] <- regex_match line "^merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)"
               -> do
                 merge <- fix (\rec m l -> if
                                   | ByteString.null l -> pure m
-                                  | Just [_, rest] <- regex_match l "^ --ours( .*)$" -> rec m{ mergeOurs = True } rest
-                                  | Just [_, rest] <- regex_match l "^ --no-ff( .*)$" -> rec m{ mergeNoff = True } rest
-                                  | Just [_, ref, rest] <- regex_match l "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)$" -> rec m{mergeRef = Just ref} rest
+                                  | Just [_, rest] <- regex_match l "^ --ours( .*)?$" -> rec m{ mergeOurs = True } rest
+                                  | Just [_, rest] <- regex_match l "^ --no-ff( .*)?$" -> rec m{ mergeNoff = True } rest
+                                  | Just [_, ref, rest] <- regex_match l "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" -> rec m{mergeRef = Just ref} rest
                                   | otherwise -> throwM $ EditError ("Unexpected merge options: " <> l))
                               (Merge Nothing (BC.split ',' parents) False False)
                               options
