@@ -8,14 +8,19 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 module Rehi where
 
 import Prelude hiding (putStrLn,writeFile,readFile)
 
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn,pack,hPutStrLn)
-import Data.Foldable(toList)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
@@ -29,7 +34,6 @@ import Control.Monad.RWS(execRWST)
 import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(evalStateT,execStateT)
-import Control.Monad.Trans.Class(lift)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
@@ -98,6 +102,7 @@ data CliMode =
   | Skip
   | Current
   | Run ByteString (Maybe ByteString) [ByteString] (Maybe ByteString) (Maybe ByteString) Bool
+  deriving Show
 
 newtype Hash = Hash { hashString :: ByteString } deriving (Eq, Ord, Show)
 
@@ -260,7 +265,7 @@ edit_todo old_todo commits = do
     pure todo_rc)
 
 verify_marks todo = do
-    foldM (\marks -> \case
+    _ <- foldM (\marks -> \case
                       Mark m | Set.member m marks -> throwM (EditError ("Duplicated mark: " <> m))
                       Mark m -> pure $ Set.insert m marks
                       Pick ref -> check marks ref
@@ -386,7 +391,7 @@ merge commit_refMb merge_parents_refs ours noff = do
           modify' (modifySnd (\c -> c{stateHead = Known step_hash}))
     _ -> merge_new commit_refMb merge_parents_refs ours noff
 
-equalWith f [] [] = True
+equalWith _ [] [] = True
 equalWith f (x : xs) (y : ys) = if f x y then equalWith f xs ys else False
 equalWith _ _ _ = False
 
@@ -465,7 +470,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
                         (filter (/= prev_hash) $ entryParents (stateByHash commits Map.! step_hash))
                 in (marks', mark_num', step_hash))
               (Map.fromList $ zip ([source_from_hash] ++ sequence) (repeat Nothing)
-               , 1
+               , 1 :: Integer
                , source_from_hash)
               sequence
     from_mark = maybe [] ((:[]) . Mark) (marks Map.! source_from_hash)
@@ -492,7 +497,7 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
                | Just Nothing <- Map.lookup p marks = error ("Unresolved mark for " <> show p)
                | Just e <- Map.lookup p (stateByHash commits) = entryAHash e
                | True = error ("Unknown parent: " <> show p)
-    singleHead = index_only "HEAD" parents
+    singleHead = index_only "HEAD" parents :: Integer
     ahash = entryAHash thisE
     ours = entryTree thisE == entryTree (stateByHash commits Map.! head (entryParents thisE) )
 
