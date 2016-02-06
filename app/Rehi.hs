@@ -506,7 +506,7 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
 git_resolve_hashes :: MonadIO m => [ByteString] -> m [Hash]
 git_resolve_hashes refs = do
   mapM_ verify_cmdarg refs
-  hashes <- fmap (map (Hash . trim)) $ liftIO $ command_lines ("git rev-parse " <> (mconcat $ map (" " <>) refs))
+  hashes <- fmap (map (Hash . trim)) $ liftIO $ command_lines ("git rev-parse " <> (mconcat $ map (" " <>) refs)) '\n'
   if length hashes == length refs
     then pure hashes
     else error "Hash number does not match"
@@ -525,7 +525,7 @@ git_fetch_commits cmd commits = do
   finally
     (do
       execStateT
-        ((liftIO $ command_lines cmd) >>= mapM (\case
+        ((liftIO $ command_lines cmd '\0') >>= mapM (\case
           "\n" -> pure ()
           line -> do
             git_parse_commit_line line
@@ -742,8 +742,8 @@ mapHandleLinesM_ func sep handle = step "" (Just handle)
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 
-command_lines :: ByteString -> IO [ByteString]
-command_lines cmd = execWriterT $ mapCmdLinesM (tell . (: [])) cmd '\n'
+command_lines :: ByteString -> Char -> IO [ByteString]
+command_lines cmd sep = execWriterT $ mapCmdLinesM (tell . (: [])) cmd sep
 
 returnC x = ContT $ const x
 
