@@ -4,6 +4,7 @@ module Test where
 import Rehi
 
 import Control.Monad.Catch(finally)
+import Control.Monad.State(runState)
 import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
 import Data.ByteString.Lazy (toStrict)
 import Data.Monoid ((<>))
@@ -23,6 +24,8 @@ i2c (n,ps) = (Hash h, Entry h (Hash h) h phs (Hash h) h)
   where
     h = hashes !! n
     phs = map (Hash . (hashes !!)) ps
+
+noCommits = Commits Sync M.empty M.empty M.empty
 
 test_brs commits from to throughs =
   build_rebase_sequence
@@ -55,3 +58,9 @@ tp1 = do
         (hClose h)
       read_todo f c)
     (removeFile f)
+
+pl1 = runState
+        (git_parse_commit_line ("9ac82f5327efe63acb5267d9d55edbd8576d9d26:9ac82f5:a93dcfc33f5b7639a9e7c96bfeec0831451a918f:"
+                                <> "97277bafae875c930ea7c4a338a82073c897f7f0 76dee8a19ec9fddea0a02d99b0d1e00b1ef1caba:"
+                                <> "Merge remote-tracking branch 'origin/b2'\n\nresolve conflict also\n"))
+        noCommits
