@@ -163,7 +163,7 @@ parse_cli = parse_loop False
           re_ref0 = "(?:[^\\.]|(?<!\\.)\\.)*"
           re_ref1 = "(?:[^\\.]|(?<!\\.)\\.)+"
           re_sep = "(?<!\\.)\\.\\."
-          (source_from, through, source_to) = case regex_match arg1 (mconcat ["(", re_ref0, ")", re_sep, "((?:", re_ref1, re_sep, ")*)(", re_ref0, ")^$"]) of
+          (source_from, through, source_to) = case regex_match arg1 (mconcat ["^(", re_ref0, ")", re_sep, "((?:", re_ref1, re_sep, ")*)(", re_ref0, ")$"]) of
             Just [all, m1, m2, m3] -> (m1, regex_match_all m2 (mconcat ["(", re_ref1, ")", re_sep]), m3)
             _ -> error ("Invalid source spec:" ++ show arg1)
           arg2 = case arg2mb of
