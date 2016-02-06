@@ -169,7 +169,9 @@ parse_cli = parse_loop False
           arg2 = case arg2mb of
             [] -> Nothing
             [v] -> Just v
-        in Run arg0 (Just source_from) through (Just source_to) arg2 interactive
+          maybeFromString "" = Nothing
+          maybeFromString s = Just s
+        in Run arg0 (maybeFromString source_from) through (maybeFromString source_to) arg2 interactive
     parse_loop interactive [arg0, arg1] = Run arg0 Nothing [] Nothing (Just arg1) interactive
     parse_loop _ argv = error ("Invalid arguments: " ++ show argv)
 
