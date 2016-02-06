@@ -52,6 +52,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
+import qualified Debug.Trace as T
+
 main :: IO ()
 main = do
   env <- get_env
@@ -299,6 +301,7 @@ run_continue current commits = do
 
 -- TODO mutable commits
 run_rebase todo commits target_ref = do
+    liftIO $ print todo
     evalStateT (finally doJob release) (todo, commits)
     liftIO $ run_command ("git checkout -B " <> target_ref)
     cleanup_save
@@ -400,6 +403,7 @@ equalWith _ _ _ = False
 merge_new commit_refMb parents_refs ours noff = do
   sync_head
   liftIO $ putStrLn "Merging"
+  liftIO $ print parents_refs
   commits <- fmap snd get
   let
     commandHead = "git merge"
@@ -421,7 +425,7 @@ merge_new commit_refMb parents_refs ours noff = do
     Just commit -> liftIO $ run_command ("git commit -C " <> commit <> " --reset-author")
     _ -> pure ()
 
-index_only x ys = fromMaybe (error "index_only: not found") (foldl' step Nothing $ zip [0 .. ] ys)
+index_only x ys = T.traceShow (x,ys) $ fromMaybe (error "index_only: not found") (foldl' step Nothing $ zip [0 .. ] ys)
   where
     step prev (n, y) | x == y = case prev of { Nothing -> Just n; Just _ -> error "index_only: duplicate" }
     step prev _ = prev
@@ -663,7 +667,7 @@ data ReadState = RStCommand | RStDone | RStCommentPlain ByteString | RStCommentQ
 
 read_todo :: (MonadIO m, MonadMask m) => ByteString -> Commits -> m [Step]
 read_todo path commits = do
-    (s, todo) <- execRWST (mapFileLinesM parseLine path '\n') () RStCommand
+    (s, todo) <- execRWST (mapFileLinesM (parseLine :: _ ) path '\n') () RStCommand
     case s of
       RStCommand -> pure todo
       RStDone -> pure todo
@@ -687,6 +691,7 @@ read_todo path commits = do
               -> put $ RStCommentQuoted "" (BC.length b `BC.replicate` '}')
           | Just [_, options, _, parents] <- regex_match line "^merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)"
               -> do
+                liftIO $ print ("line",line)
                 merge <- fix (\rec m l -> if
                                   | ByteString.null l -> pure m
                                   | Just [_, rest] <- regex_match l "^ --ours( .*)?$" -> rec m{ mergeOurs = True } rest
