@@ -51,6 +51,7 @@ import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
+import qualified Text.Regex.PCRE as P
 
 main :: IO ()
 main = do
@@ -547,7 +548,7 @@ git_load_commits = do
         Nothing -> fail ("Ivalid mark line: " <> show line)
 
 git_parse_commit_line line = do
-  case regex_match line "^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$" of
+  case regex_match_with_newlines line "^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$" of
     Just [_, Hash -> hash, ahash, Hash -> tree, map Hash . BC.split ' ' -> parents, trim -> body] -> do
       verify_hash hash
       mapM_ verify_hash parents
@@ -886,15 +887,19 @@ newtype Regex = Regex ByteString deriving (Show,Eq,Monoid)
 instance IsString Regex where
   fromString s = Regex (fromString s)
 
-regex_match :: ByteString -> Regex -> Maybe [ByteString]
-regex_match str (Regex pattern) = unsafePerformIO match
+regex_match_ex :: P.CompOption -> ByteString -> Regex -> Maybe [ByteString]
+regex_match_ex op str (Regex pattern) = unsafePerformIO match
   where
     match = do
-      re <- compile1 pattern
+      re <- compile1 op pattern
       re str >>= (pure . fmap (\(_, self, _, groups) -> self : groups))
 
-compile1 pat = do
-  compile compBlank execBlank pat >>= \case
+regex_match = regex_match_ex compBlank
+
+regex_match_with_newlines = regex_match_ex P.compDotAll
+
+compile1 op pat = do
+  compile op execBlank pat >>= \case
     Left (_, msg) -> error ("regex compile: " ++ msg ++ ", pat=" ++ show pat)
     Right re -> pure $ \str -> regexec re str >>= \case
       Left (_, msg) -> error ("regex run: " ++ msg)
@@ -904,7 +909,7 @@ regex_match_all :: ByteString -> Regex -> [ByteString]
 regex_match_all str (Regex pat) = unsafePerformIO match
   where
     match = do
-      re <- compile1 pat
+      re <- compile1 compBlank pat
       fix (\ret rest parsed ->
             if rest == ""
               then pure parsed
@@ -917,7 +922,7 @@ regex_split :: ByteString -> ByteString -> [ByteString]
 regex_split content pat = unsafePerformIO match
   where
     match = do
-      re <- compile1 pat
+      re <- compile1 compBlank pat
       fix (\next content result ->
               if content == ""
                 then pure result
