@@ -53,6 +53,8 @@ import qualified Data.Set as Set
 import qualified Prelude as Prelude
 import qualified Text.Regex.PCRE as P
 
+import qualified Debug.Trace as T
+
 main :: IO ()
 main = do
   env <- get_env
@@ -74,7 +76,7 @@ main = do
         (todo, current, commits, target_ref) <- restore_rebase
         case current of
           Just c -> do
-            liftIO (run_command "git rest --hard HEAD")
+            liftIO (run_command "git reset --hard HEAD")
             liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
@@ -354,7 +356,9 @@ run_step rebase_step = do
       Reset ah -> do
         let hash_or_ref = resolve_ahash ah commits
         if (Hash hash_or_ref) `Map.member` stateByHash commits
-          then modify' (modifySnd (\c -> c{stateHead = Known $ Hash hash_or_ref}))
+          then do
+            liftIO $ print "run_step: reset"
+            modify' (modifySnd (\c -> c{stateHead = Known $ Hash hash_or_ref}))
           else do
             liftIO $ run_command ("git reset --hard " <> hash_or_ref)
             modify' (modifySnd (\c -> c{stateHead = Sync}))
@@ -431,9 +435,12 @@ sync_head :: (MonadState ([Step], Commits) m, MonadIO m) => m ()
 sync_head = do
   fmap (stateHead . snd) get >>= \case
     Known hash -> do
+      liftIO $ print "sync_head: known"
       liftIO $ run_command ("git reset --hard " <> hashString hash)
       modify' (modifySnd (\c -> c{stateHead = Sync}))
-    Sync -> pure ()
+    Sync -> do
+      liftIO $ print "sync_head: already sync"
+      pure ()
 
 pick hash = do
   commits <- fmap snd get
@@ -578,7 +585,7 @@ git_sequence_editor =
       ed -> pure ed
 
 run_command :: ByteString -> IO ()
-run_command s = system s >>= \case
+run_command s = print ("run_command", s) >> system s >>= \case
   ExitSuccess -> pure ()
   err -> fail ("Command " <> show s <> " failed: " <> show err) -- TODO: allow non-zero and handle it in clients
 
