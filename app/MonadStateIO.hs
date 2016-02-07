@@ -42,6 +42,7 @@ instance MC.MonadCatch m => MC.MonadCatch (App.WrappedMonad (MTR.ReaderT (RefTag
               body
               (App.unwrapMonad . handler)
 
+-- this was hard one; borrowed from `MonadMask m => MonadMask (IdentityT m)` code
 instance MC.MonadMask m => MC.MonadMask (App.WrappedMonad (MTR.ReaderT (RefTag s) m)) where
   mask mkBody0 = App.WrapMonad (MC.mask (\rest -> App.unwrapMonad (mkBody0 $ w rest)))
     where
