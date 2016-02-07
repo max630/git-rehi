@@ -17,10 +17,10 @@
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 module Rehi where
 
-import Prelude hiding (putStrLn,writeFile,readFile)
+import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
 import Data.ByteString(ByteString,uncons)
-import Data.ByteString.Char8(putStrLn,pack,hPutStrLn)
+import Data.ByteString.Char8(putStrLn,putStr,pack,hPutStrLn)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
@@ -80,7 +80,7 @@ main = do
         let currentPath = envGitDir env `mappend` "/rehi/current"
         liftIO (doesFileExist currentPath) `unlessM` error "No rehi in progress"
         content <- liftIO $ readFile currentPath
-        liftIO $ putStrLn ("Current: " `mappend` content)
+        liftIO $ putStr ("Current: " <> content <> (if ByteString.null content || BC.last content /= '\n' then "\n" else ""))
       Run dest source_from_arg through source_to_arg target_arg interactive -> do
         git_verify_clean
         initial_branch <- git_get_checkedout_branch
@@ -681,7 +681,7 @@ read_todo path commits = do
               -> tell [Pick ah]
           | Just (_ : ah : _) <- regex_match line "^reset (\\@?[0-9a-zA-Z_\\/]+)$"
               -> tell [Reset ah]
-          | Just (_ : cmd : _) <- regex_match line "^exec (.*)$"
+          | Just (_ : _ : cmd : _) <- regex_match line "^(x|exec) (.*)$"
               -> tell [Exec cmd]
           | Just _ <- regex_match line "^comment$" -> put $ RStCommentPlain ""
           | Just [_, b] <- regex_match line "^comment (\\{+)$"
