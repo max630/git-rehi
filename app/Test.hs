@@ -3,13 +3,15 @@ module Test where
 
 import Rehi
 
+import Prelude hiding (putStrLn,putStr,writeFile,readFile)
+
 import Control.Monad.Catch(finally)
 import Control.Monad.State(runState)
 import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
 import Data.ByteString.Lazy (toStrict)
 import Data.Monoid ((<>))
 import System.Directory.ByteString (getTemporaryDirectory,removeFile)
-import System.File.ByteString (openBinaryTempFile)
+import System.File.ByteString (openBinaryTempFile,readFile)
 import System.IO(hClose)
 
 import qualified Data.ByteString as B
@@ -60,6 +62,11 @@ withTestFile func = do
   finally
     (func f h)
     (removeFile f)
+
+s1 = withTestFile $ \f h -> do
+  hClose h
+  save_todo [Merge (Just "1") ["HEAD","2"] True False] f noCommits
+  readFile f
 
 pl1 = runState
         (git_parse_commit_line ("9ac82f5327efe63acb5267d9d55edbd8576d9d26:9ac82f5:a93dcfc33f5b7639a9e7c96bfeec0831451a918f:"

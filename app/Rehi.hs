@@ -634,8 +634,8 @@ save_todo todo path commits = do
       Comment cmt -> string_from_todo_comment cmt
       Merge ref ps ours noff ->
         ("merge"
-          <> if ours then " --ours" else ""
-          <> if noff then " --no-ff" else ""
+          <> (if ours then " --ours" else "")
+          <> (if noff then " --no-ff" else "")
           <> maybe "" (" -c " <>) ref
           <> " " <> ByteString.intercalate "," ps
           <> maybe "" ((" " <>) . commits_get_subject commits) ref)
