@@ -1,7 +1,9 @@
-# git-rebase2, advanced rebaser
+# git-rehi, history editor
+
+Takes a history and reruns it, optionally with modifications.
 
 Done to some usable state. See _Usage_ section later for reference.
-Bug reports and wishes tracked here: https://github.com/max630/git-rebase2
+Bug reports and wishes tracked here: https://github.com/max630/git-rehi
 
 **SAFETY NOTES**: Note that it is an experimental software. You'd better have a
 backup if you run it at a valuable repository, for example it should be cloned
@@ -12,7 +14,7 @@ may trigger it if it is enabled in the config).
 
 ## Motivation
 
-The original rebase is a wornderful tool, but it has a list of disadvantages:
+`git-rebase` is a wornderful tool, but it has a list of disadvantages:
 
 * Terribly slow at Windows. I guess it is because it is written in Bash.
 * Very poor support for merges. They can be created with exec during interactive rebase,
@@ -37,9 +39,9 @@ List of features
 ## Usage
 
 Run the script inside of a git repository. If it is in PATH, git will run it
-for you if you use `git rebase2`.
+for you if you use `git rehi`.
 
-`git rebase2 [options] <dest> [[<source_from>]..[<through1>..<through2>]..[<source_to>]] [<target>]`
+`git rehi [options] <dest> [[<source_from>]..[<through1>..<through2>]..[<source_to>]] [<target>]`
 
 Calculates a path (a) from `<source_from>` to `<source_to>`, and apply
 it to repository, starting from `<dest>`. In the end, `<target>` branch is
@@ -55,22 +57,22 @@ instead.  If `<target>` is omitted, the currently checked-out branch is used.
 If the whole source argument `<from>.. ..<to>` is omitted, it is equivalent to
 specification "`..`".
 
-`git rebase2 --continue`
+`git rehi --continue`
 
 Retry failed step after resolution. For some types of step this is not supported.
-Then user have to manually apply the step and use `git rebase2 --skip` to continue.
+Then user have to manually apply the step and use `git rehi --skip` to continue.
 
-`git rebase2 --abort`
+`git rehi --abort`
 
-Aborts whole rebase. The originally checked-out branch is checked out back.
+Aborts whole reapply. The originally checked-out branch is checked out back.
 
-`git rebase2 --skip`
+`git rehi --skip`
 
-Reset all uncommitted changes and continue rebasing starting with the next step in todo list.
+Reset all uncommitted changes and continue reapplying starting with the next step in todo list.
 
-`git rebase2 --current`
+`git rehi --current`
 
-If there is a rebase in progress, shows current step.
+If there is a reapplying in progress, shows current step.
 
 (a): the default path is some "optimal" which is not strictly specified and
 subject to change. At some point it was the shortest. Now general rule is to
@@ -84,7 +86,7 @@ Allows user to edit step list before starting applying them.
 
 ### Steps
 
-Types of step, which `git-rebase2` recognizes and which can be used in todo list.
+Types of step, which `git-rehi` recognizes and which can be used in todo list.
 
 `pick <ahash> [<subject>]`
 
@@ -135,7 +137,7 @@ Executes a shell command. Can be abbreviated to `x`.
 ## Types of merge
 
 * merge which contains only one parent from changes sequence, and all others
-  already exist and are untouched by the rebase. I call it "external merge".
+  already exist and are untouched by the reapplying. I call it "external merge".
   External merges are supported: detected and handled when specified in todo.
 * merge which contains two or more parents from changes sequence. That is
   "internal merge". There is an experimental support for such merges, with use
