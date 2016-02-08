@@ -25,7 +25,7 @@ import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
 import Data.String(IsString,fromString)
-import Control.Monad(foldM,forM_)
+import Control.Monad(foldM,forM_,when)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
@@ -317,13 +317,18 @@ run_rebase todo commits target_ref = do
                             case todo of
                               (current : todo) -> do
                                 gitDir <- askGitDir
-                                liftIO $ save_todo todo (gitDir <> "/rehi/todo") commits
-                                liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits
+                                let hasIo = case current of
+                                              UserComment _ -> False
+                                              TailPickWithComment _ _ -> False
+                                              _ -> True
+                                when hasIo (do
+                                  liftIO $ save_todo todo (gitDir <> "/rehi/todo") commits
+                                  liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits)
                                 put (todo, commits)
                                 run_step current >>= \case
                                   StepPause -> pure ()
                                   StepNext -> do
-                                    liftIO (removeFile (gitDir <> "/rehi/current"))
+                                    when hasIo $ liftIO (removeFile (gitDir <> "/rehi/current"))
                                     rec
                               [] -> pure ()
 
