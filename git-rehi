@@ -470,8 +470,11 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
         });
         while (defined (my $current = shift @{$todo})) {
             my $pause = 0;
-            save_todo($todo, "$GIT_DIR/rehi/todo", $commits);
-            save_todo([$current], "$GIT_DIR/rehi/current", $commits);
+            my $has_io = ($current->{type} ne "user-comment");
+            if ($has_io) {
+                save_todo($todo, "$GIT_DIR/rehi/todo", $commits);
+                save_todo([$current], "$GIT_DIR/rehi/current", $commits);
+            }
             if (run_step($current, $commits, \$pause) == 0) {
                 if ($pause) {
                     return 0;
@@ -479,7 +482,9 @@ sub run_rebase($$$) { my ($todo, $commits, $target_ref) = @_;
             } else {
                 return 1
             }
-            unlink("$GIT_DIR/rehi/current");
+            if ($has_io) {
+                unlink("$GIT_DIR/rehi/current");
+            }
         }
     }
     # TODO: make proper reflog
