@@ -47,16 +47,18 @@ brs3 = test_brs [(1, [0]),(2, [1]),(3,[1]),(4,[2,3])] 0 4 []
 p1 = parse_cli ["-i","origin/b4","..origin/base"]
 
 -- merge parse
-tp1 = do
+tp1 = withTestFile $ \f h -> do
   let c = Commits Sync M.empty M.empty M.empty
-  d <- getTemporaryDirectory
-  (f,h) <- openBinaryTempFile d "merge-todo.txt"
   finally
-    (do
-      finally
-        (BC.hPut h "merge -c f1 HEAD,f2 Test subject\n")
-        (hClose h)
-      read_todo f c)
+    (BC.hPut h "merge -c f1 HEAD,f2 Test subject\n")
+    (hClose h)
+  read_todo f c
+
+withTestFile func = do
+  d <- getTemporaryDirectory
+  (f,h) <- openBinaryTempFile d "test.txt"
+  finally
+    (func f h)
     (removeFile f)
 
 pl1 = runState
