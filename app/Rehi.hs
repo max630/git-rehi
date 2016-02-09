@@ -298,11 +298,15 @@ run_continue current commits = do
     Comment c -> comment c
     _ -> fail ("run_continue: Unexpected " ++ show current)
 
+data FinalizeMode = CleanupData | KeepData
+
 -- TODO mutable commits
-run_rebase todo commits target_ref = do
-    evalStateT (finally doJob release) (todo, commits)
-    liftIO $ run_command ("git checkout -B " <> target_ref)
-    cleanup_save
+run_rebase todo commits target_ref =
+    evalStateT (finally doJob release) (todo, commits) >>= \case
+      CleanupData -> do
+        liftIO $ run_command ("git checkout -B " <> target_ref)
+        cleanup_save
+      KeepData -> pure ()
   where
     release = do
       (catch :: _ -> (SomeException -> _) -> _)
@@ -326,11 +330,11 @@ run_rebase todo commits target_ref = do
                                   liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits)
                                 put (todo, commits)
                                 run_step current >>= \case
-                                  StepPause -> pure ()
+                                  StepPause -> pure KeepData
                                   StepNext -> do
                                     when hasIo $ liftIO (removeFile (gitDir <> "/rehi/current"))
                                     rec
-                              [] -> pure ()
+                              [] -> pure CleanupData
 
 abort_rebase = do
   gitDir <- askGitDir
