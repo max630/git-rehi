@@ -89,6 +89,14 @@ t {
 } smoke_edit;
 
 t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "set-comment");
+    cmd("git reset --hard origin/b2");
+    cmd("$testee -i origin/b1");
+    is(`git log --pretty=format:%B -1`, "test-comment\n");
+} edit_comment;
+
+t {
     cmd("git reset --hard origin/b1");
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     cmd("$testee -i HEAD");
