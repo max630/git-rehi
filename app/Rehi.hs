@@ -709,10 +709,10 @@ read_todo path commits = do
           | Just _ <- regex_match line "^[ \\t]*$" -> pure ()
         RStCommentPlain cmt0
           | Just [_, cmt] <- regex_match line "^# (.*)$" -> tell [UserComment cmt]
-          | line == "." -> tell [UserComment cmt0] >> put RStCommand
+          | line == "." -> tell [Comment cmt0] >> put RStCommand
           | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
         RStCommentQuoted cmt0 quote
-          | quote `ByteString.isSuffixOf` cmt0 -> tell [UserComment cmt0] >> put RStCommand
+          | quote `ByteString.isSuffixOf` cmt0 -> tell [Comment cmt0] >> put RStCommand
           | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
         RStDone -> tell [UserComment line]
         mode -> throwM $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
