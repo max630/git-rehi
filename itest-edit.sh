@@ -84,6 +84,11 @@ test-comment
 .
 EOF
 ;;
+edit-noop)
+cat >"$file" <<EOF
+edit 76dee8a19ec
+EOF
+;;
 *)
 cat >"$file" <<EOF
 pick 76dee8a19ec

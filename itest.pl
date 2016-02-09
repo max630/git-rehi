@@ -97,6 +97,23 @@ t {
 } edit_comment;
 
 t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "edit-noop");
+    cmd("git reset --hard origin/b2");
+    cmd("$testee -i origin/base");
+    cmd("$testee --continue");
+    is(`git rev-parse origin/b2`, `git rev-parse HEAD`);
+} edit_edit_noop;
+
+t {
+    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "edit-noop");
+    cmd("git reset --hard origin/b2");
+    cmd("$testee -i origin/base");
+    is(`git symbolic-ref --quiet HEAD`, "");
+} is_detached;
+
+t {
     cmd("git reset --hard origin/b1");
     my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     cmd("$testee -i HEAD");
