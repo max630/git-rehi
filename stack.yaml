@@ -1,0 +1,8 @@
+# For more information, see: https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
+
+resolver: lts-3.17
+packages:
+- '.'
+extra-deps: []
+flags: {}
+extra-package-dbs: []
