@@ -49,10 +49,14 @@ brs3 = test_brs [(1, [0]),(2, [1]),(3,[1]),(4,[2,3])] 0 4 []
 p1 = parse_cli ["-i","origin/b4","..origin/base"]
 
 -- merge parse
-tp1 = withTestFile $ \f h -> do
+tp1 = runParseTodo "merge -c f1 HEAD,f2 Test subject\n"
+
+tp2 = runParseTodo "edit 316bf9c init haskell project\n"
+
+runParseTodo content = withTestFile $ \f h -> do
   let c = Commits Sync M.empty M.empty M.empty
   finally
-    (BC.hPut h "merge -c f1 HEAD,f2 Test subject\n")
+    (BC.hPut h content)
     (hClose h)
   read_todo f c
 
