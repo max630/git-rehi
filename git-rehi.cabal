@@ -14,8 +14,13 @@ cabal-version:       >=1.10
 
 executable git-rehi
   hs-source-dirs:      app
-  main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  main-is:             Rehi.hs
+  other-modules:       MonadStateIO
+                       , System.Directory.ByteString
+                       , System.Environment.ByteString
+                       , System.File.ByteString
+                       , System.Process.ByteString
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -main-is Rehi.main
   build-depends:       base
                        , bytestring
                        , containers
