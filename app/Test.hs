@@ -3,6 +3,8 @@ module Test where
 
 import Rehi
 
+import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT)
+
 import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
 import Control.Monad.Catch(finally)
@@ -19,6 +21,27 @@ import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
 
 main = undefined
+
+allTests = test [ "build_rebase_sequence" ~:
+                    [ "1" ~: brs1 ~?= [Pick (hashes !! 0)]
+                    , "2" ~: brs2 ~?= []
+                    , "3" ~: brs3 ~?= [p 1
+                                      , Mark "tmp_1"
+                                      , p 3
+                                      , Mark "tmp_2"
+                                      , Reset "@tmp_1"
+                                      , p 2
+                                      , Merge (Just (hashes !! 4)) ["HEAD", "@tmp_2"] False False] ]
+                , "parse_cli" ~: p1 ~?= Run "origin/b4" Nothing [] (Just "origin/base") Nothing True
+                , "parse_todo" ~:
+                    [ "1" ~: tp1 >>= (@?= [Merge (Just "f1") ["HEAD", "f2"] False False])
+                    , "2" ~: tp2 >>= (@?= [Edit "316bf9c"])
+                    , "3" ~: tp3 >>= (@?= [Pick "316bf9c", Comment "test-comment\n"])]
+                , "save_todo" ~:
+                    [ "1" ~: s1 >>= (@?= "merge --ours -c 1 HEAD,2 ???\n") ]
+                    ]
+  where
+    p n = Pick (hashes !! n)
 
 hashes = map (B.reverse . toStrict . toLazyByteString . (string7 (replicate 24 '0') <>) . word64HexFixed) [0 ..]
 
@@ -42,7 +65,7 @@ brs1 = test_brs [(0, [1])] 1 0 []
 -- empty
 brs2 = test_brs [(1, [0]),(2, [1])] 2 2 []
 
--- p 1, mark, p 2, reset, p 3, merge
+-- p 1, mark, p 2, mark, reset, p 3, merge
 brs3 = test_brs [(1, [0]),(2, [1]),(3,[1]),(4,[2,3])] 0 4 []
 
 -- Run "origin/b4" Nothing [] (Just "origin/base") Nothing True

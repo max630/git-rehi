@@ -103,7 +103,7 @@ data CliMode =
   | Skip
   | Current
   | Run ByteString (Maybe ByteString) [ByteString] (Maybe ByteString) (Maybe ByteString) Bool
-  deriving Show
+  deriving (Show, Eq)
 
 newtype Hash = Hash { hashString :: ByteString } deriving (Eq, Ord, Show)
 
@@ -136,7 +136,7 @@ data Step =
   | Reset ByteString
   | UserComment ByteString
   | TailPickWithComment ByteString ByteString
-  deriving Show
+  deriving (Show, Eq)
 
 data Env = Env { envGitDir :: ByteString }
 
