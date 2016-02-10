@@ -53,6 +53,8 @@ tp1 = runParseTodo "merge -c f1 HEAD,f2 Test subject\n"
 
 tp2 = runParseTodo "edit 316bf9c init haskell project\n"
 
+tp3 = runParseTodo "pick 316bf9c\ncomment {{{\ntest-comment\n}}}\n"
+
 runParseTodo content = withTestFile $ \f h -> do
   let c = Commits Sync M.empty M.empty M.empty
   finally
