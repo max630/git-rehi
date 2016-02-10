@@ -718,8 +718,8 @@ read_todo path commits = do
           | line == "." -> tell [Comment cmt0] >> put RStCommand
           | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
         RStCommentQuoted cmt0 quote
-          | quote `ByteString.isSuffixOf` cmt0 -> tell [Comment cmt0] >> put RStCommand
-          | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
+          | quote `ByteString.isSuffixOf` line -> tell [Comment (cmt0 <> ByteString.take (ByteString.length line - ByteString.length quote) line)] >> put RStCommand
+          | otherwise -> put $ RStCommentQuoted (cmt0 <> line <> "\n") quote
         RStDone -> tell [UserComment line]
         mode -> throwM $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
 
