@@ -102,7 +102,12 @@ data CliMode =
   | Continue
   | Skip
   | Current
-  | Run ByteString (Maybe ByteString) [ByteString] (Maybe ByteString) (Maybe ByteString) Bool
+  | Run { runDest :: ByteString
+        , runFrom :: (Maybe ByteString)
+        , runThroughs :: [ByteString]
+        , runTo :: (Maybe ByteString)
+        , runTarget :: (Maybe ByteString)
+        , runInteractive :: Bool }
   deriving (Show, Eq)
 
 newtype Hash = Hash { hashString :: ByteString } deriving (Eq, Ord, Show)
