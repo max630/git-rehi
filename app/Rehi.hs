@@ -558,7 +558,7 @@ git_load_commits = do
 
 git_parse_commit_line line = do
   case regex_match_with_newlines line "^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$" of
-    Just [_, Hash -> hash, ahash, Hash -> tree, map Hash . BC.split ' ' -> parents, trim -> body] -> do
+    Just [_, Hash -> hash, ahash, Hash -> tree, map Hash . BC.split ' ' -> parents, body] -> do
       verify_hash hash
       mapM_ verify_hash parents
       let
@@ -939,7 +939,7 @@ regex_split content pat = unsafePerformIO match
                 then pure result
                 else re content >>= \case
                   Just (chunk, _, rest, _) -> next rest (result ++ [chunk])
-                  Nothing -> pure result)
+                  Nothing -> pure (result ++ [content]))
           content []
   
 

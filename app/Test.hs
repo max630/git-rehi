@@ -8,7 +8,7 @@ import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT)
 import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
 import Control.Monad.Catch(finally)
-import Control.Monad.State(runState)
+import Control.Monad.State(execState)
 import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
 import Data.ByteString.Lazy (toStrict)
 import Data.Monoid ((<>))
@@ -22,7 +22,9 @@ import qualified Data.Map as M
 
 main = undefined
 
-allTests = test [ "build_rebase_sequence" ~:
+allTests = test [ "regex" ~:
+                    [ "split keeps last " ~: regex_split "a b c" " " ~?= ["a", "b", "c"] ]
+                , "build_rebase_sequence" ~:
                     [ "1" ~: brs1 ~?= [Pick (hashes !! 0)]
                     , "2" ~: brs2 ~?= []
                     , "3" ~: brs3 ~?= [p 1
@@ -39,6 +41,12 @@ allTests = test [ "build_rebase_sequence" ~:
                     , "3" ~: tp3 >>= (@?= [Pick "316bf9c", Comment "test-comment\n"])]
                 , "save_todo" ~:
                     [ "1" ~: s1 >>= (@?= "merge --ours -c 1 HEAD,2 ???\n") ]
+                , "parse_commit_line" ~:
+                    [ "1" ~: stateRefs pl1 M.! "9ac82f5" ~?= Hash "9ac82f5327efe63acb5267d9d55edbd8576d9d26"
+                    , "2" ~: entryBody (stateByHash pl1 M.! Hash "9ac82f5327efe63acb5267d9d55edbd8576d9d26") ~?= "Merge remote-tracking branch 'origin/b2'\n\nresolve conflict also\n"]
+                , "comments_from_string" ~:
+                    [ "normal" ~: comments_from_string "a\nb\n" 0 ~?= [UserComment "a", UserComment "b"]
+                    , "pending line" ~: comments_from_string "a\nb" 0 ~?= [UserComment "a", UserComment "b"] ]
                     ]
   where
     p n = Pick (hashes !! n)
@@ -97,7 +105,7 @@ s1 = withTestFile $ \f h -> do
   save_todo [Merge (Just "1") ["HEAD","2"] True False] f noCommits
   readFile f
 
-pl1 = runState
+pl1 = execState
         (git_parse_commit_line ("9ac82f5327efe63acb5267d9d55edbd8576d9d26:9ac82f5:a93dcfc33f5b7639a9e7c96bfeec0831451a918f:"
                                 <> "97277bafae875c930ea7c4a338a82073c897f7f0 76dee8a19ec9fddea0a02d99b0d1e00b1ef1caba:"
                                 <> "Merge remote-tracking branch 'origin/b2'\n\nresolve conflict also\n"))
