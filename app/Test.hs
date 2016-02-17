@@ -1,16 +1,19 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Test where
 
 import Rehi
 
-import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT)
+import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT,assertFailure)
 
 import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
+import Control.Exception (ErrorCall(ErrorCall))
 import Control.Monad.Catch(finally,catch)
 import Control.Monad.State(execState)
 import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
 import Data.ByteString.Lazy (toStrict)
+import Data.List (isPrefixOf)
 import Data.Monoid ((<>))
 import System.Directory.ByteString (getTemporaryDirectory,removeFile)
 import System.File.ByteString (openBinaryTempFile,readFile)
@@ -30,7 +33,10 @@ allTests = test [ "regex" ~:
                     , "simple_branch" ~: test_findseq [(1,[2,3]),(2,[3,5])] 2 1 [] ~?= [h 1]
                     , "shortest" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [] ~?= map h [2,1]
                     , "through" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [4] ~?= map h [4,3,1]
-                    {- TODO: learn assert for failure , "parallel_throughs" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [2,4] ~?= map h [] -}
+                    , "parallel_throughs" ~:
+                        mustError
+                          (mconcat $ map hashString $ test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [2,4])
+                          (== "No path found")
                     , "inner merge" ~: test_findseq [(1,[2,5]),(2,[3]),(3,[4]),(4,[]),(5,[6]),(6,[3,7]),(7,[4])] 4 1 [] ~?= map h [3,6,5,2,1]
                     , "inner merge through" ~: test_findseq [(1,[2,5]),(2,[3]),(3,[4]),(4,[]),(5,[6]),(6,[3,7]),(7,[4])] 4 1 [7] ~?= map h [7,6,5,1] ]
                 , "build_rebase_sequence" ~:
@@ -133,15 +139,21 @@ pl1 = execState
                                 <> "Merge remote-tracking branch 'origin/b2'\n\nresolve conflict also\n"))
         noCommits
 
+mustError expr p_msg =
+  catch
+    (seq expr (assertFailure "Must have fail"))
+    (\case { ErrorCall m | p_msg m -> pure (); err -> (assertFailure (show err)) })
+
 test_parse_cli =
-  [ parse_cli ["a"] ~?= Run "a" Nothing [] Nothing Nothing False
-  , parse_cli ["a","c"] ~?= Run "a" Nothing [] Nothing (Just "c") False
-  , parse_cli ["a","b..d","c"] ~?= Run "a" (Just "b") [] (Just "d") (Just "c") False
-  , parse_cli ["a","b..","c"] ~?= Run "a" (Just "b") [] Nothing (Just "c") False
-  , parse_cli ["a","..d","c"] ~?= Run "a" Nothing [] (Just "d") (Just "c") False
-  , parse_cli ["a","b..e..d","c"] ~?= Run "a" (Just "b") ["e"] (Just "d") (Just "c") False
-  , parse_cli ["a","..e..","c"] ~?= Run "a" Nothing ["e"] Nothing (Just "c") False
-  , parse_cli ["a","..e.."] ~?= Run "a" Nothing ["e"] Nothing Nothing False
-  , parse_cli ["a","b..e..f..d","c"] ~?= Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False
-  {- TODO: errors -}
-  ]
+  [ "regular" ~:
+    [ parse_cli ["a"] ~?= Run "a" Nothing [] Nothing Nothing False
+    , parse_cli ["a","c"] ~?= Run "a" Nothing [] Nothing (Just "c") False
+    , parse_cli ["a","b..d","c"] ~?= Run "a" (Just "b") [] (Just "d") (Just "c") False
+    , parse_cli ["a","b..","c"] ~?= Run "a" (Just "b") [] Nothing (Just "c") False
+    , parse_cli ["a","..d","c"] ~?= Run "a" Nothing [] (Just "d") (Just "c") False
+    , parse_cli ["a","b..e..d","c"] ~?= Run "a" (Just "b") ["e"] (Just "d") (Just "c") False
+    , parse_cli ["a","..e..","c"] ~?= Run "a" Nothing ["e"] Nothing (Just "c") False
+    , parse_cli ["a","..e.."] ~?= Run "a" Nothing ["e"] Nothing Nothing False
+    , parse_cli ["a","b..e..f..d","c"] ~?= Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False
+  , "failures" ~:
+    [ mustError (runThroughs $ parse_cli ["a", "b...d"]) (isPrefixOf "Invalid source spec:") ] ] ]
