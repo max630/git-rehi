@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PackageImports #-}
@@ -12,7 +11,7 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{- # OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 module Rehi where
@@ -24,7 +23,6 @@ import Data.ByteString.Char8(putStrLn,putStr,pack,hPutStrLn)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust)
 import Data.Monoid((<>))
-import Data.String(IsString,fromString)
 import Control.Monad(foldM,forM_,when)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
 import Control.Monad.Fix(fix)
@@ -37,21 +35,22 @@ import MonadStateIO(evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
-import System.Exit (ExitCode(ExitSuccess,ExitFailure))
+import System.Exit (ExitCode(ExitSuccess))
 import System.File.ByteString (withFile,readFile,openFile,openBinaryTempFile)
-import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
-import System.IO.Unsafe (unsafePerformIO)
+import System.IO(hClose,IOMode(WriteMode,AppendMode),hSetBinaryMode)
 import System.Directory.ByteString (createDirectory,removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist)
 import System.Environment.ByteString(getArgs,lookupEnv)
-import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
-import Text.Regex.PCRE.ByteString (compile, regexec, compBlank, execBlank)
+import System.Process.ByteString (system)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
-import qualified Text.Regex.PCRE as P
+
+import Rehi.Utils (equalWith, index_only, run_command, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
+                   trim, writeFile, appendToFile, whenM, unlessM, ifM)
+import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 
 main :: IO ()
 main = do
@@ -408,10 +407,6 @@ merge commit_refMb merge_parents_refs ours noff = do
           modify' (modifySnd (\c -> c{stateHead = Known step_hash}))
     _ -> merge_new commit_refMb merge_parents_refs ours noff
 
-equalWith _ [] [] = True
-equalWith f (x : xs) (y : ys) = if f x y then equalWith f xs ys else False
-equalWith _ _ _ = False
-
 merge_new commit_refMb parents_refs ours noff = do
   sync_head
   liftIO $ putStrLn "Merging"
@@ -435,11 +430,6 @@ merge_new commit_refMb parents_refs ours noff = do
   case commit_refMb of
     Just commit -> liftIO $ run_command ("git commit -C " <> commit <> " --reset-author")
     _ -> pure ()
-
-index_only x ys = fromMaybe (error "index_only: not found") (foldl' step Nothing $ zip [0 .. ] ys)
-  where
-    step prev (n, y) | x == y = case prev of { Nothing -> Just n; Just _ -> error "index_only: duplicate" }
-    step prev _ = prev
 
 sync_head :: (MonadState ([Step], Commits) m, MonadIO m) => m ()
 sync_head = do
@@ -591,18 +581,6 @@ git_sequence_editor =
         ed -> pure ed
       ed -> pure ed
 
-run_command :: ByteString -> IO ()
-run_command s = system s >>= \case
-  ExitSuccess -> pure ()
-  err -> fail ("Command " <> show s <> " failed: " <> show err) -- TODO: allow non-zero and handle it in clients
-
-readPopen :: ByteString -> IO ByteString
-readPopen cmd = do
-  (Nothing, Just out, Nothing, pHandle) <- createProcess (shell cmd){ std_out = CreatePipe }
-  finally
-    (fmap trim $ ByteString.hGetContents out)
-    (waitForProcess pHandle)
-
 verify_hash :: Monad m => Hash -> m ()
 verify_hash (Hash h) = case regex_match h "^[0-9a-f]{40}$" of
   Just _ -> pure ()
@@ -727,35 +705,6 @@ read_todo path commits = do
           | otherwise -> put $ RStCommentQuoted (cmt0 <> line <> "\n") quote
         RStDone -> tell [UserComment line]
         mode -> throwM $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
-
-mapCmdLinesM :: (MonadIO m, MonadMask m) => (ByteString -> m a) -> ByteString -> Char -> m ()
-mapCmdLinesM func cmd sep = do
-  (Nothing, Just out, Nothing, p) <- liftIO $ createProcess (shell cmd){ std_out = CreatePipe}
-  finally
-    (mapHandleLinesM_ func sep out)
-    (liftIO $ waitForProcess p)
-
-mapFileLinesM :: (MonadIO m, MonadMask m) => (ByteString -> m ()) -> ByteString -> Char -> m ()
-mapFileLinesM func path sep = do
-  h <- liftIO $ openFile path ReadMode
-  liftIO $ hSetBinaryMode h True
-  finally
-    (mapHandleLinesM_ func sep h)
-    (liftIO $ hClose h)
-
-mapHandleLinesM_ :: MonadIO m => (ByteString -> m a) -> Char -> Handle -> m ()
-mapHandleLinesM_ func sep handle = step "" (Just handle)
-  where
-    step buf hM | (chunk, rest) <- BC.span (/= sep) buf, not(BC.null rest) = func chunk >> step (BC.drop 1 rest) hM
-    step buf (Just h) = do
-      next <- liftIO $ ByteString.hGetSome h 2048
-      if BC.null next
-        then do
-          liftIO $ hClose h
-          step buf Nothing
-        else step (buf <> next) (Just h)
-    step "" Nothing = pure ()
-    step buf Nothing = func buf >> pure ()
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 
@@ -898,74 +847,6 @@ git_get_checkedout_branch = do
     Just [_, p] -> pure p
     _ -> fail ("Unsupported ref checked-out: " ++ show head_path)
 
-newtype Regex = Regex ByteString deriving (Show,Eq,Monoid)
-
-instance IsString Regex where
-  fromString s = Regex (fromString s)
-
-regex_match_ex :: P.CompOption -> ByteString -> Regex -> Maybe [ByteString]
-regex_match_ex op str (Regex pattern) = unsafePerformIO match
-  where
-    match = do
-      re <- compile1 op pattern
-      re str >>= (pure . fmap (\(_, self, _, groups) -> self : groups))
-
-regex_match = regex_match_ex compBlank
-
-regex_match_with_newlines = regex_match_ex P.compDotAll
-
-compile1 op pat = do
-  compile op execBlank pat >>= \case
-    Left (_, msg) -> error ("regex compile: " ++ msg ++ ", pat=" ++ show pat)
-    Right re -> pure $ \str -> regexec re str >>= \case
-      Left (_, msg) -> error ("regex run: " ++ msg)
-      Right result -> pure result
-
-regex_match_all :: ByteString -> Regex -> [ByteString]
-regex_match_all str (Regex pat) = unsafePerformIO match
-  where
-    match = do
-      re <- compile1 compBlank pat
-      fix (\ret rest parsed ->
-            if rest == ""
-              then pure parsed
-              else re rest >>= \case
-                Just ("", _, rest, [next]) -> ret rest (parsed ++ [next])
-                _ -> error "regex_match_all: chunk not matched"
-          ) str []
-
-regex_split :: ByteString -> ByteString -> [ByteString]
-regex_split content pat = unsafePerformIO match
-  where
-    match = do
-      re <- compile1 compBlank pat
-      fix (\next content result ->
-              if content == ""
-                then pure result
-                else re content >>= \case
-                  Just (chunk, _, rest, _) -> next rest (result ++ [chunk])
-                  Nothing -> pure (result ++ [content]))
-          content []
-  
-
-modifySnd f (x, y) = (x, f y)
-
 askGitDir :: MonadReader Env m => m ByteString
 askGitDir = ask >>= \r -> pure (envGitDir r)
 
-trim = fst . (ByteString.spanEnd space) . ByteString.dropWhile space
-  where
-    space = (`ByteString.elem` " \t\n\r")
-
-writeFile path content = withFile path WriteMode (\h -> BC.hPut h content)
-
-appendToFile path content = withFile path AppendMode (\h -> BC.hPut h content)
-
-whenM :: Monad m => m Bool -> m () -> m ()
-whenM p f = ifM p f (pure ())
-
-unlessM :: Monad m => m Bool -> m () -> m ()
-unlessM p f = ifM p (pure ()) f
-
-ifM :: Monad m => m Bool -> m a -> m a -> m a
-ifM p ft ff = p >>= \pv -> if pv then ft else ff
