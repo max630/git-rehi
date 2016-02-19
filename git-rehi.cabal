@@ -15,7 +15,11 @@ cabal-version:       >=1.10
 executable git-rehi
   hs-source-dirs:      app
   main-is:             Rehi.hs
-  other-modules:       MonadStateIO
+  other-modules:       Rehi.Utils
+                       , Rehi.Regex
+                       , Rehi.GitTypes
+                       , Rehi.GitCommands
+                       , MonadStateIO
                        , System.Directory.ByteString
                        , System.Environment.ByteString
                        , System.File.ByteString

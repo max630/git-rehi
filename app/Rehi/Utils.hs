@@ -6,6 +6,8 @@ import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
 import Control.Monad.Catch (MonadMask,finally)
 import Control.Monad.IO.Class (liftIO,MonadIO)
+import Control.Monad.Trans.Writer(execWriterT)
+import Control.Monad.Writer(tell)
 import Data.List (foldl')
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
@@ -68,6 +70,9 @@ mapHandleLinesM_ func sep handle = step "" (Just handle)
         else step (buf <> next) (Just h)
     step "" Nothing = pure ()
     step buf Nothing = func buf >> pure ()
+
+command_lines :: ByteString.ByteString -> Char -> IO [ByteString.ByteString]
+command_lines cmd sep = execWriterT $ mapCmdLinesM (tell . (: [])) cmd sep
 
 modifySnd :: (b -> c) -> (a, b) -> (a, c)
 modifySnd f (x, y) = (x, f y)

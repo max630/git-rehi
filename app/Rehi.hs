@@ -11,7 +11,7 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-{- # OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 module Rehi where
@@ -21,7 +21,7 @@ import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn,putStr,pack,hPutStrLn)
 import Data.List(foldl')
-import Data.Maybe(fromMaybe,isJust)
+import Data.Maybe(fromMaybe,isJust,isNothing)
 import Data.Monoid((<>))
 import Control.Monad(foldM,forM_,when)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
@@ -49,8 +49,11 @@ import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
 import Rehi.Utils (equalWith, index_only, run_command, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
-                   trim, writeFile, appendToFile, whenM, unlessM, ifM)
+                   trim, writeFile, appendToFile, whenM, unlessM, ifM, command_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
+import Rehi.GitTypes (Hash(Hash), hashString)
+
+import qualified Rehi.GitCommands as Cmd
 
 main :: IO ()
 main = do
@@ -73,7 +76,7 @@ main = do
         (todo, current, commits, target_ref) <- restore_rebase
         case current of
           Just c -> do
-            liftIO (run_command "git rest --hard HEAD")
+            liftIO $ Cmd.reset $ "HEAD"
             liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
@@ -108,8 +111,6 @@ data CliMode =
         , runTarget :: (Maybe ByteString)
         , runInteractive :: Bool }
   deriving (Show, Eq)
-
-newtype Hash = Hash { hashString :: ByteString } deriving (Eq, Ord, Show)
 
 data Head = Sync | Known Hash deriving Show
 
@@ -196,7 +197,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
       let commits' = commits{ stateHead = Known dest_hash }
       gitDir <- askGitDir
       liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") commits'
-      liftIO (run_command ("git checkout --quiet --detach " <> hashString dest_hash))
+      liftIO $ Cmd.checkout_detached $ hashString dest_hash
       run_rebase todo commits' target_ref)
     else (do
         liftIO(putStrLn "Nothing to do")
@@ -216,7 +217,8 @@ restore_rebase = do
 
 init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> ReaderT Env IO ([_], _, _)
 init_rebase dest source_from through source_to target_ref initial_branch = do
-  (dest_hash : source_from_hash : source_to_hash : through_hashes ) <- git_resolve_hashes (dest : source_from : source_to : through)
+  (dest_hash : source_from_hash : source_to_hash : through_hashes ) <-
+    liftIO $ Cmd.git_resolve_hashes (dest : source_from : source_to : through)
   init_save target_ref initial_branch
   commits <- git_fetch_cli_commits source_from source_to
   let unknown_parents = find_unknown_parents commits
@@ -290,14 +292,12 @@ verify_marks todo = do
     check marks _ = pure marks
 
 run_continue current commits = do
-  liftIO $ run_command ("git rev-parse --verify HEAD >/dev/null"
-                          <> " && git update-index --ignore-submodules --refresh"
-                          <> " && git diff-files --quiet --ignore-submodules")
+  liftIO $ Cmd.verify_clean
   case current of
-    Pick ah -> git_no_uncommitted_changes `unlessM` liftIO (run_command ("git commit -c " <> ah))
-    Merge ahM _ _ _ -> git_no_uncommitted_changes `unlessM` liftIO (run_command ("git commit " <> maybe "" ("-c" <>) ahM))
+    Pick ah -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit $ Just ah)
+    Merge ahM _ _ _ -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit ahM)
     Edit _ -> git_no_uncommitted_changes `unlessM` fail "No unstaged changes should be after 'edit'"
-    Fixup _ -> git_no_uncommitted_changes `unlessM` liftIO (run_command "git commit --amend")
+    Fixup _ -> git_no_uncommitted_changes `unlessM` liftIO Cmd.commit_amend
     Exec cmd -> fail ("Cannot continue '" ++ show cmd ++ "'; resolve it manually, then skip or abort")
     Comment c -> comment c
     _ -> fail ("run_continue: Unexpected " ++ show current)
@@ -308,7 +308,7 @@ data FinalizeMode = CleanupData | KeepData
 run_rebase todo commits target_ref =
     evalStateT (finally doJob release) (todo, commits) >>= \case
       CleanupData -> do
-        liftIO $ run_command ("git checkout -B " <> target_ref)
+        liftIO $ Cmd.checkout_here target_ref
         cleanup_save
       KeepData -> pure ()
   where
@@ -343,8 +343,8 @@ run_rebase todo commits target_ref =
 abort_rebase = do
   gitDir <- askGitDir
   initial_branch <- liftIO $ readFile (gitDir <> "/rehi/initial_branch")
-  liftIO $ run_command ("git reset --hard " <> initial_branch)
-  liftIO $ run_command ("git checkout -f " <> initial_branch)
+  liftIO $ Cmd.reset initial_branch
+  liftIO $ Cmd.checkout_force initial_branch
   cleanup_save
 
 run_step rebase_step = do
@@ -362,14 +362,13 @@ run_step rebase_step = do
       Fixup ah -> do
         liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
         sync_head
-        liftIO $ run_command ("git cherry-pick --allow-empty --allow-empty-message --no-commit " <> resolve_ahash ah commits
-                                <> " && git commit --amend --reset-author --no-edit")
+        liftIO $ Cmd.fixup $ resolve_ahash ah commits
       Reset ah -> do
         let hash_or_ref = resolve_ahash ah commits
         if (Hash hash_or_ref) `Map.member` stateByHash commits
           then modify' (modifySnd (\c -> c{stateHead = Known $ Hash hash_or_ref}))
           else do
-            liftIO $ run_command ("git reset --hard " <> hash_or_ref)
+            liftIO $ Cmd.reset hash_or_ref
             modify' (modifySnd (\c -> c{stateHead = Sync}))
       Exec cmd -> do
         sync_head
@@ -382,7 +381,7 @@ run_step rebase_step = do
         hashNow <- fmap (stateHead . snd) get >>= \case
                       Known h -> pure h
                       Sync -> do
-                        [hashNow] <- git_resolve_hashes ["HEAD"]
+                        [hashNow] <- liftIO $ Cmd.git_resolve_hashes ["HEAD"]
                         pure hashNow
         modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
         gitDir <- askGitDir
@@ -412,30 +411,25 @@ merge_new commit_refMb parents_refs ours noff = do
   liftIO $ putStrLn "Merging"
   commits <- fmap snd get
   let
-    commandHead = "git merge"
-                    <> maybe " --no-edit" (const " --no-commit") commit_refMb
-                    <> (if ours then " --strategy=ours" else "")
-                    <> (if noff then " --no-ff" else "") :: ByteString
     parents = map (\a -> resolve_ahash a commits) parents_refs
     head_pos = index_only "HEAD" parents_refs
   parents <- if head_pos /= 0
               then do
-                liftIO $ run_command ("git reset --hard " <> head parents)
+                liftIO $ Cmd.reset $ head parents
                 let
                   (pFirst : pInit, _ : pTail) = splitAt head_pos parents
                 pure (pInit ++ [pFirst] ++ pTail)
               else pure (tail parents)
-  let command = commandHead <> foldl (<>) "" (map (" " <>) parents)
-  liftIO $ run_command command
+  liftIO $ Cmd.merge (isNothing commit_refMb) ours noff parents
   case commit_refMb of
-    Just commit -> liftIO $ run_command ("git commit -C " <> commit <> " --reset-author")
+    Just commit -> liftIO $ Cmd.commit_refMsgOnly commit
     _ -> pure ()
 
 sync_head :: (MonadState ([Step], Commits) m, MonadIO m) => m ()
 sync_head = do
   fmap (stateHead . snd) get >>= \case
     Known hash -> do
-      liftIO $ run_command ("git reset --hard " <> hashString hash)
+      liftIO $ Cmd.reset $ hashString hash
       modify' (modifySnd (\c -> c{stateHead = Sync}))
     Sync -> pure ()
 
@@ -451,12 +445,12 @@ pick hash = do
           modify' (modifySnd (\c -> c{stateHead = Known (Hash hash)}))
     _ -> do
           sync_head
-          liftIO $ run_command ("git cherry-pick --allow-empty --allow-empty-message --ff " <> hash)
+          liftIO $ Cmd.cherrypick hash
 
 comment new_comment = do
   gitDir <- askGitDir
   liftIO $ writeFile (gitDir <> "/rehi/commit_msg") new_comment
-  liftIO $ run_command ("git commit --amend -F \"" <> gitDir <> "/rehi/commit_msg\"")
+  liftIO $ Cmd.commit_amend_msgFile (gitDir <> "/rehi/commit_msg")
 
 build_rebase_sequence :: Commits -> Hash -> Hash -> [Hash] -> [Step]
 build_rebase_sequence commits source_from_hash source_to_hash through_hashes = from_mark ++ steps
@@ -508,17 +502,9 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
     ahash = entryAHash thisE
     ours = entryTree thisE == entryTree (stateByHash commits Map.! head (entryParents thisE) )
 
-git_resolve_hashes :: MonadIO m => [ByteString] -> m [Hash]
-git_resolve_hashes refs = do
-  mapM_ verify_cmdarg refs
-  hashes <- fmap (map (Hash . trim)) $ liftIO $ command_lines ("git rev-parse " <> (mconcat $ map (" " <>) refs)) '\n'
-  if length hashes == length refs
-    then pure hashes
-    else error "Hash number does not match"
-
 git_fetch_cli_commits from to = do
-  verify_cmdarg from
-  verify_cmdarg to
+  Cmd.verify_cmdarg from
+  Cmd.verify_cmdarg to
   git_fetch_commits ("git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> from <> ".." <> to)
                     (Commits Sync Map.empty Map.empty Map.empty)
 
@@ -567,8 +553,8 @@ git_parse_commit_line line = do
     _ -> fail ("Could not parse line: " <> show line)
 
 git_merge_base b1 b2 = do
-  verify_cmdarg b1
-  verify_cmdarg b2
+  Cmd.verify_cmdarg b1
+  Cmd.verify_cmdarg b2
   [base] <- execWriterT $ mapCmdLinesM (tell . (: []) . trim) ("git merge-base -a " <> b1 <> " " <> b2) '\n'
   pure base
 
@@ -585,11 +571,6 @@ verify_hash :: Monad m => Hash -> m ()
 verify_hash (Hash h) = case regex_match h "^[0-9a-f]{40}$" of
   Just _ -> pure ()
   Nothing -> fail ("Invalid hash: " <> show h)
-
-verify_cmdarg :: Monad m => ByteString -> m ()
-verify_cmdarg str = case regex_match str "[\"'\\\\\\(\\)#]|[\001- ]" of
-  Just _ -> fail ("Invalid cmdarg: " <> show str)
-  Nothing -> pure ()
 
 init_save target_ref initial_branch = do
   gitDir <- askGitDir
@@ -708,9 +689,6 @@ read_todo path commits = do
 
 commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
 
-command_lines :: ByteString -> Char -> IO [ByteString]
-command_lines cmd sep = execWriterT $ mapCmdLinesM (tell . (: [])) cmd sep
-
 returnC x = ContT $ const x
 
 data FsThreadState = FsReady | FsFinalizeMergebases | FsWaitChildren | FsDone deriving Eq
@@ -823,7 +801,7 @@ git_fetch_commit_list commits [] = pure commits
 git_fetch_commit_list commits unknowns = do
   let
     (map hashString -> us, usRest) = Prelude.splitAt 20 unknowns
-  mapM_ verify_cmdarg us
+  mapM_ Cmd.verify_cmdarg us
   commits <- git_fetch_commits
     ("git show -z --no-patch --pretty=format:%H:%h:%T:%P:%B" <> ByteString.concat (map (" " <>) us))
     commits

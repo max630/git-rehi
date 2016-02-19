@@ -3,6 +3,7 @@
 module Test where
 
 import Rehi
+import Rehi.Regex (regex_split)
 
 import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT,assertFailure)
 
@@ -23,7 +24,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
 
-main = undefined
+main = runTestTT  allTests
 
 allTests = test [ "regex" ~:
                     [ "split keeps last " ~: regex_split "a b c" " " ~?= ["a", "b", "c"] ]
