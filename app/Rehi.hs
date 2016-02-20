@@ -143,7 +143,7 @@ data Step =
   | TailPickWithComment ByteString ByteString
   deriving (Show, Eq)
 
-data Env = Env { envGitDir :: ByteString }
+data Env a = Env { envGitDir :: ByteString, envRest :: a }
 
 data StepResult = StepPause | StepNext
 
@@ -181,6 +181,7 @@ parse_cli = parse_loop False
     parse_loop interactive [arg0, arg1] = Run arg0 Nothing [] Nothing (Just arg1) interactive
     parse_loop _ argv = error ("Invalid arguments: " ++ show argv)
 
+main_run :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
 main_run dest source_from through source_to target_ref initial_branch interactive = do
   (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
   (todo, commits) <- if interactive
@@ -215,7 +216,7 @@ restore_rebase = do
                 (pure Nothing)
   pure (todo, current, commits, target_ref)
 
-init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> ReaderT Env IO ([_], _, _)
+init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> ReaderT (Env a) IO ([_], _, _)
 init_rebase dest source_from through source_to target_ref initial_branch = do
   (dest_hash : source_from_hash : source_to_hash : through_hashes ) <-
     liftIO $ Cmd.git_resolve_hashes (dest : source_from : source_to : through)
@@ -508,7 +509,7 @@ git_fetch_cli_commits from to = do
   git_fetch_commits ("git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> from <> ".." <> to)
                     (Commits Sync Map.empty Map.empty Map.empty)
 
-git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader Env m) => ByteString -> Commits -> m Commits
+git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader (Env a) m) => ByteString -> Commits -> m Commits
 git_fetch_commits cmd commits = do
   gitDir <- askGitDir
   h <- liftIO $ openFile (gitDir <> "/rehi/commits") (AppendMode)
@@ -810,7 +811,7 @@ git_fetch_commit_list commits unknowns = do
 get_env = do
   gitDir <- readPopen "git rev-parse --git-dir"
   case regex_match gitDir "^[-a-z0-9_\\.,\\/ ]+$" of
-    Just _ -> pure $ Env gitDir
+    Just _ -> pure $ Env gitDir ()
     Nothing -> fail ("Some unsupported symbols in: " <> show gitDir)
 
 git_verify_clean = do
@@ -825,6 +826,6 @@ git_get_checkedout_branch = do
     Just [_, p] -> pure p
     _ -> fail ("Unsupported ref checked-out: " ++ show head_path)
 
-askGitDir :: MonadReader Env m => m ByteString
+askGitDir :: MonadReader (Env a) m => m ByteString
 askGitDir = ask >>= \r -> pure (envGitDir r)
 
