@@ -4,6 +4,7 @@ module Test where
 
 import Rehi
 import Rehi.Regex (regex_split)
+import Rehi.GitTypes (Hash(Hash), hashString)
 
 import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT,assertFailure)
 
