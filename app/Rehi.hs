@@ -28,7 +28,7 @@ import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exceptio
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
-import Control.Monad.RWS(execRWST)
+import Control.Monad.RWS(execRWST, RWST, runRWST)
 import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import MonadStateIO(evalStateT,execStateT)
@@ -144,6 +144,21 @@ data Step =
   deriving (Show, Eq)
 
 data Env a = Env { envGitDir :: ByteString, envRest :: a }
+
+-- Tmp State
+data TS = TS {
+    tsHead :: Head
+}
+
+-- Tmp Env
+data TE = TE
+
+wrapTS :: MonadState ([Step], Commits) m => RWST () () TS m a -> m a
+wrapTS f = do
+  (_, stateHead -> h) <- get
+  (v, tsHead -> h', _) <- runRWST f () (TS h)
+  modify' (modifySnd (\s -> s{stateHead = h'}))
+  pure v
 
 data StepResult = StepPause | StepNext
 
@@ -315,7 +330,7 @@ run_rebase todo commits target_ref =
   where
     release = do
       (catch :: _ -> (SomeException -> _) -> _)
-        sync_head
+        (wrapTS sync_head)
         (\e -> do
           liftIO $ Prelude.putStrLn ("Fatal error: " <> show e)
           liftIO $ putStrLn "Not possible to continue"
@@ -357,12 +372,12 @@ run_step rebase_step = do
       Edit ah -> do
         liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
         pick $ resolve_ahash ah commits
-        sync_head
+        wrapTS sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
       Fixup ah -> do
         liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
-        sync_head
+        wrapTS sync_head
         liftIO $ Cmd.fixup $ resolve_ahash ah commits
       Reset ah -> do
         let hash_or_ref = resolve_ahash ah commits
@@ -372,11 +387,11 @@ run_step rebase_step = do
             liftIO $ Cmd.reset hash_or_ref
             modify' (modifySnd (\c -> c{stateHead = Sync}))
       Exec cmd -> do
-        sync_head
+        wrapTS sync_head
         liftIO $ run_command cmd
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
-        sync_head
+        wrapTS sync_head
         comment new_comment
       Mark mrk -> do
         hashNow <- fmap (stateHead . snd) get >>= \case
@@ -408,7 +423,7 @@ merge commit_refMb merge_parents_refs ours noff = do
     _ -> merge_new commit_refMb merge_parents_refs ours noff
 
 merge_new commit_refMb parents_refs ours noff = do
-  sync_head
+  wrapTS sync_head
   liftIO $ putStrLn "Merging"
   commits <- fmap snd get
   let
@@ -426,12 +441,12 @@ merge_new commit_refMb parents_refs ours noff = do
     Just commit -> liftIO $ Cmd.commit_refMsgOnly commit
     _ -> pure ()
 
-sync_head :: (MonadState ([Step], Commits) m, MonadIO m) => m ()
+sync_head :: (MonadState TS m, MonadIO m) => m ()
 sync_head = do
-  fmap (stateHead . snd) get >>= \case
+  fmap tsHead get >>= \case
     Known hash -> do
       liftIO $ Cmd.reset $ hashString hash
-      modify' (modifySnd (\c -> c{stateHead = Sync}))
+      modify' (\t -> t{tsHead = Sync})
     Sync -> pure ()
 
 pick hash = do
@@ -445,7 +460,7 @@ pick hash = do
           liftIO $ putStrLn ("Fast-forwarding unchanged commit: " <> entryAHash pickData <> " " <> entrySubject pickData)
           modify' (modifySnd (\c -> c{stateHead = Known (Hash hash)}))
     _ -> do
-          sync_head
+          wrapTS sync_head
           liftIO $ Cmd.cherrypick hash
 
 comment new_comment = do
