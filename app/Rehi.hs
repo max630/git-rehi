@@ -31,7 +31,7 @@ import Control.Monad.Reader(MonadReader,ask)
 import Control.Monad.RWS(execRWST, RWST, runRWST)
 import Control.Monad.State(put,get,modify',MonadState)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
-import MonadStateIO(evalStateT,execStateT)
+import Control.Monad.Trans.State(evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
@@ -321,13 +321,16 @@ run_continue current commits = do
 data FinalizeMode = CleanupData | KeepData
 
 -- TODO mutable commits
-run_rebase todo commits target_ref =
-    evalStateT (finally doJob release) (todo, commits) >>= \case
-      CleanupData -> do
-        liftIO $ Cmd.checkout_here target_ref
-        cleanup_save
-      KeepData -> pure ()
+run_rebase todo commits target_ref = evalStateT doJob (todo, commits)
   where
+    doJob = do
+      result <- mainLoop
+      release
+      case result of
+        CleanupData -> do
+          liftIO $ Cmd.checkout_here target_ref
+          cleanup_save
+        KeepData -> pure ()
     release = do
       (catch :: _ -> (SomeException -> _) -> _)
         (wrapTS sync_head)
@@ -336,7 +339,7 @@ run_rebase todo commits target_ref =
           liftIO $ putStrLn "Not possible to continue"
           gitDir <- askGitDir
           liftIO $ removeFile (gitDir <> "/rehi/todo"))
-    doJob = fix $ \rec -> do
+    mainLoop = fix $ \rec -> do
                             (todo, commits) <- get
                             case todo of
                               (current : todo) -> do
@@ -595,6 +598,7 @@ init_save target_ref initial_branch = do
   liftIO $ writeFile (gitDir <> "/rehi/target_ref") target_ref
   liftIO $ writeFile (gitDir <> "/rehi/initial_branch") initial_branch
 
+cleanup_save :: (MonadReader (Env ()) m, MonadIO m) => m ()
 cleanup_save = do
   gitDir <- askGitDir
   liftIO (doesDirectoryExist (gitDir <> "/rehi")) `whenM` (do
