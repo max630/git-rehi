@@ -151,12 +151,17 @@ data TS = TS {
 }
 
 -- Tmp Env
-data TE = TE
+data TE = TE {
+    teGitDir :: ByteString
+  , teRefs :: Map.Map ByteString Hash
+  , teByHash :: Map.Map Hash Entry
+}
 
-wrapTS :: MonadState ([Step], Commits) m => RWST () () TS m a -> m a
+wrapTS :: (MonadState ([Step], Commits) m, MonadReader (Env ()) m) => RWST TE () TS m a -> m a
 wrapTS f = do
-  (_, stateHead -> h) <- get
-  (v, tsHead -> h', _) <- runRWST f () (TS h)
+  gitDir <- askGitDir
+  (_, Commits { stateHead = h, stateRefs = refs, stateByHash = byHash }) <- get
+  (v, tsHead -> h', _) <- runRWST f (TE gitDir refs byHash) (TS h)
   modify' (modifySnd (\s -> s{stateHead = h'}))
   pure v
 
@@ -307,6 +312,7 @@ verify_marks todo = do
     check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwM (EditError ("Unknown mark:" <> mark))
     check marks _ = pure marks
 
+run_continue :: Step -> t -> ReaderT (Env a) IO ()
 run_continue current commits = do
   liftIO $ Cmd.verify_clean
   case current of
@@ -371,10 +377,10 @@ run_step rebase_step = do
   evalContT $ do
     case rebase_step of
       Pick ah -> do
-        pick $ resolve_ahash ah commits
+        wrapTS $ pick $ resolve_ahash ah commits
       Edit ah -> do
         liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
-        pick $ resolve_ahash ah commits
+        wrapTS $ pick $ resolve_ahash ah commits
         wrapTS sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
@@ -453,17 +459,18 @@ sync_head = do
     Sync -> pure ()
 
 pick hash = do
-  commits <- fmap snd get
-  case stateHead commits of
+  env <- ask
+  state <- get
+  case tsHead state of
     Known currentHash
-      | Just pickData <- Map.lookup (Hash hash) (stateByHash commits)
+      | Just pickData <- Map.lookup (Hash hash) (teByHash env)
       , [pickParent] <- (entryParents pickData)
       , pickParent == currentHash
       -> do
           liftIO $ putStrLn ("Fast-forwarding unchanged commit: " <> entryAHash pickData <> " " <> entrySubject pickData)
-          modify' (modifySnd (\c -> c{stateHead = Known (Hash hash)}))
+          modify' (\s -> s{ tsHead = Known (Hash hash)})
     _ -> do
-          wrapTS sync_head
+          sync_head
           liftIO $ Cmd.cherrypick hash
 
 comment new_comment = do
@@ -798,6 +805,7 @@ resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
   Just [_,mrk] -> maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk $ stateMarks commits)
   Nothing -> maybe ah hashString (Map.lookup ah $ stateRefs commits)
 
+git_no_uncommitted_changes :: MonadIO m => m Bool
 git_no_uncommitted_changes = liftIO (system "git diff-index --quiet --ignore-submodules HEAD") >>= \case
   ExitSuccess -> pure True
   _ -> pure False
