@@ -151,17 +151,19 @@ data TS = TS {
 }
 
 -- Tmp Env
-data TE = TE {
-    teGitDir :: ByteString
-  , teRefs :: Map.Map ByteString Hash
-  , teByHash :: Map.Map Hash Entry
-}
+type TE = Env (Map.Map ByteString Hash, Map.Map Hash Entry)
+
+teGitDir = envGitDir
+
+teRefs = fst . envRest
+
+teByHash = snd . envRest
 
 wrapTS :: (MonadState ([Step], Commits) m, MonadReader (Env ()) m) => RWST TE () TS m a -> m a
 wrapTS f = do
   gitDir <- askGitDir
   (_, Commits { stateHead = h, stateRefs = refs, stateByHash = byHash }) <- get
-  (v, tsHead -> h', _) <- runRWST f (TE gitDir refs byHash) (TS h)
+  (v, tsHead -> h', _) <- runRWST f (Env gitDir (refs, byHash)) (TS h)
   modify' (modifySnd (\s -> s{stateHead = h'}))
   pure v
 
@@ -312,7 +314,7 @@ verify_marks todo = do
     check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwM (EditError ("Unknown mark:" <> mark))
     check marks _ = pure marks
 
-run_continue :: Step -> t -> ReaderT (Env a) IO ()
+run_continue :: (MonadReader (Env a) m, MonadIO m) => Step -> t -> m ()
 run_continue current commits = do
   liftIO $ Cmd.verify_clean
   case current of
