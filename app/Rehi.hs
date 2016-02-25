@@ -148,6 +148,7 @@ data Env a = Env { envGitDir :: ByteString, envRest :: a }
 -- Tmp State
 data TS = TS {
     tsHead :: Head
+  , tsMarks :: Map.Map ByteString Hash
 }
 
 -- Tmp Env
@@ -162,9 +163,9 @@ teByHash = snd . envRest
 wrapTS :: (MonadState ([Step], Commits) m, MonadReader (Env ()) m) => RWST TE () TS m a -> m a
 wrapTS f = do
   gitDir <- askGitDir
-  (_, Commits { stateHead = h, stateRefs = refs, stateByHash = byHash }) <- get
-  (v, tsHead -> h', _) <- runRWST f (Env gitDir (refs, byHash)) (TS h)
-  modify' (modifySnd (\s -> s{stateHead = h'}))
+  (_, sIn@Commits { stateHead = h, stateRefs = refs, stateByHash = byHash }) <- get
+  (v, sOut, _) <- runRWST f (Env gitDir (refs, byHash)) (TS h (stateMarks sIn))
+  modify' (modifySnd (\s -> s{stateHead = tsHead sOut, stateMarks = tsMarks sOut}))
   pure v
 
 data StepResult = StepPause | StepNext
@@ -403,19 +404,21 @@ run_step rebase_step = do
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
         wrapTS sync_head
-        comment new_comment
-      Mark mrk -> do
-        hashNow <- fmap (stateHead . snd) get >>= \case
-                      Known h -> pure h
-                      Sync -> do
-                        [hashNow] <- liftIO $ Cmd.git_resolve_hashes ["HEAD"]
-                        pure hashNow
-        modify' $ modifySnd $ \c -> c{ stateMarks = Map.insert mrk hashNow (stateMarks c)}
-        gitDir <- askGitDir
-        liftIO $ appendToFile (gitDir <> "/rehi/marks") (mrk <> " " <> hashString hashNow <> "\n")
+        wrapTS $ comment new_comment
+      Mark mrk -> wrapTS $ add_mark mrk
       Merge commentFrom parents ours noff -> merge commentFrom parents ours noff
       UserComment _ -> pure ()
     pure StepNext
+
+add_mark mrk = do
+  hashNow <- fmap tsHead get >>= \case
+                Known h -> pure h
+                Sync -> do
+                  [hashNow] <- liftIO $ Cmd.git_resolve_hashes ["HEAD"]
+                  pure hashNow
+  modify' $ \ts -> ts{ tsMarks = Map.insert mrk hashNow (tsMarks ts) }
+  gitDir <- askGitDir
+  liftIO $ appendToFile (gitDir <> "/rehi/marks") (mrk <> " " <> hashString hashNow <> "\n")
 
 merge commit_refMb merge_parents_refs ours noff = do
   commits <- fmap snd get
