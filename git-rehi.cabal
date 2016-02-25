@@ -19,7 +19,6 @@ executable git-rehi
                        , Rehi.Regex
                        , Rehi.GitTypes
                        , Rehi.GitCommands
-                       , MonadStateIO
                        , System.Directory.ByteString
                        , System.Environment.ByteString
                        , System.File.ByteString
