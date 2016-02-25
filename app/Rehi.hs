@@ -434,15 +434,13 @@ merge commit_refMb merge_parents_refs ours noff = do
       -> do
           liftIO $ putStrLn ("Fast-forwarding unchanged merge: " <> commit_ref <> " " <> entrySubject step_data)
           modify' (modifySnd (\c -> c{stateHead = Known step_hash}))
-    _ -> merge_new commit_refMb merge_parents_refs ours noff
+    _ -> wrapTS $ merge_new commit_refMb merge_parents_refs ours noff
 
 merge_new commit_refMb parents_refs ours noff = do
-  wrapTS sync_head
+  sync_head
   liftIO $ putStrLn "Merging"
-  commits <- fmap snd get
-  let
-    parents = map (\a -> resolve_ahash a commits) parents_refs
-    head_pos = index_only "HEAD" parents_refs
+  parents <- mapM resolve_ahash1 parents_refs
+  let head_pos = index_only "HEAD" parents_refs
   parents <- if head_pos /= 0
               then do
                 liftIO $ Cmd.reset $ head parents
@@ -809,6 +807,14 @@ find_sequence commits from to through =
 resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
   Just [_,mrk] -> maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk $ stateMarks commits)
   Nothing -> maybe ah hashString (Map.lookup ah $ stateRefs commits)
+
+resolve_ahash1 ah = do
+  refs <- fmap teRefs ask
+  case regex_match ah "^@(.*)$" of
+    Just [_,mrk] -> do
+      marks <- fmap tsMarks get
+      pure $ maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk marks)
+    Nothing -> pure $ maybe ah hashString (Map.lookup ah refs)
 
 git_no_uncommitted_changes :: MonadIO m => m Bool
 git_no_uncommitted_changes = liftIO (system "git diff-index --quiet --ignore-submodules HEAD") >>= \case
