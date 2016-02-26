@@ -391,13 +391,13 @@ run_step rebase_step = do
         liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
         wrapTS sync_head
         liftIO $ Cmd.fixup $ resolve_ahash ah commits
-      Reset ah -> do
-        let hash_or_ref = resolve_ahash ah commits
-        if (Hash hash_or_ref) `Map.member` stateByHash commits
-          then modify' (modifySnd (\c -> c{stateHead = Known $ Hash hash_or_ref}))
-          else do
+      Reset ah -> wrapTS $ do
+        hash_or_ref <- resolve_ahash1 ah
+        fmap (Map.member (Hash hash_or_ref) . teByHash) ask >>= \case
+          True -> modify' (\ts -> ts { tsHead = Known $ Hash hash_or_ref})
+          False -> do
             liftIO $ Cmd.reset hash_or_ref
-            modify' (modifySnd (\c -> c{stateHead = Sync}))
+            modify' (\ts -> ts{tsHead = Sync})
       Exec cmd -> do
         wrapTS sync_head
         liftIO $ run_command cmd
