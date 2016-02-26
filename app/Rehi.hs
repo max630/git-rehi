@@ -406,7 +406,7 @@ run_step rebase_step = do
         wrapTS sync_head
         wrapTS $ comment new_comment
       Mark mrk -> wrapTS $ add_mark mrk
-      Merge commentFrom parents ours noff -> merge commentFrom parents ours noff
+      Merge commentFrom parents ours noff -> wrapTS $ merge commentFrom parents ours noff
       UserComment _ -> pure ()
     pure StepNext
 
@@ -421,20 +421,27 @@ add_mark mrk = do
   liftIO $ appendToFile (gitDir <> "/rehi/marks") (mrk <> " " <> hashString hashNow <> "\n")
 
 merge commit_refMb merge_parents_refs ours noff = do
-  commits <- fmap snd get
-  case (stateHead commits, commit_refMb) of
-    (Known cachedHash, Just commit_ref)
-      | Just step_hash <- Map.lookup commit_ref (stateRefs commits)
-      , Just step_data <- Map.lookup step_hash (stateByHash commits)
-      , equalWith (\expect_ref actual_hash
-                      -> case expect_ref of
-                          "HEAD" -> cachedHash == actual_hash
-                          _ -> (resolve_ahash expect_ref commits) `ByteString.isPrefixOf` hashString actual_hash) -- FIXME: sometimes expected parent is unknown so need to do prefix compare here
-                  merge_parents_refs (entryParents step_data)
-      -> do
-          liftIO $ putStrLn ("Fast-forwarding unchanged merge: " <> commit_ref <> " " <> entrySubject step_data)
-          modify' (modifySnd (\c -> c{stateHead = Known step_hash}))
-    _ -> wrapTS $ merge_new commit_refMb merge_parents_refs ours noff
+  fmap ((,commit_refMb) . tsHead) get >>= \case
+    (Known cachedHash, Just commit_ref) -> do
+      Env { envRest = (refs, byHash) } <- ask
+      case () of
+        _ | Just step_hash <- Map.lookup commit_ref refs
+          , Just step_data <- Map.lookup step_hash byHash
+          -> fix (\rec actuals expects ->
+                    case (actuals, expects) of
+                      ("HEAD" : at, eh : et) -> if eh == cachedHash then rec at et else merge_new_
+                      (ah : at, eh : et) -> do
+                        ahHash <- resolve_ahash1 ah
+                        if ByteString.isPrefixOf ahHash (hashString eh) then rec at et else merge_new_
+                      ([], []) -> do
+                        liftIO $ putStrLn ("Fast-forwarding unchanged merge: " <> commit_ref <> " " <> entrySubject step_data)
+                        modify' (\s -> s{tsHead = Known step_hash})
+                      _ -> merge_new_)
+                merge_parents_refs (entryParents step_data)
+          | otherwise -> merge_new_
+    _ -> merge_new_
+  where
+    merge_new_ = merge_new commit_refMb merge_parents_refs ours noff
 
 merge_new commit_refMb parents_refs ours noff = do
   sync_head
