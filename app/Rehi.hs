@@ -361,7 +361,7 @@ run_rebase todo commits target_ref = evalStateT doJob (todo, commits)
                                   liftIO $ save_todo todo (gitDir <> "/rehi/todo") commits
                                   liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits)
                                 put (todo, commits)
-                                run_step current >>= \case
+                                wrapTS (run_step current) >>= \case
                                   StepPause -> pure KeepData
                                   StepNext -> do
                                     when hasIo $ liftIO (removeFile (gitDir <> "/rehi/current"))
@@ -376,22 +376,22 @@ abort_rebase = do
   cleanup_save
 
 run_step rebase_step = do
-  commits <- fmap snd get
   evalContT $ do
     case rebase_step of
       Pick ah -> do
-        wrapTS $ pick $ resolve_ahash ah commits
+        pick =<< resolve_ahash1 ah
       Edit ah -> do
-        liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
-        wrapTS $ pick $ resolve_ahash ah commits
-        wrapTS sync_head
+        -- TODO: change this also
+        -- liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
+        pick =<< resolve_ahash1 ah
+        sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
       Fixup ah -> do
-        liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
-        wrapTS sync_head
-        liftIO $ Cmd.fixup $ resolve_ahash ah commits
-      Reset ah -> wrapTS $ do
+        -- liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
+        sync_head
+        (liftIO . Cmd.fixup) =<< resolve_ahash1 ah
+      Reset ah -> do
         hash_or_ref <- resolve_ahash1 ah
         fmap (Map.member (Hash hash_or_ref) . teByHash) ask >>= \case
           True -> modify' (\ts -> ts { tsHead = Known $ Hash hash_or_ref})
@@ -399,14 +399,14 @@ run_step rebase_step = do
             liftIO $ Cmd.reset hash_or_ref
             modify' (\ts -> ts{tsHead = Sync})
       Exec cmd -> do
-        wrapTS sync_head
+        sync_head
         liftIO $ run_command cmd
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
-        wrapTS sync_head
-        wrapTS $ comment new_comment
-      Mark mrk -> wrapTS $ add_mark mrk
-      Merge commentFrom parents ours noff -> wrapTS $ merge commentFrom parents ours noff
+        sync_head
+        comment new_comment
+      Mark mrk -> add_mark mrk
+      Merge commentFrom parents ours noff -> merge commentFrom parents ours noff
       UserComment _ -> pure ()
     pure StepNext
 
