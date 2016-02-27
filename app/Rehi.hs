@@ -4,6 +4,7 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -159,6 +160,8 @@ teGitDir = envGitDir
 teRefs = fst . envRest
 
 teByHash = snd . envRest
+
+pattern TE refs byHash <- Env { envRest = (refs, byHash) }
 
 wrapTS :: (MonadState ([Step], Commits) m, MonadReader (Env ()) m) => RWST TE () TS m a -> m a
 wrapTS f = do
@@ -375,20 +378,26 @@ abort_rebase = do
   liftIO $ Cmd.checkout_force initial_branch
   cleanup_save
 
+run_step
+  :: (MonadIO m,
+      MonadReader (Env (Map.Map ByteString Hash, Map.Map Hash Entry)) m,
+      MonadState TS m) =>
+     Step -> m StepResult
 run_step rebase_step = do
   evalContT $ do
     case rebase_step of
       Pick ah -> do
         pick =<< resolve_ahash1 ah
       Edit ah -> do
-        -- TODO: change this also
-        -- liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
+        TE refs byHash <- ask
+        liftIO $ putStrLn ("Apply: " <> commits_get_subject1 refs byHash ah)
         pick =<< resolve_ahash1 ah
         sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
       Fixup ah -> do
-        -- liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
+        TE refs byHash <- ask
+        liftIO $ putStrLn ("Fixup: " <> commits_get_subject1 refs byHash ah)
         sync_head
         (liftIO . Cmd.fixup) =<< resolve_ahash1 ah
       Reset ah -> do
@@ -624,10 +633,12 @@ cleanup_save = do
               liftIO (run_command ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))
     liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
-commits_get_subject commits ah =
+commits_get_subject commits ah = commits_get_subject1 (stateRefs commits) (stateByHash commits) ah
+
+commits_get_subject1 refs byHash ah = do
   maybe "???"
-        (\h -> maybe "???" entrySubject $ Map.lookup h $ stateByHash commits)
-        (Map.lookup ah $ stateRefs commits)
+        (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
+        (Map.lookup ah refs)
 
 save_todo todo path commits = do
   let
