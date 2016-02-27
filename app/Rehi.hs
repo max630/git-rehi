@@ -389,21 +389,21 @@ run_step rebase_step = do
   evalContT $ do
     case rebase_step of
       Pick ah -> do
-        pick =<< resolve_ahash1 ah
+        pick =<< resolve_ahash ah
       Edit ah -> do
         TE refs byHash <- ask
-        liftIO $ putStrLn ("Apply: " <> commits_get_subject1 refs byHash ah)
-        pick =<< resolve_ahash1 ah
+        liftIO $ putStrLn ("Apply: " <> commits_get_subject refs byHash ah)
+        pick =<< resolve_ahash ah
         sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
       Fixup ah -> do
         TE refs byHash <- ask
-        liftIO $ putStrLn ("Fixup: " <> commits_get_subject1 refs byHash ah)
+        liftIO $ putStrLn ("Fixup: " <> commits_get_subject refs byHash ah)
         sync_head
-        (liftIO . Cmd.fixup) =<< resolve_ahash1 ah
+        (liftIO . Cmd.fixup) =<< resolve_ahash ah
       Reset ah -> do
-        hash_or_ref <- resolve_ahash1 ah
+        hash_or_ref <- resolve_ahash ah
         fmap (Map.member (Hash hash_or_ref) . teByHash) ask >>= \case
           True -> modify' (\ts -> ts { tsHead = Known $ Hash hash_or_ref})
           False -> do
@@ -442,7 +442,7 @@ merge commit_refMb merge_parents_refs ours noff = do
                     case (actuals, expects) of
                       ("HEAD" : at, eh : et) -> if eh == cachedHash then rec at et else merge_new_
                       (ah : at, eh : et) -> do
-                        ahHash <- resolve_ahash1 ah
+                        ahHash <- resolve_ahash ah
                         if ByteString.isPrefixOf ahHash (hashString eh) then rec at et else merge_new_
                       ([], []) -> do
                         liftIO $ putStrLn ("Fast-forwarding unchanged merge: " <> commit_ref <> " " <> entrySubject step_data)
@@ -457,7 +457,7 @@ merge commit_refMb merge_parents_refs ours noff = do
 merge_new commit_refMb parents_refs ours noff = do
   sync_head
   liftIO $ putStrLn "Merging"
-  parents <- mapM resolve_ahash1 parents_refs
+  parents <- mapM resolve_ahash parents_refs
   let head_pos = index_only "HEAD" parents_refs
   parents <- if head_pos /= 0
               then do
@@ -635,9 +635,7 @@ cleanup_save = do
               liftIO (run_command ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))
     liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
-commits_get_subject commits ah = commits_get_subject1 (stateRefs commits) (stateByHash commits) ah
-
-commits_get_subject1 refs byHash ah = do
+commits_get_subject refs byHash ah = do
   maybe "???"
         (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
         (Map.lookup ah refs)
@@ -647,9 +645,9 @@ save_todo todo path refs byHash = do
     (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
   withFile path WriteMode $ \out -> do
     forM_ main $ hPutStrLn out . \case
-      Pick ah -> "pick " <> ah <> " " <> commits_get_subject1 refs byHash ah
-      Edit ah -> "edit " <> ah <> " " <> commits_get_subject1 refs byHash ah
-      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject1 refs byHash ah
+      Pick ah -> "pick " <> ah <> " " <> commits_get_subject refs byHash ah
+      Edit ah -> "edit " <> ah <> " " <> commits_get_subject refs byHash ah
+      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject refs byHash ah
       Reset tgt -> "reset " <> tgt
       Exec cmd -> case regex_match cmd "\\n" of
                     Just _ -> error "multiline command canot be saved"
@@ -661,7 +659,7 @@ save_todo todo path refs byHash = do
           <> (if noff then " --no-ff" else "")
           <> maybe "" (" -c " <>) ref
           <> " " <> ByteString.intercalate "," ps
-          <> maybe "" ((" " <>) . commits_get_subject1 refs byHash) ref)
+          <> maybe "" ((" " <>) . commits_get_subject refs byHash) ref)
       Mark mrk -> ": " <> mrk
       UserComment cmt -> "# " <> cmt
     if (not $ null tail)
@@ -824,11 +822,7 @@ find_sequence commits from to through =
                   in (tasks, id)
                 makeParentTasks = makeParentTasksEx (\p -> FsThread FsFinalizeMergebases p [])
 
-resolve_ahash ah commits = case regex_match ah "^@(.*)$" of
-  Just [_,mrk] -> maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk $ stateMarks commits)
-  Nothing -> maybe ah hashString (Map.lookup ah $ stateRefs commits)
-
-resolve_ahash1 ah = do
+resolve_ahash ah = do
   refs <- fmap teRefs ask
   case regex_match ah "^@(.*)$" of
     Just [_,mrk] -> do
