@@ -223,7 +223,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
     then (do
       let commits' = commits{ stateHead = Known dest_hash }
       gitDir <- askGitDir
-      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") commits'
+      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") (stateRefs commits') (stateByHash commits')
       liftIO $ Cmd.checkout_detached $ hashString dest_hash
       run_rebase todo commits' target_ref)
     else (do
@@ -292,7 +292,7 @@ edit_todo old_todo commits = do
   gitDir <- askGitDir
   (todoPath, todoHandle) <- liftIO (openBinaryTempFile (gitDir <> "/rehi") "todo.XXXXXXXX")
   liftIO (hClose todoHandle)
-  liftIO $ save_todo old_todo todoPath commits
+  liftIO $ save_todo old_todo todoPath (stateRefs commits) (stateByHash commits)
   editor <- liftIO git_sequence_editor
   retry (do
     liftIO (run_command (editor <> " " <> todoPath))
@@ -361,8 +361,8 @@ run_rebase todo commits target_ref = evalStateT doJob (todo, commits)
                                               TailPickWithComment _ _ -> False
                                               _ -> True
                                 when hasIo (do
-                                  liftIO $ save_todo todo (gitDir <> "/rehi/todo") commits
-                                  liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits)
+                                  liftIO $ save_todo todo (gitDir <> "/rehi/todo") (stateRefs commits) (stateByHash commits)
+                                  liftIO $ save_todo [current] (gitDir <> "/rehi/current") (stateRefs commits) (stateByHash commits))
                                 put (todo, commits)
                                 wrapTS (run_step current) >>= \case
                                   StepPause -> pure KeepData
@@ -640,14 +640,14 @@ commits_get_subject1 refs byHash ah = do
         (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
         (Map.lookup ah refs)
 
-save_todo todo path commits = do
+save_todo todo path refs byHash = do
   let
     (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
   withFile path WriteMode $ \out -> do
     forM_ main $ hPutStrLn out . \case
-      Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
-      Edit ah -> "edit " <> ah <> " " <> commits_get_subject commits ah
-      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject commits ah
+      Pick ah -> "pick " <> ah <> " " <> commits_get_subject1 refs byHash ah
+      Edit ah -> "edit " <> ah <> " " <> commits_get_subject1 refs byHash ah
+      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject1 refs byHash ah
       Reset tgt -> "reset " <> tgt
       Exec cmd -> case regex_match cmd "\\n" of
                     Just _ -> error "multiline command canot be saved"
@@ -659,7 +659,7 @@ save_todo todo path commits = do
           <> (if noff then " --no-ff" else "")
           <> maybe "" (" -c " <>) ref
           <> " " <> ByteString.intercalate "," ps
-          <> maybe "" ((" " <>) . commits_get_subject commits) ref)
+          <> maybe "" ((" " <>) . commits_get_subject1 refs byHash) ref)
       Mark mrk -> ": " <> mrk
       UserComment cmt -> "# " <> cmt
     if (not $ null tail)
