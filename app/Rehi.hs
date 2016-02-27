@@ -66,22 +66,20 @@ main = do
     case parsed of
       Abort -> abort_rebase
       Continue -> do
-        (todo, current, commits, target_ref) <- restore_rebase
+        (todo, current, commits, target_ref, marks) <- restore_rebase
         case current of
           Just c -> do
             run_continue c commits
             liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
           Nothing -> return ()
-        let commits' = commits { stateHead = Sync }
-        lift $ run_rebase (envGitDir env) todo commits' target_ref
+        lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
       Skip -> do
-        (todo, current, commits, target_ref) <- restore_rebase
+        (todo, current, commits, target_ref, marks) <- restore_rebase
         case current of
           Just c -> do
             liftIO $ Cmd.reset $ "HEAD"
             liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
-        let commits' = commits { stateHead = Sync }
-        lift $ run_rebase (envGitDir env) todo commits' target_ref
+        lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
         liftIO (doesFileExist currentPath) `unlessM` error "No rehi in progress"
@@ -119,9 +117,7 @@ data CliMode =
 data Head = Sync | Known Hash deriving Show
 
 data Commits = Commits {
-    stateHead :: Head
-  , stateRefs :: Map.Map ByteString Hash
-  , stateMarks :: Map.Map ByteString Hash
+    stateRefs :: Map.Map ByteString Hash
   , stateByHash :: Map.Map Hash Entry
   } deriving Show
 
@@ -165,14 +161,6 @@ teRefs = fst . envRest
 teByHash = snd . envRest
 
 pattern TE refs byHash <- Env { envRest = (refs, byHash) }
-
-wrapTS :: (MonadState ([Step], Commits) m, MonadReader (Env ()) m) => RWST TE () TS m a -> m a
-wrapTS f = do
-  gitDir <- askGitDir
-  (_, sIn@Commits { stateHead = h, stateRefs = refs, stateByHash = byHash }) <- get
-  (v, sOut, _) <- runRWST f (Env gitDir (refs, byHash)) (TS h (stateMarks sIn))
-  modify' (modifySnd (\s -> s{stateHead = tsHead sOut, stateMarks = tsMarks sOut}))
-  pure v
 
 data StepResult = StepPause | StepNext
 
@@ -224,11 +212,10 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
     else pure (todo, commits)
   if any (\case { UserComment _ -> False ; _ -> True }) todo
     then (do
-      let commits' = commits{ stateHead = Known dest_hash }
       gitDir <- askGitDir
-      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") (stateRefs commits') (stateByHash commits')
+      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") (stateRefs commits) (stateByHash commits)
       liftIO $ Cmd.checkout_detached $ hashString dest_hash
-      lift $ run_rebase gitDir todo commits' target_ref)
+      lift $ run_rebase gitDir todo commits target_ref Map.empty (Known dest_hash))
     else (do
         liftIO(putStrLn "Nothing to do")
         cleanup_save)
@@ -236,14 +223,14 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
 restore_rebase = do
   gitDir <- askGitDir
   target_ref <- liftIO (readFile (gitDir <> "/rehi/target_ref"))
-  commits <- git_load_commits
+  (commits, marks) <- git_load_commits
   todo <- read_todo (gitDir <> "/rehi/todo") commits
   current <- ifM (liftIO (doesFileExist (gitDir <> "/rehi/current")))
                 (do
                   [step] <- read_todo (gitDir <> "/rehi/current") commits
                   pure (Just step))
                 (pure Nothing)
-  pure (todo, current, commits, target_ref)
+  pure (todo, current, commits, target_ref, marks)
 
 init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> ReaderT (Env a) IO ([_], _, _)
 init_rebase dest source_from through source_to target_ref initial_branch = do
@@ -336,10 +323,10 @@ run_continue current commits = do
 data FinalizeMode = CleanupData | KeepData
 
 -- TODO mutable commits
-run_rebase gitDir todo commits target_ref =
+run_rebase gitDir todo commits target_ref marks curHead =
     evalStateT
       (runReaderT doJob (Env gitDir (stateRefs commits, stateByHash commits)))
-      (TS (stateHead commits) (stateMarks commits))
+      (TS curHead marks)
   where
     doJob = do
       result <- mainLoop
@@ -555,7 +542,7 @@ git_fetch_cli_commits from to = do
   Cmd.verify_cmdarg from
   Cmd.verify_cmdarg to
   git_fetch_commits ("git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> from <> ".." <> to)
-                    (Commits Sync Map.empty Map.empty Map.empty)
+                    (Commits Map.empty Map.empty)
 
 git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader (Env a) m) => ByteString -> Commits -> m Commits
 git_fetch_commits cmd commits = do
@@ -575,15 +562,14 @@ git_fetch_commits cmd commits = do
 
 git_load_commits = do
     gitDir <- askGitDir
+    commits <- execStateT (mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") '\0') commitsEmpty
     let marksFile = gitDir <> "/rehi/marks"
-    execStateT (do
-                  mapFileLinesM git_parse_commit_line (gitDir <> "/rehi/commits") '\0'
-                  liftIO (doesFileExist marksFile) `whenM` mapFileLinesM addMark marksFile '\n')
-               commitsEmpty
+    marks <- execStateT (liftIO (doesFileExist marksFile) `whenM` mapFileLinesM addMark marksFile '\n') Map.empty
+    pure (commits, marks)
   where
     addMark line = do
       case regex_match line "^([0-9a-zA-Z_\\/]+) ([0-9a-fA-F]+)$" of
-        Just [_, mName, mValue] -> modify' (\c -> c{ stateMarks = Map.insert mName (Hash mValue) (stateMarks c) })
+        Just [_, mName, mValue] -> modify' (Map.insert mName (Hash mValue))
         Nothing -> fail ("Ivalid mark line: " <> show line)
 
 git_parse_commit_line line = do
@@ -737,7 +723,7 @@ read_todo path commits = do
         RStDone -> tell [UserComment line]
         mode -> throwM $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
 
-commitsEmpty = Commits Sync Map.empty Map.empty Map.empty
+commitsEmpty = Commits Map.empty Map.empty
 
 returnC x = ContT $ const x
 
