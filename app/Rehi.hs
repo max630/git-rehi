@@ -31,6 +31,7 @@ import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
 import Control.Monad.RWS(execRWST, RWST, runRWST)
 import Control.Monad.State(put,get,modify',MonadState)
+import Control.Monad.Trans(lift)
 import Control.Monad.Trans.Reader(ReaderT(runReaderT))
 import Control.Monad.Trans.State(evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
@@ -72,7 +73,7 @@ main = do
             liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
           Nothing -> return ()
         let commits' = commits { stateHead = Sync }
-        run_rebase todo commits' target_ref
+        lift $ run_rebase (envGitDir env) todo commits' target_ref
       Skip -> do
         (todo, current, commits, target_ref) <- restore_rebase
         case current of
@@ -225,7 +226,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
       gitDir <- askGitDir
       liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") (stateRefs commits') (stateByHash commits')
       liftIO $ Cmd.checkout_detached $ hashString dest_hash
-      run_rebase todo commits' target_ref)
+      lift $ run_rebase gitDir todo commits' target_ref)
     else (do
         liftIO(putStrLn "Nothing to do")
         cleanup_save)
@@ -333,7 +334,10 @@ run_continue current commits = do
 data FinalizeMode = CleanupData | KeepData
 
 -- TODO mutable commits
-run_rebase todo commits target_ref = evalStateT doJob (todo, commits)
+run_rebase gitDir todo commits target_ref =
+    evalStateT
+      (runReaderT doJob (Env gitDir (stateRefs commits, stateByHash commits)))
+      (TS (stateHead commits) (stateMarks commits))
   where
     doJob = do
       result <- mainLoop
@@ -345,31 +349,29 @@ run_rebase todo commits target_ref = evalStateT doJob (todo, commits)
         KeepData -> pure ()
     release = do
       (catch :: _ -> (SomeException -> _) -> _)
-        (wrapTS sync_head)
+        sync_head
         (\e -> do
           liftIO $ Prelude.putStrLn ("Fatal error: " <> show e)
           liftIO $ putStrLn "Not possible to continue"
-          gitDir <- askGitDir
           liftIO $ removeFile (gitDir <> "/rehi/todo"))
-    mainLoop = fix $ \rec -> do
-                            (todo, commits) <- get
+    mainLoop = fix (\rec todo -> do
                             case todo of
                               (current : todo) -> do
-                                gitDir <- askGitDir
                                 let hasIo = case current of
                                               UserComment _ -> False
                                               TailPickWithComment _ _ -> False
                                               _ -> True
                                 when hasIo (do
-                                  liftIO $ save_todo todo (gitDir <> "/rehi/todo") (stateRefs commits) (stateByHash commits)
-                                  liftIO $ save_todo [current] (gitDir <> "/rehi/current") (stateRefs commits) (stateByHash commits))
-                                put (todo, commits)
-                                wrapTS (run_step current) >>= \case
+                                  TE refs byHash <- ask
+                                  liftIO $ save_todo todo (gitDir <> "/rehi/todo") refs byHash
+                                  liftIO $ save_todo [current] (gitDir <> "/rehi/current") refs byHash)
+                                run_step current >>= \case
                                   StepPause -> pure KeepData
                                   StepNext -> do
                                     when hasIo $ liftIO (removeFile (gitDir <> "/rehi/current"))
-                                    rec
-                              [] -> pure CleanupData
+                                    rec todo
+                              [] -> pure CleanupData)
+                    todo
 
 abort_rebase = do
   gitDir <- askGitDir
@@ -624,7 +626,7 @@ init_save target_ref initial_branch = do
   liftIO $ writeFile (gitDir <> "/rehi/target_ref") target_ref
   liftIO $ writeFile (gitDir <> "/rehi/initial_branch") initial_branch
 
-cleanup_save :: (MonadReader (Env ()) m, MonadIO m) => m ()
+cleanup_save :: (MonadReader (Env a) m, MonadIO m) => m ()
 cleanup_save = do
   gitDir <- askGitDir
   liftIO (doesDirectoryExist (gitDir <> "/rehi")) `whenM` (do
