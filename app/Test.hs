@@ -81,11 +81,11 @@ i2c (n,ps) = (Hash h, Entry h (Hash h) h phs (Hash h) h)
     h = hashes !! n
     phs = map (Hash . (hashes !!)) ps
 
-noCommits = Commits Sync M.empty M.empty M.empty
+noCommits = Commits M.empty M.empty
 
 test_brs commits from to throughs =
   build_rebase_sequence
-    (Commits Sync M.empty M.empty (M.fromList $ map i2c commits))
+    (Commits M.empty (M.fromList $ map i2c commits))
     (Hash (hashes !! from))
     (Hash (hashes !! to))
     (map (Hash . (hashes !!)) throughs)
@@ -117,7 +117,7 @@ tp2 = runParseTodo "edit 316bf9c init haskell project\n"
 tp3 = runParseTodo "pick 316bf9c\ncomment {{{\ntest-comment\n}}}\n"
 
 runParseTodo content = withTestFile $ \f h -> do
-  let c = Commits Sync M.empty M.empty M.empty
+  let c = Commits M.empty M.empty
   finally
     (BC.hPut h content)
     (hClose h)
@@ -132,7 +132,7 @@ withTestFile func = do
 
 s1 = withTestFile $ \f h -> do
   hClose h
-  save_todo [Merge (Just "1") ["HEAD","2"] True False] f noCommits
+  save_todo [Merge (Just "1") ["HEAD","2"] True False] f (M.empty :: M.Map B.ByteString Hash) M.empty
   readFile f
 
 pl1 = execState
