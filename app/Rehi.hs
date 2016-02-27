@@ -80,6 +80,8 @@ main = do
           Just c -> do
             liftIO $ Cmd.reset $ "HEAD"
             liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
+        let commits' = commits { stateHead = Sync }
+        lift $ run_rebase (envGitDir env) todo commits' target_ref
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
         liftIO (doesFileExist currentPath) `unlessM` error "No rehi in progress"
