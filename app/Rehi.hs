@@ -322,7 +322,6 @@ run_continue current commits = do
 
 data FinalizeMode = CleanupData | KeepData
 
--- TODO mutable commits
 run_rebase gitDir todo commits target_ref marks curHead =
     evalStateT
       (runReaderT doJob (Env gitDir commits))
