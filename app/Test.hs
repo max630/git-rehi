@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Test where
 
-import Rehi
+import Rehi hiding (main)
 import Rehi.Regex (regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
 
@@ -64,8 +64,8 @@ allTests = test [ "regex" ~:
                 , "save_todo" ~:
                     [ "1" ~: s1 >>= (@?= "merge --ours -c 1 HEAD,2 ???\n") ]
                 , "parse_commit_line" ~:
-                    [ "1" ~: stateRefs pl1 M.! "9ac82f5" ~?= Hash "9ac82f5327efe63acb5267d9d55edbd8576d9d26"
-                    , "2" ~: entryBody (stateByHash pl1 M.! Hash "9ac82f5327efe63acb5267d9d55edbd8576d9d26") ~?= "Merge remote-tracking branch 'origin/b2'\n\nresolve conflict also\n"]
+                    [ "1" ~: commitsRefs pl1 M.! "9ac82f5" ~?= Hash "9ac82f5327efe63acb5267d9d55edbd8576d9d26"
+                    , "2" ~: entryBody (commitsByHash pl1 M.! Hash "9ac82f5327efe63acb5267d9d55edbd8576d9d26") ~?= "Merge remote-tracking branch 'origin/b2'\n\nresolve conflict also\n"]
                 , "comments_from_string" ~:
                     [ "normal" ~: comments_from_string "a\nb\n" 0 ~?= [UserComment "a", UserComment "b"]
                     , "pending line" ~: comments_from_string "a\nb" 0 ~?= [UserComment "a", UserComment "b"] ]
@@ -132,7 +132,7 @@ withTestFile func = do
 
 s1 = withTestFile $ \f h -> do
   hClose h
-  save_todo [Merge (Just "1") ["HEAD","2"] True False] f (M.empty :: M.Map B.ByteString Hash) M.empty
+  save_todo [Merge (Just "1") ["HEAD","2"] True False] f commitsEmpty
   readFile f
 
 pl1 = execState
