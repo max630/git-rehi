@@ -117,8 +117,8 @@ data CliMode =
 data Head = Sync | Known Hash deriving Show
 
 data Commits = Commits {
-    stateRefs :: Map.Map ByteString Hash
-  , stateByHash :: Map.Map Hash Entry
+    commitsRefs :: Map.Map ByteString Hash
+  , commitsByHash :: Map.Map Hash Entry
   } deriving Show
 
 data Entry = Entry {
@@ -152,15 +152,15 @@ data TS = TS {
 }
 
 -- Tmp Env
-type TE = Env (Map.Map ByteString Hash, Map.Map Hash Entry)
+type TE = Env Commits
 
 teGitDir = envGitDir
 
-teRefs = fst . envRest
+teRefs = commitsRefs . envRest
 
-teByHash = snd . envRest
+teByHash = commitsByHash . envRest
 
-pattern TE refs byHash <- Env { envRest = (refs, byHash) }
+pattern TE refs byHash <- Env { envRest = (Commits refs byHash) }
 
 data StepResult = StepPause | StepNext
 
@@ -213,7 +213,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
   if any (\case { UserComment _ -> False ; _ -> True }) todo
     then (do
       gitDir <- askGitDir
-      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") (stateRefs commits) (stateByHash commits)
+      liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") commits
       liftIO $ Cmd.checkout_detached $ hashString dest_hash
       lift $ run_rebase gitDir todo commits target_ref Map.empty (Known dest_hash))
     else (do
@@ -244,9 +244,9 @@ init_rebase dest source_from through source_to target_ref initial_branch = do
   pure (todo, commits, dest_hash)
 
 find_unknown_parents commits =
-  Set.toList $ Set.fromList [ p | c <- Map.elems (stateByHash commits),
+  Set.toList $ Set.fromList [ p | c <- Map.elems (commitsByHash commits),
                                   p <- entryParents c,
-                                  not (Map.member p (stateByHash commits)) ]
+                                  not (Map.member p (commitsByHash commits)) ]
 
 help = "Commands:\n\
        \\n\
@@ -274,15 +274,15 @@ add_info_to_todo old_todo commits = old_todo ++ comments_from_string help 0 ++ [
       Merge (Just ah) _ _ _ -> from_hash ah
       _ -> []) old_todo
     from_hash ah = fromMaybe [] (do
-      h <- Map.lookup ah (stateRefs commits)
-      e <- Map.lookup h (stateByHash commits)
+      h <- Map.lookup ah (commitsRefs commits)
+      e <- Map.lookup h (commitsByHash commits)
       pure ([UserComment ("----- " <> ah <> " -----")] ++ comments_from_string (entryBody e) 0))
 
 edit_todo old_todo commits = do
   gitDir <- askGitDir
   (todoPath, todoHandle) <- liftIO (openBinaryTempFile (gitDir <> "/rehi") "todo.XXXXXXXX")
   liftIO (hClose todoHandle)
-  liftIO $ save_todo old_todo todoPath (stateRefs commits) (stateByHash commits)
+  liftIO $ save_todo old_todo todoPath commits
   editor <- liftIO git_sequence_editor
   retry (do
     liftIO (run_command (editor <> " " <> todoPath))
@@ -325,7 +325,7 @@ data FinalizeMode = CleanupData | KeepData
 -- TODO mutable commits
 run_rebase gitDir todo commits target_ref marks curHead =
     evalStateT
-      (runReaderT doJob (Env gitDir (stateRefs commits, stateByHash commits)))
+      (runReaderT doJob (Env gitDir commits))
       (TS curHead marks)
   where
     doJob = do
@@ -351,16 +351,15 @@ run_rebase gitDir todo commits target_ref marks curHead =
                                               TailPickWithComment _ _ -> False
                                               _ -> True
                                 when hasIo (do
-                                  TE refs byHash <- ask
-                                  liftIO $ save_todo todo (gitDir <> "/rehi/todo") refs byHash
-                                  liftIO $ save_todo [current] (gitDir <> "/rehi/current") refs byHash)
+                                  commits <- envRest <$> ask
+                                  liftIO $ save_todo todo (gitDir <> "/rehi/todo") commits
+                                  liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits)
                                 run_step current >>= \case
                                   StepPause -> pure KeepData
                                   StepNext -> do
                                     when hasIo $ liftIO (removeFile (gitDir <> "/rehi/current"))
                                     rec todo
-                              [] -> pure CleanupData)
-                    todo
+                              [] -> pure CleanupData) todo
 
 abort_rebase = do
   gitDir <- askGitDir
@@ -371,7 +370,7 @@ abort_rebase = do
 
 run_step
   :: (MonadIO m,
-      MonadReader (Env (Map.Map ByteString Hash, Map.Map Hash Entry)) m,
+      MonadReader TE m,
       MonadState TS m) =>
      Step -> m StepResult
 run_step rebase_step = do
@@ -380,15 +379,15 @@ run_step rebase_step = do
       Pick ah -> do
         pick =<< resolve_ahash ah
       Edit ah -> do
-        TE refs byHash <- ask
-        liftIO $ putStrLn ("Apply: " <> commits_get_subject refs byHash ah)
+        commits <- envRest <$> ask
+        liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
         pick =<< resolve_ahash ah
         sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
       Fixup ah -> do
-        TE refs byHash <- ask
-        liftIO $ putStrLn ("Fixup: " <> commits_get_subject refs byHash ah)
+        commits <- envRest <$> ask
+        liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
         sync_head
         (liftIO . Cmd.fixup) =<< resolve_ahash ah
       Reset ah -> do
@@ -423,7 +422,7 @@ add_mark mrk = do
 merge commit_refMb merge_parents_refs ours noff = do
   fmap ((,commit_refMb) . tsHead) get >>= \case
     (Known cachedHash, Just commit_ref) -> do
-      Env { envRest = (refs, byHash) } <- ask
+      (Commits refs byHash) <- envRest <$> ask
       case () of
         _ | Just step_hash <- Map.lookup commit_ref refs
           , Just step_data <- Map.lookup step_hash byHash
@@ -443,6 +442,7 @@ merge commit_refMb merge_parents_refs ours noff = do
   where
     merge_new_ = merge_new commit_refMb merge_parents_refs ours noff
 
+merge_new :: (MonadIO m, MonadState TS m, MonadReader TE m) => Maybe ByteString -> [ByteString] -> Bool -> Bool -> m ()
 merge_new commit_refMb parents_refs ours noff = do
   sync_head
   liftIO $ putStrLn "Merging"
@@ -491,7 +491,7 @@ comment new_comment = do
 build_rebase_sequence :: Commits -> Hash -> Hash -> [Hash] -> [Step]
 build_rebase_sequence commits source_from_hash source_to_hash through_hashes = from_mark ++ steps
   where
-    sequence = find_sequence (stateByHash commits) source_from_hash source_to_hash through_hashes
+    sequence = find_sequence (commitsByHash commits) source_from_hash source_to_hash through_hashes
     (marks, _, _)
           = foldl'
               (\(marks, mark_num, prev_hash) step_hash ->
@@ -504,7 +504,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
                               , mark_num + 1)
                             _ -> v)
                         (marks, mark_num)
-                        (filter (/= prev_hash) $ entryParents (stateByHash commits Map.! step_hash))
+                        (filter (/= prev_hash) $ entryParents (commitsByHash commits Map.! step_hash))
                 in (marks', mark_num', step_hash))
               (Map.fromList $ zip ([source_from_hash] ++ sequence) (repeat Nothing)
                , 1 :: Integer
@@ -514,7 +514,7 @@ build_rebase_sequence commits source_from_hash source_to_hash through_hashes = f
     steps = concat $ zipWith makeStep sequence (source_from_hash : sequence)
     makeStep this prev = reset ++ step ++ maybe [] ((:[]) . Mark) (marks Map.! this)
       where
-        thisE = stateByHash commits Map.! this
+        thisE = commitsByHash commits Map.! this
         (real_prev, reset) =
           if prev `elem` entryParents thisE
             then (prev, [])
@@ -532,11 +532,11 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
     mkParent p | p == real_prev = "HEAD"
                | Just (Just m) <- Map.lookup p marks = "@" <> m
                | Just Nothing <- Map.lookup p marks = error ("Unresolved mark for " <> show p)
-               | Just e <- Map.lookup p (stateByHash commits) = entryAHash e
+               | Just e <- Map.lookup p (commitsByHash commits) = entryAHash e
                | True = error ("Unknown parent: " <> show p)
     singleHead = index_only "HEAD" parents :: Integer
     ahash = entryAHash thisE
-    ours = entryTree thisE == entryTree (stateByHash commits Map.! head (entryParents thisE) )
+    ours = entryTree thisE == entryTree (commitsByHash commits Map.! head (entryParents thisE) )
 
 git_fetch_cli_commits from to = do
   Cmd.verify_cmdarg from
@@ -580,11 +580,11 @@ git_parse_commit_line line = do
       let
         (subject : _) = BC.split '\n' body
         obj = Entry ahash hash subject parents tree body
-      modify' (\c -> c{ stateByHash = Map.insertWith (const id) hash obj (stateByHash c)
-                      , stateRefs = Map.insertWith (\hNew hOld -> if hNew == hOld then hOld else error ("Duplicated ref with different hash: " <> show ahash <> "=>" <> show hOld <> ", " <> show hNew))
+      modify' (\c -> c{ commitsByHash = Map.insertWith (const id) hash obj (commitsByHash c)
+                      , commitsRefs = Map.insertWith (\hNew hOld -> if hNew == hOld then hOld else error ("Duplicated ref with different hash: " <> show ahash <> "=>" <> show hOld <> ", " <> show hNew))
                                               ahash
                                               hash
-                                              (stateRefs c)})
+                                              (commitsRefs c)})
     _ -> fail ("Could not parse line: " <> show line)
 
 git_merge_base b1 b2 = do
@@ -623,19 +623,19 @@ cleanup_save = do
               liftIO (run_command ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))
     liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
-commits_get_subject refs byHash ah = do
+commits_get_subject (Commits refs byHash) ah = do
   maybe "???"
         (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
         (Map.lookup ah refs)
 
-save_todo todo path refs byHash = do
+save_todo todo path commits = do
   let
     (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
   withFile path WriteMode $ \out -> do
     forM_ main $ hPutStrLn out . \case
-      Pick ah -> "pick " <> ah <> " " <> commits_get_subject refs byHash ah
-      Edit ah -> "edit " <> ah <> " " <> commits_get_subject refs byHash ah
-      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject refs byHash ah
+      Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
+      Edit ah -> "edit " <> ah <> " " <> commits_get_subject commits ah
+      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject commits ah
       Reset tgt -> "reset " <> tgt
       Exec cmd -> case regex_match cmd "\\n" of
                     Just _ -> error "multiline command canot be saved"
@@ -647,7 +647,7 @@ save_todo todo path refs byHash = do
           <> (if noff then " --no-ff" else "")
           <> maybe "" (" -c " <>) ref
           <> " " <> ByteString.intercalate "," ps
-          <> maybe "" ((" " <>) . commits_get_subject refs byHash) ref)
+          <> maybe "" ((" " <>) . commits_get_subject commits) ref)
       Mark mrk -> ": " <> mrk
       UserComment cmt -> "# " <> cmt
     if (not $ null tail)
@@ -810,6 +810,7 @@ find_sequence commits from to through =
                   in (tasks, id)
                 makeParentTasks = makeParentTasksEx (\p -> FsThread FsFinalizeMergebases p [])
 
+resolve_ahash :: (MonadReader TE m, MonadState TS m) => ByteString -> m ByteString
 resolve_ahash ah = do
   refs <- fmap teRefs ask
   case regex_match ah "^@(.*)$" of
