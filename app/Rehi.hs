@@ -203,14 +203,14 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
   (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
   (todo, commits) <- if interactive
     then (do
-      let todo' = add_info_to_todo todo commits
+      let todo' = serialize_todo (add_info_to_todo todo commits) commits
       edit_todo todo' commits >>= \case
         Just todo -> pure (todo, commits)
         Nothing -> do
           cleanup_save
           fail "Aborted")
-    else pure (todo, commits)
-  if any (\case { UserComment _ -> False ; _ -> True }) todo
+    else pure (serialize_todo todo commits, commits)
+  if any (\case { UserComment _ -> False ; _ -> True } . fst) todo
     then (do
       gitDir <- askGitDir
       liftIO $ save_todo todo (gitDir <> "/rehi/todo.backup") commits
@@ -230,7 +230,7 @@ restore_rebase = do
                   [step] <- read_todo (gitDir <> "/rehi/current") commits
                   pure (Just step))
                 (pure Nothing)
-  pure (todo, current, commits, target_ref, marks)
+  pure (serialize_todo todo commits, current, commits, target_ref, marks)
 
 init_rebase :: _ -> _ -> _ -> _ -> _ -> _ -> ReaderT (Env a) IO ([_], _, _)
 init_rebase dest source_from through source_to target_ref initial_branch = do
@@ -288,7 +288,7 @@ edit_todo old_todo commits = do
     liftIO (run_command (editor <> " " <> todoPath))
     todo_rc <- read_todo todoPath commits
     verify_marks todo_rc
-    pure todo_rc)
+    pure (serialize_todo todo_rc commits))
 
 verify_marks todo = do
     _ <- foldM (\marks -> \case
@@ -345,7 +345,7 @@ run_rebase gitDir todo commits target_ref marks curHead =
     mainLoop = fix (\rec todo -> do
                             case todo of
                               (current : todo) -> do
-                                let hasIo = case current of
+                                let hasIo = case fst current of
                                               UserComment _ -> False
                                               TailPickWithComment _ _ -> False
                                               _ -> True
@@ -353,7 +353,7 @@ run_rebase gitDir todo commits target_ref marks curHead =
                                   commits <- envRest <$> ask
                                   liftIO $ save_todo todo (gitDir <> "/rehi/todo") commits
                                   liftIO $ save_todo [current] (gitDir <> "/rehi/current") commits)
-                                run_step current >>= \case
+                                run_step (fst current) >>= \case
                                   StepPause -> pure KeepData
                                   StepNext -> do
                                     when hasIo $ liftIO (removeFile (gitDir <> "/rehi/current"))
@@ -627,11 +627,10 @@ commits_get_subject (Commits refs byHash) ah = do
         (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
         (Map.lookup ah refs)
 
-save_todo todo path commits = do
-  let
+serialize_todo todo commits = s_main ++ s_tail
+  where
     (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
-  withFile path WriteMode $ \out -> do
-    forM_ main $ hPutStrLn out . \case
+    s_main = handle main $ \case
       Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
       Edit ah -> "edit " <> ah <> " " <> commits_get_subject commits ah
       Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject commits ah
@@ -649,14 +648,22 @@ save_todo todo path commits = do
           <> maybe "" ((" " <>) . commits_get_subject commits) ref)
       Mark mrk -> ": " <> mrk
       UserComment cmt -> "# " <> cmt
+    s_tail = handle tail $ \case
+      UserComment cmt -> cmt
+      TailPickWithComment ah msg
+        -> "----- " <> ah <> " -----\n"
+            <> string_from_todo_comment msg
+    handle l f = map (\s -> (s, f s)) l
+
+save_todo todo path commits = do
+  let
+    (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False } . fst) $ reverse todo
+  withFile path WriteMode $ \out -> do
+    mapM_ (hPutStrLn out . snd) main
     if (not $ null tail)
       then do
         hPutStrLn out "end"
-        forM_ tail $ hPutStrLn out . \case
-          UserComment cmt -> cmt
-          TailPickWithComment ah msg
-            -> "----- " <> ah <> " -----\n"
-                <> string_from_todo_comment msg
+        mapM_ (hPutStrLn out . snd) tail
       else pure ()
 
 string_from_todo_comment :: ByteString -> ByteString

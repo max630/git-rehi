@@ -132,7 +132,7 @@ withTestFile func = do
 
 s1 = withTestFile $ \f h -> do
   hClose h
-  save_todo [Merge (Just "1") ["HEAD","2"] True False] f commitsEmpty
+  save_todo (serialize_todo [Merge (Just "1") ["HEAD","2"] True False] commitsEmpty) f commitsEmpty
   readFile f
 
 pl1 = execState
