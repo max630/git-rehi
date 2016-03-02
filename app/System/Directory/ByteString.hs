@@ -7,10 +7,7 @@ module System.Directory.ByteString (
     removeFile
   ) where
 
-import Control.Exception (throwIO)
-import Data.ByteString (ByteString)
-import Data.Text (unpack,pack)
-import Data.Text.Encoding (decodeUtf8',encodeUtf8)
+import System.IO.ByteString.Internals (decode, encode)
 
 import qualified System.Directory as SD
 
@@ -20,11 +17,8 @@ doesFileExist p = SD.doesFileExist =<< decode p
 
 doesDirectoryExist p = SD.doesDirectoryExist =<< decode p
 
-getTemporaryDirectory = SD.getTemporaryDirectory >>= (pure . encodeUtf8 . pack)
+getTemporaryDirectory = SD.getTemporaryDirectory >>= (pure . encode)
 
 removeDirectoryRecursive p = SD.removeDirectoryRecursive =<< decode p
 
 removeFile p = SD.removeFile =<< decode p
-
-decode :: ByteString -> IO String
-decode = either throwIO (pure . unpack) . decodeUtf8'

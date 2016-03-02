@@ -9,15 +9,13 @@ module System.Process.ByteString (
     waitForProcess,getProcessExitCode,terminateProcess
   ) where
 
-import Control.Exception (throwIO)
 import Data.ByteString (ByteString)
-import Data.Text (unpack)
-import Data.Text.Encoding (decodeUtf8')
 import System.Exit (ExitCode)
 import System.IO (Handle)
 import System.Posix.ByteString (RawFilePath)
 import System.Process (StdStream(..),ProcessHandle,waitForProcess,getProcessExitCode,
                        terminateProcess)
+import System.IO.ByteString.Internals (decode, decodePair)
 
 import qualified System.Process as SP
 
@@ -37,8 +35,6 @@ shell str = CreateProcess { cmdspec = ShellCommand str,
 
 decodeCmdSpec (ShellCommand s) = SP.ShellCommand <$> decode s
 decodeCmdSpec (RawCommand f as) = SP.RawCommand <$> decode f <*> mapM decode as
-
-decodePair (s1,s2) = (,) <$> decode s1 <*> decode s2
 
 decodeCreateProcess (CreateProcess cmdspec cwd env std_in std_out std_err close_fds create_group delegate_ctlc)
   = SP.CreateProcess <$> decodeCmdSpec cmdspec <*> mapM decode cwd <*> mapM (mapM decodePair) env
@@ -61,8 +57,6 @@ data CmdSpec
     = ShellCommand ByteString
     | RawCommand RawFilePath [ByteString]
 
-decode :: ByteString -> IO String
-decode = either throwIO (pure . unpack) . decodeUtf8'
 
 system :: ByteString -> IO ExitCode
 system s = decode s >>= SP.system

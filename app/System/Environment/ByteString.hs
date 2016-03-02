@@ -2,20 +2,12 @@ module System.Environment.ByteString (
     getArgs, getEnv, lookupEnv
   ) where
 
-import Control.Exception (throwIO)
-import Data.ByteString (ByteString)
-import Data.Text (unpack,pack)
-import Data.Text.Encoding (decodeUtf8',encodeUtf8)
+import System.IO.ByteString.Internals (decode, encode)
 
 import qualified System.Environment as SE
 
-getArgs = SE.getArgs >>= mapM (pure . encodeUtf8 . pack)
+getArgs = SE.getArgs >>= mapM (pure . encode)
 
-getEnv v = decode v >>= SE.getEnv >>= (pure . encodeUtf8 . pack)
+getEnv v = decode v >>= SE.getEnv >>= (pure . encode)
 
-lookupEnv v = decode v >>= SE.lookupEnv >>= (pure . fmap (encodeUtf8 . pack))
-
-decode :: ByteString -> IO String
-decode = either throwIO (pure . unpack) . decodeUtf8'
-
-
+lookupEnv v = decode v >>= SE.lookupEnv >>= (pure . fmap encode)

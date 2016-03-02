@@ -7,11 +7,9 @@ module System.File.ByteString (
 
 import Prelude hiding (readFile)
 
-import Control.Exception (throwIO)
 import Control.Monad (join)
 import Data.ByteString (ByteString)
-import Data.Text (unpack,pack)
-import Data.Text.Encoding (decodeUtf8',encodeUtf8)
+import System.IO.ByteString.Internals (decode, encode)
 
 import qualified Data.ByteString as B
 import qualified System.IO as SI
@@ -29,7 +27,4 @@ openBinaryTempFile dir fn = do
   dir <- decode dir
   fn <- decode fn
   (p, h) <- SI.openBinaryTempFile dir fn
-  pure (encodeUtf8 $ pack p, h)
-
-decode :: ByteString -> IO String
-decode = either throwIO (pure . unpack) . decodeUtf8'
+  pure (encode p, h)
