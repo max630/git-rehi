@@ -11,10 +11,11 @@ import Control.Monad.Writer(tell)
 import Data.List (foldl')
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
-import System.File.ByteString (withFile,openFile)
 import System.Exit (ExitCode(ExitSuccess))
 import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
-import System.Process.ByteString (system,shell,std_out,createProcess,StdStream(CreatePipe),waitForProcess)
+import System.Process(StdStream(CreatePipe),waitForProcess)
+
+import Rehi.IO (withBinaryFile,openBinaryFile,createProcess,system,shell,std_out)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
@@ -51,7 +52,7 @@ mapCmdLinesM func cmd sep = do
 
 mapFileLinesM :: (MonadIO m, MonadMask m) => (ByteString.ByteString -> m ()) -> ByteString.ByteString -> Char -> m ()
 mapFileLinesM func path sep = do
-  h <- liftIO $ openFile path ReadMode
+  h <- liftIO $ openBinaryFile path ReadMode
   liftIO $ hSetBinaryMode h True
   finally
     (mapHandleLinesM_ func sep h)
@@ -83,10 +84,10 @@ trim = fst . (ByteString.spanEnd space) . ByteString.dropWhile space
     space = (`ByteString.elem` " \t\n\r")
 
 writeFile :: ByteString.ByteString -> ByteString.ByteString -> IO ()
-writeFile path content = withFile path WriteMode (\h -> BC.hPut h content)
+writeFile path content = withBinaryFile path WriteMode (\h -> BC.hPut h content)
 
 appendToFile :: ByteString.ByteString -> ByteString.ByteString -> IO ()
-appendToFile path content = withFile path AppendMode (\h -> BC.hPut h content)
+appendToFile path content = withBinaryFile path AppendMode (\h -> BC.hPut h content)
 
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM p f = ifM p f (pure ())

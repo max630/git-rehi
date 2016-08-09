@@ -38,11 +38,7 @@ import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess))
-import System.File.ByteString (withFile,readFile,openFile,openBinaryTempFile)
 import System.IO(hClose,IOMode(WriteMode,AppendMode),hSetBinaryMode)
-import System.Directory.ByteString (createDirectory,removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist)
-import System.Environment.ByteString(getArgs,lookupEnv)
-import System.Process.ByteString (system)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
@@ -50,6 +46,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
+import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,createDirectory,removeDirectoryRecursive,
+          removeFile,doesFileExist,doesDirectoryExist, getArgs,lookupEnv, system)
 import Rehi.Utils (equalWith, index_only, run_command, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, command_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
@@ -83,7 +81,7 @@ main = do
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
         liftIO (doesFileExist currentPath) `unlessM` error "No rehi in progress"
-        content <- liftIO $ readFile currentPath
+        content <- liftIO $ readBinaryFile currentPath
         liftIO $ putStr ("Current: " <> content <> (if ByteString.null content || BC.last content /= '\n' then "\n" else ""))
       Run dest source_from_arg through source_to_arg target_arg interactive -> do
         git_verify_clean
@@ -222,7 +220,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
 
 restore_rebase = do
   gitDir <- askGitDir
-  target_ref <- liftIO (readFile (gitDir <> "/rehi/target_ref"))
+  target_ref <- liftIO (readBinaryFile (gitDir <> "/rehi/target_ref"))
   (commits, marks) <- git_load_commits
   todo <- read_todo (gitDir <> "/rehi/todo") commits
   current <- ifM (liftIO (doesFileExist (gitDir <> "/rehi/current")))
@@ -362,7 +360,7 @@ run_rebase gitDir todo commits target_ref marks curHead =
 
 abort_rebase = do
   gitDir <- askGitDir
-  initial_branch <- liftIO $ readFile (gitDir <> "/rehi/initial_branch")
+  initial_branch <- liftIO $ readBinaryFile (gitDir <> "/rehi/initial_branch")
   liftIO $ Cmd.reset initial_branch
   liftIO $ Cmd.checkout_force initial_branch
   cleanup_save
@@ -546,7 +544,7 @@ git_fetch_cli_commits from to = do
 git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader (Env a) m) => ByteString -> Commits -> m Commits
 git_fetch_commits cmd commits = do
   gitDir <- askGitDir
-  h <- liftIO $ openFile (gitDir <> "/rehi/commits") (AppendMode)
+  h <- liftIO $ openBinaryFile (gitDir <> "/rehi/commits") (AppendMode)
   liftIO $ hSetBinaryMode h True
   finally
     (do
@@ -630,7 +628,7 @@ commits_get_subject (Commits refs byHash) ah = do
 save_todo todo path commits = do
   let
     (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
-  withFile path WriteMode $ \out -> do
+  withBinaryFile path WriteMode $ \out -> do
     forM_ main $ hPutStrLn out . \case
       Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
       Edit ah -> "edit " <> ah <> " " <> commits_get_subject commits ah
