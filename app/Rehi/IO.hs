@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Rehi.IO (
     createDirectory,
     createProcess,
@@ -6,6 +7,7 @@ module Rehi.IO (
     getArgs,
     getEnv,
     getTemporaryDirectory,
+    initEncoding,
     lookupEnv,
     openBinaryFile,
     openBinaryTempFile,
@@ -18,14 +20,15 @@ module Rehi.IO (
     withBinaryFile,
   ) where
 
-import Control.Exception (throwIO)
 import Control.Monad (join)
 import Data.ByteString (ByteString)
-import Data.Text.Encoding (decodeUtf8', encodeUtf8)
-import Data.Text (unpack, pack)
+import GHC.Foreign (peekCStringLen, withCStringLen)
+import GHC.IO.Encoding (setFileSystemEncoding)
+import GHC.IO.Encoding.Failure (CodingFailureMode(RoundtripFailure))
+import GHC.IO.Encoding.UTF8 (mkUTF8)
 import System.Exit (ExitCode)
 import System.IO (Handle)
-import System.Process (StdStream(..),ProcessHandle,waitForProcess,getProcessExitCode, terminateProcess)
+import System.Process (StdStream(..),ProcessHandle)
 
 import qualified Data.ByteString as B
 import qualified System.Environment as SE
@@ -46,7 +49,7 @@ openBinaryTempFile dir fn = do
   dir <- decode dir
   fn <- decode fn
   (p, h) <- SI.openBinaryTempFile dir fn
-  pure (encode p, h)
+  (, h) <$> encode p
 
 createDirectory p = SD.createDirectory =<< decode p
 
@@ -102,17 +105,25 @@ data CmdSpec
 system :: ByteString -> IO ExitCode
 system s = decode s >>= SP.system
 
-getArgs = SE.getArgs >>= mapM (pure . encode)
+getArgs :: IO [ByteString]
+getArgs = SE.getArgs >>= mapM encode
 
-getEnv v = decode v >>= SE.getEnv >>= (pure . encode)
+getEnv :: ByteString -> IO ByteString
+getEnv v = decode v >>= SE.getEnv >>= encode
 
-lookupEnv v = decode v >>= SE.lookupEnv >>= (pure . fmap encode)
+lookupEnv :: ByteString -> IO (Maybe ByteString)
+lookupEnv v = decode v >>= SE.lookupEnv >>= mapM encode
 
 decode :: ByteString -> IO String
-decode = either throwIO (pure . unpack) . decodeUtf8'
+decode bs = B.useAsCStringLen bs (peekCStringLen utf8_roundtrip)
 
 decodePair :: (ByteString, ByteString) -> IO (String, String)
 decodePair (s1,s2) = (,) <$> decode s1 <*> decode s2
 
-encode :: String -> ByteString
-encode = encodeUtf8 . pack
+encode :: String -> IO ByteString
+encode s = withCStringLen utf8_roundtrip s B.packCStringLen
+
+utf8_roundtrip = mkUTF8 RoundtripFailure
+
+initEncoding :: IO ()
+initEncoding = setFileSystemEncoding utf8_roundtrip

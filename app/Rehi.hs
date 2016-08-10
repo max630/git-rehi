@@ -47,7 +47,7 @@ import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,createDirectory,removeDirectoryRecursive,
-          removeFile,doesFileExist,doesDirectoryExist, getArgs,lookupEnv, system)
+          removeFile,doesFileExist,doesDirectoryExist, getArgs,lookupEnv, system, initEncoding)
 import Rehi.Utils (equalWith, index_only, run_command, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, command_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
@@ -57,6 +57,7 @@ import qualified Rehi.GitCommands as Cmd
 
 main :: IO ()
 main = do
+  initEncoding
   env <- get_env
   flip runReaderT env $ do
     args <- liftIO getArgs
