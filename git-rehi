@@ -13,7 +13,7 @@ my $GIT_DIR = read_popen("git rev-parse --git-dir");
 # full list of invalid sylbols is unclear.
 # definitely no \ or " (to be used in command-line), what else?
 # be safe here
-if ($GIT_DIR !~ /^[-a-z0-9_\.,\/ ]+$/i) {
+if ($GIT_DIR !~ /^([a-z]:)?[-a-z0-9_\.,\/ ]+$/i) {
     confess("Some unsupported symbols in: $GIT_DIR");
 }
 
