@@ -1058,7 +1058,9 @@ sub write_todo_comment_quoted($$) { my ($out, $comment) = @_;
     while ($comment =~ /\Q$quote_end\E/) {
         $quote_end = $quote_end . '}';
     }
-    print $out ("comment " . ($quote_end =~ tr/}/{/r) . "\n" . $comment . $quote_end . "\n");
+    my $quote_end_reverted = $quote_end;
+    $quote_end_reverted =~ tr/}/{/;
+    print $out ("comment " . $quote_end_reverted . "\n" . $comment . $quote_end . "\n");
 }
 
 sub write_todo_comment_plain($$) { my ($out, $comment) = @_;
@@ -1115,7 +1117,9 @@ sub read_todo($$;\$) { my ($filename, $commits, $errorHandler) = @_;
             } elsif (/^comment ([\<\{\[\(]+)$/) {
                 $mode = "COMMENT_QUOTED";
                 $comment = "";
-                $quote_end = ($1 =~ tr/<{[(/>}])/r);
+                my $quote_end_tmp = $1;
+                $quote_end_tmp =~ tr/<{[(/>}])/;
+                $quote_end = $quote_end_tmp;
             } elsif (/^merge(( --ours| --no-ff| -c \@?[0-9a-zA-Z_\/]+)*) (.+[^\n\r ])$/) {
                 my $pos_string = $3;
                 # TODO: verify as refs
