@@ -342,8 +342,4 @@ foreach my $test (@Tests) {
     }
 }
 
-if($] >= "5.012000") {
-    done_testing();
-}
-
 # vim: foldmethod=marker
