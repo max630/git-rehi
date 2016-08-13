@@ -5,7 +5,7 @@ use strict;
 use Carp;
 use Cwd;
 use Data::Dumper;
-use Test::More;
+use Test::More qw(no_plan);
 
 # {{{ initialize
 if (! -e "/tmp/git-rebase/test-repo") {
@@ -55,7 +55,8 @@ sub reset_repo {
     die("reset clean failed") if ($? != 0);
 }
 
-package env_guard {
+{
+    package env_guard;
     sub new ($$) { my ($class, $name, $new_value) = @_;
         my $res = { name => $name, prev_exists => exists $ENV{$name}, prev_value => $ENV{$name} };
         $ENV{$name} = $new_value;
@@ -331,10 +332,18 @@ if (scalar @ARGV) {
 foreach my $test (@Tests) {
     if (!scalar %argv_idx || exists $argv_idx{$test->[0]}) {
         reset_repo;
-        subtest $test->[0] => $test->[1];
+        if($] >= "5.012000") {
+            subtest $test->[0] => $test->[1];
+        } else {
+            print "test: " . $test->[0] . "\n";
+            $test->[1]();
+            print "end: " . $test->[0] . "\n";
+        }
     }
 }
 
-done_testing();
+if($] >= "5.012000") {
+    done_testing();
+}
 
 # vim: foldmethod=marker
