@@ -83,14 +83,14 @@ t {
 } smoke;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "/bin/true");
+    my $g = env_guard->new("GIT_EDITOR", "/bin/true");
     cmd("git reset --hard origin/b2");
     cmd("$testee -i origin/b1");
     cmd("git diff --quiet origin/master1");
 } smoke_edit;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "set-comment");
     cmd("git reset --hard origin/b2");
     cmd("$testee -i origin/b1");
@@ -98,7 +98,7 @@ t {
 } edit_comment;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "edit-noop");
     cmd("git reset --hard origin/b2");
     cmd("$testee -i origin/base");
@@ -107,7 +107,7 @@ t {
 } edit_edit_noop;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "edit-noop");
     cmd("git reset --hard origin/b2");
     cmd("$testee -i origin/base");
@@ -116,20 +116,20 @@ t {
 
 t {
     cmd("git reset --hard origin/b1");
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     cmd("$testee -i HEAD");
     cmd("git diff --quiet origin/master1");
 } edit_b2_to_b1;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "empty");
     cmd("$testee -i origin/b4 ..origin/base");
     cmd("git diff --quiet origin/master1");
 } edit_empty;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "empty-with-comment");
     cmd("$testee -i origin/b4 ..origin/base");
     cmd("git diff --quiet origin/master1");
@@ -146,7 +146,7 @@ t {
 t {
     cmd("git reset --hard origin/b1");
     cmd("git branch -f tmp origin/b2");
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
     my $old_master = `git show --quiet --pretty=format:%h master`;
     cmd("$testee -i HEAD tmp", "!= 0");
@@ -161,7 +161,7 @@ t {
 } parsing;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-c");
     cmd("$testee -i origin/b2");
     cmd("git diff --quiet origin/master1");
@@ -169,7 +169,7 @@ t {
 } edit_merge;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-ff");
     cmd("$testee -i origin/b4");
     is_deeply([split(/[ \n]/,`git show --quiet --pretty=format:%p HEAD`)],
@@ -177,7 +177,7 @@ t {
 } edit_merge_no_ff;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-ff-reuse");
     cmd("git reset --hard origin/b2");
     cmd("$testee -i origin/b4");
@@ -186,14 +186,14 @@ t {
 } edit_merge_no_ff_reuse;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-no-c");
     cmd("$testee -i origin/b2");
     cmd("git diff --quiet origin/master1");
 } edit_merge_no_c;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-c");
     cmd("$testee -i origin/b1", "!= 0");
 } fastforward_merge_fails;
@@ -227,7 +227,7 @@ t {
 } todo_backup;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner");
     cmd("$testee -i origin/base~1 ..origin/base");
     cmd("git diff --quiet origin/master1");
@@ -254,7 +254,7 @@ t {
 } fastforward_over_merges;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "merge-inner");
     cmd("$testee -i origin/b4");
     {
@@ -283,28 +283,28 @@ t {
 } base_after_merge;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
     cmd("$testee -i origin/base", "!= 0");
     cmd("grep -q 'pick.*change2\$' save_todo");
 } optimal_first_parent;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
     cmd("$testee -i origin/base origin/b1~1..", "!= 0");
     cmd("grep -q 'pick.*change1\$' save_todo");
 } optimal_include_start_from_sourcefrom;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
     cmd("$testee -i origin/b1~1", "!= 0");
     cmd("grep -q 'pick.*change1\$' save_todo");
 } optimal_include_start_from_base;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
     cmd("$testee -i HEAD", "!= 0");
     is(`$testee --current`, "Current: exec false\n");
@@ -315,7 +315,7 @@ t {
 } current_no_rebase;
 
 t {
-    my $g = env_guard->new("GIT_SEQUENCE_EDITOR", "/bin/true");
+    my $g = env_guard->new("GIT_EDITOR", "/bin/true");
     cmd("git reset --hard origin/b3");
     cmd("git merge -sours -m ours_with_ref_comment origin/b2");
     cmd("git branch -f t_b3b2_ours");

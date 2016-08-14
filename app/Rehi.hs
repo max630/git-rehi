@@ -282,9 +282,9 @@ edit_todo old_todo commits = do
   (todoPath, todoHandle) <- liftIO (openBinaryTempFile (gitDir <> "/rehi") "todo.XXXXXXXX")
   liftIO (hClose todoHandle)
   liftIO $ save_todo old_todo todoPath commits
-  editor <- liftIO git_sequence_editor
   retry (do
-    liftIO (run_command (editor <> " " <> todoPath))
+    -- use git to launch editor to avoid dealing with msys paths in Windows
+    liftIO (run_command ("git config --edit --file \"" <> todoPath <> "\""))
     todo_rc <- read_todo todoPath commits
     verify_marks todo_rc
     pure todo_rc)
@@ -590,15 +590,6 @@ git_merge_base b1 b2 = do
   Cmd.verify_cmdarg b2
   [base] <- execWriterT $ mapCmdLinesM (tell . (: []) . trim) ("git merge-base -a " <> b1 <> " " <> b2) '\n'
   pure base
-
-git_sequence_editor =
-  lookupEnv "GIT_SEQUENCE_EDITOR" >>= \case
-    Just ed -> pure ed
-    Nothing -> readPopen "git config sequence.editor || true" >>= \case
-      "" -> readPopen "git var GIT_EDITOR || true" >>= \case
-        "" -> fail "Editor not found"
-        ed -> pure ed
-      ed -> pure ed
 
 verify_hash :: Monad m => Hash -> m ()
 verify_hash (Hash h) = case regex_match h "^[0-9a-f]{40}$" of
