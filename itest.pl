@@ -9,7 +9,7 @@ use Test::More qw(no_plan);
 
 # {{{ initialize
 if (! -e "/tmp/git-rebase/test-repo") {
-    !system("mkdir -p /tmp/git-rebase/test-repo && ( cd /tmp/git-rebase/test-repo && git init && git fast-import ) <itest-repo.data")
+    !system("mkdir -p /tmp/git-rebase/test-repo && ( cd /tmp/git-rebase/test-repo && git init && git fast-import && git config user.email test.author\@example.com && git config user.name TestAuthor ) <itest-repo.data")
         or die("Test repo initialization failed: $? ($!)");
 }
 my $SOURCE_DIR = getcwd;
