@@ -3,7 +3,7 @@ version:             0.1.0.0
 synopsis:            Initial project template from stack
 description:         Please see README.md
 homepage:            http://github.com/max630/git-rehi#readme
-license:             GPL2
+license:             GPL-2
 license-file:        LICENSE
 author:              Max Kirillov
 maintainer:          max@max630.net
