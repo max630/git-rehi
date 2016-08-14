@@ -1359,7 +1359,7 @@ sub find_sequence($$$$) { my ($commits, $from, $to, $through_list) = @_;
 # * interactive
 # * continue, abort
 
-if ($0 !~ /test\.pl/) {
+if ($0 !~ /test\.pl/ && $0 !~ /t[0-9]*.pl/) {
     eval { exit(main(\@ARGV)); };
     if ($@ ne "") {
         print STDERR "Error: $@";
