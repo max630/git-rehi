@@ -1,3 +1,0 @@
-[submodule "test-repo"]
-	path = test-repo
-	url = ../rebase2-test-repo
