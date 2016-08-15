@@ -13,9 +13,13 @@ if (! -e "/tmp/git-rebase/test-repo") {
         or die("Test repo initialization failed: $? ($!)");
 }
 my $SOURCE_DIR = getcwd;
+my $STACK_ROOT = `stack path --local-install-root`;
+$STACK_ROOT =~ s/\n$//;
+$STACK_ROOT =~ s/\\/\//g;
 chdir("/tmp/git-rebase/test-repo") or die("Unable to chdir to /tmp/git-rebase/test-repo: $!");
 # my $testee = "$SOURCE_DIR/git-rehi";
-my $testee = "$SOURCE_DIR/.stack-work/dist/i386-linux/Cabal-1.22.4.0/build/git-rehi/git-rehi";
+my $testee = $STACK_ROOT . "/bin/git-rehi";
+print "testee: $testee\n";
 # my $testee = "git rehi";
 # }}}
 
