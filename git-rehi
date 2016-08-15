@@ -821,7 +821,7 @@ sub git_fetch_commit_list($$) { my ($commits, $unknowns_arg) = @_;
 sub git_fetch_commits($$) { my ($commits, $command) = @_;
     open(my $in, ">>", "$GIT_DIR/rehi/commits") or confess("Cannot write commits cache ($GIT_DIR/rehi/commits): $!");
     iterate_popen {
-        if ($_ ne "\n") {
+        if ($_ ne "\n" && $_ ne "\0") {
             git_parse_commit_line($commits, $_);
             printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rehi/commits): $!");
         }
