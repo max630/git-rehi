@@ -825,14 +825,14 @@ sub git_fetch_commits($$) { my ($commits, $command) = @_;
             git_parse_commit_line($commits, $_);
             printf($in "%s", $_) or confess("Cannot write commits cache ($GIT_DIR/rehi/commits): $!");
         }
-    } $command, v000;
+    } $command, "\0";
     close($in) or confess("Cannot write commits cache ($GIT_DIR/rehi/commits): $!");
     return $commits;
 }
 
 sub git_load_commits() {
     my $commits = {by_hash => {}, refs => {}, marks => {}};
-    iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rehi/commits", v000;
+    iterate_file { git_parse_commit_line($commits, $_); } "$GIT_DIR/rehi/commits", "\0";
     if (-e "$GIT_DIR/rehi/marks") {
         iterate_file {
             if (/^([0-9a-zA-Z_\/]+) ([0-9a-fA-F]+)$/) {
