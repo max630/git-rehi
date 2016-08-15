@@ -76,6 +76,14 @@ pick origin/b2
 merge -c origin/master1 HEAD,@tmp2
 EOF
 ;;
+set-comment)
+cat >"$file" <<EOF
+pick 76dee8a19ec
+comment
+test-comment
+.
+EOF
+;;
 *)
 cat >"$file" <<EOF
 pick 76dee8a19ec
