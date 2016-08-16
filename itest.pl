@@ -17,10 +17,7 @@ my $STACK_ROOT = `stack path --local-install-root`;
 $STACK_ROOT =~ s/[\n\r]+$//;
 $STACK_ROOT =~ s/\\/\//g;
 chdir("/tmp/git-rebase/test-repo") or die("Unable to chdir to /tmp/git-rebase/test-repo: $!");
-# my $testee = "$SOURCE_DIR/git-rehi";
 my $testee = $STACK_ROOT . "/bin/git-rehi";
-print "testee: $testee\n";
-# my $testee = "git rehi";
 # }}}
 
 # {{{ test utils
