@@ -5,6 +5,8 @@ Takes a history and reruns it, optionally with modifications.
 Done to some usable state. See _Usage_ section later for reference.
 Bug reports and wishes tracked here: https://github.com/max630/git-rehi
 
+**NOTE**: Older perl version is [here](https://github.com/max630/git-rehi/tree/maint_0.5).
+
 **SAFETY NOTES**: Note that it is an experimental software. You'd better have a
 backup if you run it at a valuable repository, for example it should be cloned
 somewhere. I also usually have some temporary reference to the older head and
