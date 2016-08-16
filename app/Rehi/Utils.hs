@@ -13,9 +13,9 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import System.Exit (ExitCode(ExitSuccess))
 import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
-import System.Process(StdStream(CreatePipe),waitForProcess)
+import System.Process(StdStream(CreatePipe),waitForProcess,createProcess,std_out)
 
-import Rehi.IO (withBinaryFile,openBinaryFile,createProcess,system,shell,std_out)
+import Rehi.IO (withBinaryFile,openBinaryFile,readCommand,system,shell)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
@@ -38,14 +38,13 @@ run_command s = system s >>= \case
 
 readPopen :: ByteString.ByteString -> IO ByteString.ByteString
 readPopen cmd = do
-  (Nothing, Just out, Nothing, pHandle) <- createProcess (shell cmd){ std_out = CreatePipe }
-  finally
-    (fmap trim $ ByteString.hGetContents out)
-    (waitForProcess pHandle)
+  output <- readCommand cmd
+  pure (trim output)
 
 mapCmdLinesM :: (MonadIO m, MonadMask m) => (ByteString.ByteString -> m a) -> ByteString.ByteString -> Char -> m ()
 mapCmdLinesM func cmd sep = do
-  (Nothing, Just out, Nothing, p) <- liftIO $ createProcess (shell cmd){ std_out = CreatePipe}
+  cp <- liftIO $ shell cmd
+  (Nothing, Just out, Nothing, p) <- liftIO $ createProcess cp{ std_out = CreatePipe}
   finally
     (mapHandleLinesM_ func sep out)
     (liftIO $ waitForProcess p)

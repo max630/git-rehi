@@ -1,7 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 module Rehi.IO (
     createDirectory,
-    createProcess,
     doesDirectoryExist,
     doesFileExist,
     getArgs,
@@ -16,7 +15,6 @@ module Rehi.IO (
     removeDirectoryRecursive,
     removeFile,
     shell,
-    std_out,
     system,
     withBinaryFile,
   ) where
@@ -28,8 +26,6 @@ import GHC.IO.Encoding (setFileSystemEncoding)
 import GHC.IO.Encoding.Failure (CodingFailureMode(RoundtripFailure))
 import GHC.IO.Encoding.UTF8 (mkUTF8)
 import System.Exit (ExitCode)
-import System.IO (Handle)
-import System.Process (StdStream(..),ProcessHandle)
 
 import qualified Data.ByteString as B
 import qualified System.Environment as SE
@@ -66,47 +62,13 @@ removeFile p = SD.removeFile =<< decode p
 
 readCommand :: ByteString -> IO ByteString
 readCommand cmd = do
-  p <- decodeCreateProcess (shell cmd)
-  SP.readCreateProcess p "" >>= encode
+  cmdS <- decode cmd
+  SP.readCreateProcess (SP.shell cmdS) "" >>= encode
 
-createProcess :: CreateProcess -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
-createProcess cp = SP.createProcess =<< decodeCreateProcess cp
-
-shell :: ByteString -> CreateProcess
-shell str = CreateProcess { cmdspec = ShellCommand str,
-                            cwd = Nothing,
-                            env = Nothing,
-                            std_in = Inherit,
-                            std_out = Inherit,
-                            std_err = Inherit,
-                            close_fds = False,
-                            create_group = False,
-                            delegate_ctlc = False}
-
-decodeCmdSpec (ShellCommand s) = SP.ShellCommand <$> decode s
-decodeCmdSpec (RawCommand f as) = SP.RawCommand <$> decode f <*> mapM decode as
-
-decodeCreateProcess (CreateProcess cmdspec cwd env std_in std_out std_err close_fds create_group delegate_ctlc)
-  = SP.CreateProcess <$> decodeCmdSpec cmdspec <*> mapM decode cwd <*> mapM (mapM decodePair) env
-                    <*> pure std_in <*> pure std_out <*> pure std_err <*> pure close_fds
-                    <*> pure create_group <*> pure delegate_ctlc
-
-data CreateProcess = CreateProcess {
-    cmdspec :: CmdSpec,
-    cwd :: Maybe ByteString,
-    env :: Maybe [(ByteString, ByteString)],
-    std_in :: StdStream,
-    std_out :: StdStream,
-    std_err :: StdStream,
-    close_fds :: Bool,
-    create_group :: Bool,
-    delegate_ctlc :: Bool
-}
-
-data CmdSpec
-    = ShellCommand ByteString
-    | RawCommand ByteString [ByteString]
-
+shell :: ByteString -> IO SP.CreateProcess
+shell cmd = do
+  cmdS <- decode cmd
+  pure (SP.shell cmdS)
 
 system :: ByteString -> IO ExitCode
 system s = decode s >>= SP.system
