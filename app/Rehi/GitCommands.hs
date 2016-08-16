@@ -6,15 +6,16 @@ import Data.Monoid ((<>))
 
 import qualified Data.ByteString as B
 
+import Rehi.IO (readCommand)
 import Rehi.Utils (equalWith, index_only, run_command, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, command_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 import Rehi.GitTypes
 
 fixup :: B.ByteString -> IO ()
-fixup ref = run_command ("git cherry-pick --allow-empty --allow-empty-message --no-commit "
-                          <> ref
-                          <> " && git commit --amend --reset-author --no-edit")
+fixup ref = do
+  run_command ("git cherry-pick --allow-empty --allow-empty-message --no-commit " <> ref)
+  run_command "git commit --amend --reset-author --no-edit"
 
 reset :: B.ByteString -> IO ()
 reset ref = run_command ("git reset --hard " <> ref)
@@ -29,9 +30,10 @@ checkout_force :: B.ByteString -> IO ()
 checkout_force branch = run_command ("git checkout -f " <> branch)
 
 verify_clean :: IO ()
-verify_clean = run_command ("git rev-parse --verify HEAD >/dev/null"
-                          <> " && git update-index --ignore-submodules --refresh"
-                          <> " && git diff-files --quiet --ignore-submodules")
+verify_clean = do
+  readCommand "git rev-parse --verify HEAD"
+  run_command "git update-index --ignore-submodules --refresh"
+  run_command "git diff-files --quiet --ignore-submodules"
 
 commit :: Maybe B.ByteString -> IO ()
 commit refMb = run_command ("git commit " <> maybe "" ("-c " <>) refMb)

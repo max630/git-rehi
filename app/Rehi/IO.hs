@@ -12,6 +12,7 @@ module Rehi.IO (
     openBinaryFile,
     openBinaryTempFile,
     readBinaryFile,
+    readCommand,
     removeDirectoryRecursive,
     removeFile,
     shell,
@@ -62,6 +63,11 @@ getTemporaryDirectory = SD.getTemporaryDirectory >>= (pure . encode)
 removeDirectoryRecursive p = SD.removeDirectoryRecursive =<< decode p
 
 removeFile p = SD.removeFile =<< decode p
+
+readCommand :: ByteString -> IO ByteString
+readCommand cmd = do
+  p <- decodeCreateProcess (shell cmd)
+  SP.readCreateProcess p "" >>= encode
 
 createProcess :: CreateProcess -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
 createProcess cp = SP.createProcess =<< decodeCreateProcess cp
