@@ -442,16 +442,19 @@ merge commit_refMb merge_parents_refs ours noff = do
 
 merge_new :: (MonadIO m, MonadState TS m, MonadReader TE m) => Maybe ByteString -> [ByteString] -> Bool -> Bool -> m ()
 merge_new commit_refMb parents_refs ours noff = do
+  [oldHead] <- fmap tsHead get >>= \case
+    Known hash -> pure [hash]
+    Sync -> liftIO $ Cmd.git_resolve_hashes ["HEAD"]
   sync_head
   liftIO $ putStrLn "Merging"
   parents <- mapM resolve_ahash parents_refs
   let head_pos = index_only "HEAD" parents_refs
   parents <- if head_pos /= 0
               then do
-                liftIO $ Cmd.reset $ head parents
                 let
                   (pFirst : pInit, _ : pTail) = splitAt head_pos parents
-                pure (pInit ++ [pFirst] ++ pTail)
+                liftIO $ Cmd.reset pFirst
+                pure (pInit ++ [hashString oldHead] ++ pTail)
               else pure (tail parents)
   liftIO $ Cmd.merge (isNothing commit_refMb) ours noff parents
   case commit_refMb of
