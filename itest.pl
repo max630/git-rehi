@@ -119,7 +119,6 @@ t {
     my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "edit-noop");
     cmd("git reset --hard origin/b2");
-    print "cmd: \"$testee -i origin/base\"\n";
     cmd("$testee -i origin/base");
     cmd("$testee --continue");
     is(`git rev-parse origin/b2`, `git rev-parse HEAD`);
