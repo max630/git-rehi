@@ -77,6 +77,23 @@ sub reset_repo {
 }
 # }}}
 
+# {{{ utils
+sub write_file($$) { my ($file,$content) = @_;
+    open(my $fh, ">", $file);
+    print $fh $content;
+    close $fh;
+}
+
+sub seq($$;$) { my ($from,$to,$prefix) = @_;
+    if (!defined $prefix) { $prefix = ""; }
+    my $buf = "";
+    for (my $i = $from; $i < $to; ++$i) {
+        $buf = $buf . $prefix . $i . "\n";
+    }
+    return $buf;
+}
+# }}}
+
 t {
     cmd("git reset --hard origin/b2");
     cmd("$testee origin/b1");
@@ -283,6 +300,27 @@ t {
     cmd("git reset --hard origin/b_merge_of_merges");
     cmd("$testee origin/b5");
 } base_after_merge;
+
+t {
+    cmd("git reset --hard origin/base");
+    write_file("file", seq(1, 100, "line"));
+    cmd("git reset --hard origin/base");
+    cmd("git add file");
+    cmd("git commit -m base file");
+    cmd("git tag -f base");
+    cmd("git commit -m dummy --allow-empty");
+    cmd("git tag -f rehiBase");
+    write_file("file", seq(1, 33, "line") . "line33edit\n" . seq(34,100,"line"));
+    cmd("git commit -m b2 file");
+    cmd("git tag -f b2");
+    cmd("git reset --hard base");
+    write_file("file", seq(1, 73, "line") . "line73edit\n" . seq(74,100,"line"));
+    cmd("git commit -m b1 file");
+    cmd("git merge b2");
+    cmd("git tag -f b1");
+    cmd("$testee base rehiBase..");
+    cmd("git diff --exit-code b1..HEAD");
+} merge_into_twice;
 
 t {
     my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
