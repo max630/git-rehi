@@ -38,6 +38,19 @@ List of features
 * Analysis before editing the todo list, selecting only the interesting path
   from the history to be changed.
 
+## Installation
+
+Recommended way:
+
+* install [stack](https://docs.haskellstack.org/en/stable/README/#how-to-install)
+* run in the source tree: `stack build`
+* last lines of output is something like:
+
+    Installing executable(s) in
+    C:\src\git-rehi\.stack-work\install\i386-linux\lts-3.17\7.10.2\bin
+
+Copy it to a directory in your `PATH` and it is ready to use.
+
 ## Usage
 
 Run the script inside of a git repository. If it is in PATH, git will run it
