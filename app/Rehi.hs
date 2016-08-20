@@ -47,8 +47,9 @@ import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,createDirectory,removeDirectoryRecursive,
-          removeFile,doesFileExist,doesDirectoryExist, getArgs,lookupEnv, system, initEncoding)
-import Rehi.Utils (equalWith, index_only, run_command, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
+          removeFile,doesFileExist,doesDirectoryExist, getArgs,lookupEnv, system, initEncoding,
+          callCommand)
+import Rehi.Utils (equalWith, index_only, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, command_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
@@ -284,7 +285,7 @@ edit_todo old_todo commits = do
   liftIO $ save_todo old_todo todoPath commits
   retry (do
     -- use git to launch editor to avoid dealing with msys paths in Windows
-    liftIO (run_command ("git config --edit --file \"" <> todoPath <> "\""))
+    liftIO (callCommand ("git config --edit --file \"" <> todoPath <> "\""))
     todo_rc <- read_todo todoPath commits
     verify_marks todo_rc
     pure todo_rc)
@@ -397,7 +398,7 @@ run_step rebase_step = do
             modify' (\ts -> ts{tsHead = Sync})
       Exec cmd -> do
         sync_head
-        liftIO $ run_command cmd
+        liftIO $ callCommand cmd
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
         sync_head
@@ -612,7 +613,7 @@ cleanup_save = do
   liftIO (doesDirectoryExist (gitDir <> "/rehi")) `whenM` (do
     let newBackup = gitDir <> "/rehi/todo.backup"
     liftIO (doesFileExist newBackup) `whenM`
-              liftIO (run_command ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))
+              liftIO (callCommand ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))
     liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
 commits_get_subject (Commits refs byHash) ah = do

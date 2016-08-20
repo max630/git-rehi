@@ -31,11 +31,6 @@ index_only x ys = fromMaybe (error "index_only: not found") (foldl' step Nothing
     step prev (n, y) | x == y = case prev of { Nothing -> Just n; Just _ -> error "index_only: duplicate" }
     step prev _ = prev
 
-run_command :: ByteString.ByteString -> IO ()
-run_command s = system s >>= \case
-  ExitSuccess -> pure ()
-  err -> fail ("Command " <> show s <> " failed: " <> show err) -- TODO: allow non-zero and handle it in clients
-
 readPopen :: ByteString.ByteString -> IO ByteString.ByteString
 readPopen cmd = do
   output <- readCommand cmd
