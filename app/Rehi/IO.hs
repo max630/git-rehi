@@ -54,7 +54,8 @@ doesFileExist p = SD.doesFileExist =<< decode p
 
 doesDirectoryExist p = SD.doesDirectoryExist =<< decode p
 
-getTemporaryDirectory = SD.getTemporaryDirectory >>= (pure . encode)
+getTemporaryDirectory :: IO ByteString
+getTemporaryDirectory = SD.getTemporaryDirectory >>= encode
 
 removeDirectoryRecursive p = SD.removeDirectoryRecursive =<< decode p
 
