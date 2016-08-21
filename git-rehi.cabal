@@ -16,6 +16,7 @@ executable git-rehi
   hs-source-dirs:      app
   main-is:             Rehi.hs
   other-modules:       Rehi.Utils
+                       , Rehi.ArgList
                        , Rehi.Regex
                        , Rehi.GitTypes
                        , Rehi.GitCommands

@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Rehi.IO (
     callCommand,
+    callProcess,
     createDirectory,
     doesDirectoryExist,
     doesFileExist,
@@ -77,6 +78,9 @@ system s = decode s >>= SP.system
 
 callCommand :: ByteString -> IO ()
 callCommand s = decode s >>= SP.callCommand
+
+callProcess :: ByteString -> [ByteString] -> IO ()
+callProcess exe args = join $ SP.callProcess <$> decode exe <*> mapM decode args
 
 getArgs :: IO [ByteString]
 getArgs = SE.getArgs >>= mapM encode

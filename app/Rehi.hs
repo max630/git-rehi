@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PackageImports #-}
@@ -285,7 +286,7 @@ edit_todo old_todo commits = do
   liftIO $ save_todo old_todo todoPath commits
   retry (do
     -- use git to launch editor to avoid dealing with msys paths in Windows
-    liftIO (callCommand ("git config --edit --file \"" <> todoPath <> "\""))
+    liftIO (Cmd.git ("config --edit --file" <> [todoPath]))
     todo_rc <- read_todo todoPath commits
     verify_marks todo_rc
     pure todo_rc)
