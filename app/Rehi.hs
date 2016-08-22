@@ -8,6 +8,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
@@ -745,7 +746,7 @@ find_sequence commits from to through =
       FS { fssSchedule = [] } -> error "No path found"
       s@(FS ts sc@(n : _) nextId childerWaiters terminatingCommits)
         | FsDone <- fsstState (ts Map.! n) -> reverse $ fsstTodo (ts Map.! n)
-        | otherwise -> case break ((`elem` [FsReady, FsFinalizeMergebases]) . fsstState . (ts Map.!)) sc of
+        | otherwise -> case break ((`elem` ([FsReady, FsFinalizeMergebases] :: [FsThreadState])) . fsstState . (ts Map.!)) sc of
             (_, []) -> error "No thread is READY"
             (scH, (scC@((ts Map.!) -> FsThread curState curHash curTodo) : scT))
               | Set.member curHash terminatingCommits -> step s{ fssSchedule = scH ++ scT }
