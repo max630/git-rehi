@@ -13,9 +13,10 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import System.Exit (ExitCode(ExitSuccess))
 import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
-import System.Process(StdStream(CreatePipe),waitForProcess,createProcess,std_out)
+import System.Process(StdStream(CreatePipe),CreateProcess(),waitForProcess,createProcess,std_out)
 
-import Rehi.IO (withBinaryFile,openBinaryFile,readCommand,system,shell)
+import Rehi.ArgList (ArgList(), getArgList)
+import Rehi.IO (withBinaryFile,openBinaryFile,readCommand,proc,system,shell)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
@@ -36,9 +37,8 @@ readPopen cmd = do
   output <- readCommand cmd
   pure (trim output)
 
-mapCmdLinesM :: (MonadIO m, MonadMask m) => (ByteString.ByteString -> m a) -> ByteString.ByteString -> Char -> m ()
-mapCmdLinesM func cmd sep = do
-  cp <- liftIO $ shell cmd
+mapCreateProcessLinesM :: (MonadIO m, MonadMask m) => (ByteString.ByteString -> m a) -> CreateProcess -> Char -> m ()
+mapCreateProcessLinesM func cp sep = do
   (Nothing, Just out, Nothing, p) <- liftIO $ createProcess cp{ std_out = CreatePipe}
   finally
     (mapHandleLinesM_ func sep out)
@@ -66,8 +66,10 @@ mapHandleLinesM_ func sep handle = step "" (Just handle)
     step "" Nothing = pure ()
     step buf Nothing = func buf >> pure ()
 
-command_lines :: ByteString.ByteString -> Char -> IO [ByteString.ByteString]
-command_lines cmd sep = execWriterT $ mapCmdLinesM (tell . (: [])) cmd sep
+popen_lines :: ByteString.ByteString -> ArgList -> Char -> IO [ByteString.ByteString]
+popen_lines exe args sep = do
+  cp <- proc exe (getArgList args)
+  execWriterT $ mapCreateProcessLinesM (tell . (: [])) cp sep
 
 modifySnd :: (b -> c) -> (a, b) -> (a, c)
 modifySnd f (x, y) = (x, f y)

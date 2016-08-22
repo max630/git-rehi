@@ -48,11 +48,12 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
+import Rehi.ArgList(ArgList(ArgList))
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,createDirectory,removeDirectoryRecursive,
           removeFile,doesFileExist,doesDirectoryExist, getArgs,lookupEnv, system, initEncoding,
           callCommand)
-import Rehi.Utils (equalWith, index_only, readPopen, mapCmdLinesM, mapFileLinesM, modifySnd,
-                   trim, writeFile, appendToFile, whenM, unlessM, ifM, command_lines)
+import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
+                   trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
 
@@ -545,18 +546,18 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
 git_fetch_cli_commits from to = do
   Cmd.verify_cmdarg from
   Cmd.verify_cmdarg to
-  git_fetch_commits ("git log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> from <> ".." <> to)
+  git_fetch_commits ("log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> [from <> ".." <> to])
                     (Commits Map.empty Map.empty)
 
-git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader (Env a) m) => ByteString -> Commits -> m Commits
-git_fetch_commits cmd commits = do
+git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader (Env a) m) => ArgList -> Commits -> m Commits
+git_fetch_commits args commits = do
   gitDir <- askGitDir
   h <- liftIO $ openBinaryFile (gitDir <> "/rehi/commits") (AppendMode)
   liftIO $ hSetBinaryMode h True
   finally
     (do
       execStateT
-        ((liftIO $ command_lines cmd '\0') >>= mapM (\case
+        ((liftIO $ popen_lines "git" args '\0') >>= mapM (\case
           "\n" -> pure ()
           line -> do
             git_parse_commit_line line
@@ -594,7 +595,7 @@ git_parse_commit_line line = do
 git_merge_base b1 b2 = do
   Cmd.verify_cmdarg b1
   Cmd.verify_cmdarg b2
-  [base] <- execWriterT $ mapCmdLinesM (tell . (: []) . trim) ("git merge-base -a " <> b1 <> " " <> b2) '\n'
+  ([base] :: [ByteString]) <- execWriterT $ liftIO $ popen_lines "git" ("merge-base -a" <> [b1, b2]) '\n'
   pure base
 
 verify_hash :: Monad m => Hash -> m ()
@@ -840,7 +841,7 @@ git_fetch_commit_list commits unknowns = do
     (map hashString -> us, usRest) = Prelude.splitAt 20 unknowns
   mapM_ Cmd.verify_cmdarg us
   commits <- git_fetch_commits
-    ("git show -z --no-patch --pretty=format:%H:%h:%T:%P:%B" <> ByteString.concat (map (" " <>) us))
+    ("show -z --no-patch --pretty=format:%H:%h:%T:%P:%B" <> ArgList us)
     commits
   git_fetch_commit_list commits usRest
 

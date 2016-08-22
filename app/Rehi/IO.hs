@@ -12,6 +12,7 @@ module Rehi.IO (
     lookupEnv,
     openBinaryFile,
     openBinaryTempFile,
+    proc,
     readBinaryFile,
     readCommand,
     removeDirectoryRecursive,
@@ -67,6 +68,9 @@ readCommand :: ByteString -> IO ByteString
 readCommand cmd = do
   cmdS <- decode cmd
   SP.readCreateProcess (SP.shell cmdS) "" >>= encode
+
+proc :: ByteString -> [ByteString] -> IO SP.CreateProcess
+proc exe args = SP.proc <$> decode exe <*> mapM decode args
 
 shell :: ByteString -> IO SP.CreateProcess
 shell cmd = do
