@@ -546,7 +546,7 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
 git_fetch_cli_commits from to = do
   Cmd.verify_cmdarg from
   Cmd.verify_cmdarg to
-  git_fetch_commits ("log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B " <> [from <> ".." <> to])
+  git_fetch_commits ("log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B" <> [from <> ".." <> to])
                     (Commits Map.empty Map.empty)
 
 git_fetch_commits :: (MonadIO m, MonadMask m, MonadReader (Env a) m) => ArgList -> Commits -> m Commits
@@ -595,7 +595,7 @@ git_parse_commit_line line = do
 git_merge_base b1 b2 = do
   Cmd.verify_cmdarg b1
   Cmd.verify_cmdarg b2
-  ([base] :: [ByteString]) <- execWriterT $ liftIO $ popen_lines "git" ("merge-base -a" <> [b1, b2]) '\n'
+  [base] <- liftIO $ popen_lines "git" ("merge-base -a" <> [b1, b2]) '\n'
   pure base
 
 verify_hash :: Monad m => Hash -> m ()
