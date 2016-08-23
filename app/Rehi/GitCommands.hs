@@ -9,7 +9,7 @@ import qualified Data.ByteString as B
 
 import Rehi.ArgList (ArgList(ArgList), getArgList)
 import Rehi.IO (readCommand,callProcess)
-import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
+import Rehi.Utils (equalWith, index_only, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 import Rehi.GitTypes
@@ -64,16 +64,10 @@ merge doCommit ours noff parents = git command
 
 git_resolve_hashes :: [B.ByteString] -> IO [Hash]
 git_resolve_hashes refs = do
-  mapM_ verify_cmdarg refs
   hashes <- fmap (map (Hash . trim)) $ popen_lines "git" ("rev-parse" <> ArgList refs) '\n'
   if length hashes == length refs
     then pure hashes
     else error "Hash number does not match"
-
-verify_cmdarg :: Monad m => B.ByteString -> m ()
-verify_cmdarg str = case regex_match str "[\"'\\\\\\(\\)#]|[\001- ]" of
-  Just _ -> fail ("Invalid cmdarg: " <> show str)
-  Nothing -> pure ()
 
 git :: ArgList -> IO ()
 git al = callProcess "git" (getArgList al)

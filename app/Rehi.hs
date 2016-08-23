@@ -545,8 +545,6 @@ make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just a
     ours = entryTree thisE == entryTree (commitsByHash commits Map.! head (entryParents thisE) )
 
 git_fetch_cli_commits from to = do
-  Cmd.verify_cmdarg from
-  Cmd.verify_cmdarg to
   git_fetch_commits ("log -z --ancestry-path --pretty=format:%H:%h:%T:%P:%B" <> [from <> ".." <> to])
                     (Commits Map.empty Map.empty)
 
@@ -594,8 +592,6 @@ git_parse_commit_line line = do
     _ -> fail ("Could not parse line: " <> show line)
 
 git_merge_base b1 b2 = do
-  Cmd.verify_cmdarg b1
-  Cmd.verify_cmdarg b2
   [base] <- liftIO $ popen_lines "git" ("merge-base -a" <> [b1, b2]) '\n'
   pure base
 
@@ -840,7 +836,6 @@ git_fetch_commit_list commits [] = pure commits
 git_fetch_commit_list commits unknowns = do
   let
     (map hashString -> us, usRest) = Prelude.splitAt 20 unknowns
-  mapM_ Cmd.verify_cmdarg us
   commits <- git_fetch_commits
     ("show -z --no-patch --pretty=format:%H:%h:%T:%P:%B" <> ArgList us)
     commits

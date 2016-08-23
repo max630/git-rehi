@@ -16,7 +16,7 @@ import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryM
 import System.Process(StdStream(CreatePipe),CreateProcess(),waitForProcess,createProcess,std_out)
 
 import Rehi.ArgList (ArgList(), getArgList)
-import Rehi.IO (withBinaryFile,openBinaryFile,readCommand,proc,system,shell)
+import Rehi.IO (withBinaryFile,openBinaryFile,readCommand,proc)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
