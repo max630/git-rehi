@@ -49,9 +49,10 @@ import qualified Data.Set as Set
 import qualified Prelude as Prelude
 
 import Rehi.ArgList(ArgList(ArgList))
-import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,createDirectory,removeDirectoryRecursive,
-          removeFile,doesFileExist,doesDirectoryExist, getArgs,lookupEnv, system, initEncoding,
-          callCommand)
+import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
+               createDirectory,copyFile,
+               removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
+               lookupEnv, system, initEncoding)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
@@ -616,7 +617,7 @@ cleanup_save = do
   liftIO (doesDirectoryExist (gitDir <> "/rehi")) `whenM` (do
     let newBackup = gitDir <> "/rehi/todo.backup"
     liftIO (doesFileExist newBackup) `whenM`
-              liftIO (callCommand ("cp -f " <> newBackup <> " " <> gitDir <> "/rehi_todo.backup"))
+              liftIO (copyFile newBackup (gitDir <> "/rehi_todo.backup"))
     liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
 commits_get_subject (Commits refs byHash) ah = do

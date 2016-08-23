@@ -3,6 +3,7 @@ module Rehi.IO (
     callCommand,
     callProcess,
     createDirectory,
+    copyFile,
     doesDirectoryExist,
     doesFileExist,
     getArgs,
@@ -52,6 +53,9 @@ openBinaryTempFile dir fn = do
   (, h) <$> encode p
 
 createDirectory p = SD.createDirectory =<< decode p
+
+copyFile :: ByteString -> ByteString -> IO ()
+copyFile old new = join $ SD.copyFile <$> decode old <*> decode new
 
 doesFileExist p = SD.doesFileExist =<< decode p
 
