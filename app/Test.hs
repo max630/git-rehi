@@ -3,13 +3,11 @@
 module Test where
 
 import Rehi hiding (main)
-import Rehi.ArgList (ArgList(ArgList))
 import Rehi.Regex (regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
 import Rehi.IO (getTemporaryDirectory,removeFile,openBinaryTempFile,readBinaryFile)
-import Rehi.Utils (popen_lines)
 
-import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),(~?),(@?),runTestTT,assertFailure)
+import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT,assertFailure)
 
 import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
@@ -70,7 +68,7 @@ allTests = test [ "regex" ~:
                 , "comments_from_string" ~:
                     [ "normal" ~: comments_from_string "a\nb\n" 0 ~?= [UserComment "a", UserComment "b"]
                     , "pending line" ~: comments_from_string "a\nb" 0 ~?= [UserComment "a", UserComment "b"] ]
-                , test_popen ]
+                    ]
   where
     p n = Pick (hashes !! n)
     h n = Hash (hashes !! n)
@@ -160,7 +158,3 @@ test_parse_cli =
     , parse_cli ["a","b..e..f..d","c"] ~?= Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False
   , "failures" ~:
     [ mustError (runThroughs $ parse_cli ["a", "b...d"]) (isPrefixOf "Invalid source spec:") ] ] ]
-
-
-test_popen =
-  test [ (popen_lines "/bin/echo" "aaa" '\n' >>= (pure . (== ["aaa"]))) @? "popen_lines" ]
