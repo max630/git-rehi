@@ -23,6 +23,10 @@ import System.IO(hClose)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
+import qualified System.IO as SI
+
+import Control.Exception (handle,SomeException(SomeException))
+import Data.Typeable (typeOf)
 
 main = runTestTT  allTests
 
@@ -158,3 +162,11 @@ test_parse_cli =
     , parse_cli ["a","b..e..f..d","c"] ~?= Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False
   , "failures" ~:
     [ mustError (runThroughs $ parse_cli ["a", "b...d"]) (isPrefixOf "Invalid source spec:") ] ] ]
+
+demo_errors = do
+  SI.hPutStrLn SI.stderr "---- removeFile ----"
+  handleErrors (SI.hPutStrLn SI.stderr) (const $ pure ()) $ removeFile "/tmp/ergieurgerugergerg"
+  SI.hPutStrLn SI.stderr "---- fail ----"
+  handleErrors (SI.hPutStrLn SI.stderr) (const $ pure ()) $ fail "test"
+  SI.hPutStrLn SI.stderr "---- error ----"
+  handleErrors (SI.hPutStrLn SI.stderr) (const $ pure ()) $ error "test"

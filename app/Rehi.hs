@@ -26,6 +26,7 @@ import Data.ByteString.Char8(putStrLn,putStr,pack,hPutStrLn)
 import Data.List(foldl')
 import Data.Maybe(fromMaybe,isJust,isNothing)
 import Data.Monoid((<>))
+import Data.Typeable(typeOf)
 import Control.Monad(foldM,forM_,when)
 import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
 import Control.Monad.Fix(fix)
@@ -39,14 +40,17 @@ import Control.Monad.Trans.State(evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
-import System.Exit (ExitCode(ExitSuccess))
+import System.Exit (ExitCode(ExitSuccess,ExitFailure),exitWith)
 import System.IO(hClose,IOMode(WriteMode,AppendMode),hSetBinaryMode)
 
+import qualified Control.Exception as CE
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified GHC.IO.Exception as GIE
 import qualified Prelude as Prelude
+import qualified System.IO as SI
 
 import Rehi.ArgList(ArgList(ArgList))
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
@@ -61,7 +65,7 @@ import Rehi.GitTypes (Hash(Hash), hashString)
 import qualified Rehi.GitCommands as Cmd
 
 main :: IO ()
-main = do
+main = handleErrors (SI.hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
   initEncoding
   env <- get_env
   flip runReaderT env $ do
@@ -860,3 +864,18 @@ git_get_checkedout_branch = do
 askGitDir :: MonadReader (Env a) m => m ByteString
 askGitDir = ask >>= \r -> pure (envGitDir r)
 
+handleErrors :: (String -> IO ()) -> (Int -> IO a) -> IO a -> IO a
+handleErrors printCb exitCb action =
+  action `CE.catches` [CE.Handler catchIO, CE.Handler catchAll]
+  where
+    catchAll (CE.SomeException e) = do
+      printCb ("Internal error: " ++ show (typeOf e))
+      printCb ("Message: " ++ CE.displayException e)
+      exitCb 1
+    catchIO (e :: GIE.IOException)
+      | GIE.UserError <- GIE.ioe_type e = do
+      printCb ("Unexpected happened: " ++ GIE.ioe_description e)
+      exitCb 1
+      | otherwise = do
+      printCb ("IO error: " ++ CE.displayException e)
+      exitCb 1
