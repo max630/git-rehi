@@ -8,15 +8,15 @@ use Data::Dumper;
 use Test::More qw(no_plan);
 
 # {{{ initialize
-if (! -e "/tmp/git-rebase/test-repo") {
-    !system("mkdir -p /tmp/git-rebase/test-repo && ( cd /tmp/git-rebase/test-repo && git init && git fast-import && git config user.email test.author\@example.com && git config user.name TestAuthor ) <itest-repo.data")
+if (! -e "/tmp/git-rehi/test-repo") {
+    !system("mkdir -p /tmp/git-rehi/test-repo && ( cd /tmp/git-rehi/test-repo && git init && git fast-import && git config user.email test.author\@example.com && git config user.name TestAuthor ) <itest-repo.data")
         or die("Test repo initialization failed: $? ($!)");
 }
 my $SOURCE_DIR = getcwd;
 my $STACK_ROOT = `stack path --local-install-root`;
 $STACK_ROOT =~ s/[\n\r]+$//;
 $STACK_ROOT =~ s/\\/\//g;
-chdir("/tmp/git-rebase/test-repo") or die("Unable to chdir to /tmp/git-rebase/test-repo: $!");
+chdir("/tmp/git-rehi/test-repo") or die("Unable to chdir to /tmp/git-rehi/test-repo: $!");
 my $testee = $STACK_ROOT . "/bin/git-rehi";
 # }}}
 
