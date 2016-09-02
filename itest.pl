@@ -36,8 +36,8 @@ sub cmd($;$) { my ($cmd) = @_;
     if ($goal_status eq "!= 0" && $status != 0
         || $goal_status =~ /^-?\d+$/ && $status == $goal_status)
     {
-        if ($output =~ /at.*line [0-9]+/) {
-            diag("Command output contains stacktrace\nCommand: $cmd\nOutput:\n$output\n");
+       if ($output =~ /Internal error: |Unexpected happened: |IO error: /) {
+            diag("Command failed with unexpected error\nCommand: $cmd\nOutput:\n$output\n");
             fail("cmd$cmd_num");
         } else {
             ok("cmd$cmd_num");

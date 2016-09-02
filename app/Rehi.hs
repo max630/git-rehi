@@ -58,7 +58,8 @@ import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,c
                removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
                lookupEnv, system, initEncoding)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
-                   trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines)
+                   trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
+                   tryWithRethrowComandFailure)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
 
@@ -90,7 +91,7 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
         lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
-        liftIO (doesFileExist currentPath) `unlessM` error "No rehi in progress"
+        liftIO (doesFileExist currentPath) `unlessM` CE.throw (ExpectedFailure ["No rehi in progress"])
         content <- liftIO $ readBinaryFile currentPath
         liftIO $ putStr ("Current: " <> content <> (if ByteString.null content || BC.last content /= '\n' then "\n" else ""))
       Run dest source_from_arg through source_to_arg target_arg interactive -> do
@@ -176,6 +177,9 @@ newtype EditError = EditError ByteString deriving Show
 
 instance Exception EditError
 
+newtype ExpectedFailure = ExpectedFailure [String] deriving Show
+instance Exception ExpectedFailure
+
 parse_cli = parse_loop False
   where
     parse_loop _ ("-i" : argv') = parse_loop True argv'
@@ -216,7 +220,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
         Just todo -> pure (todo, commits)
         Nothing -> do
           cleanup_save
-          fail "Aborted")
+          CE.throw (ExpectedFailure ["Aborted"]))
     else pure (todo, commits)
   if any (\case { UserComment _ -> False ; _ -> True }) todo
     then (do
@@ -322,9 +326,9 @@ run_continue current commits = do
   case current of
     Pick ah -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit $ Just ah)
     Merge ahM _ _ _ -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit ahM)
-    Edit _ -> git_no_uncommitted_changes `unlessM` fail "No unstaged changes should be after 'edit'"
+    Edit _ -> git_no_uncommitted_changes `unlessM` CE.throw (ExpectedFailure ["No unstaged changes should be after 'edit'"])
     Fixup _ -> git_no_uncommitted_changes `unlessM` liftIO Cmd.commit_amend
-    Exec cmd -> fail ("Cannot continue '" ++ show cmd ++ "'; resolve it manually, then skip or abort")
+    Exec cmd -> CE.throw $ ExpectedFailure ["Cannot continue '" ++ show cmd ++ "'", "resolve it manually, then skip or abort"]
     Comment c -> comment c
     _ -> fail ("run_continue: Unexpected " ++ show current)
 
@@ -406,7 +410,10 @@ run_step rebase_step = do
             modify' (\ts -> ts{tsHead = Sync})
       Exec cmd -> do
         sync_head
-        liftIO $ callCommand cmd
+        liftIO
+          $ tryWithRethrowComandFailure
+            (ExpectedFailure ["Command " ++ show cmd ++ " failed.", "Resolve and run `git rehi --skip` or `git rehi --abort`"])
+          $ callCommand cmd
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
         sync_head
@@ -465,7 +472,9 @@ merge_new commit_refMb parents_refs ours noff = do
                 liftIO $ Cmd.reset pFirst
                 pure (pInit ++ [hashString oldHead] ++ pTail)
               else pure (tail parents)
-  liftIO $ Cmd.merge (isNothing commit_refMb) ours noff parents
+  liftIO $ tryWithRethrowComandFailure
+              (ExpectedFailure ["Merge failed. Resolve and --continue or --skip, or --abort"])
+              (Cmd.merge (isNothing commit_refMb) ours noff parents)
   case commit_refMb of
     Just commit -> liftIO $ Cmd.commit_refMsgOnly commit
     _ -> pure ()
@@ -831,7 +840,14 @@ retry func = fix $ \rec -> do
     Left msg -> do
       liftIO $ putStrLn ("Error: " <> msg)
       liftIO $ putStrLn "Retry (y/N)?"
-      answer <- liftIO $ ByteString.getLine
+      answer <- liftIO
+        $ CE.catchJust
+            (\case
+                (GIE.IOError { GIE.ioe_type = GIE.EOF })
+                  -> Just "n"
+                _ -> Nothing)
+            ByteString.getLine
+            pure
       if "y" `ByteString.isPrefixOf` answer || "Y" `ByteString.isPrefixOf` answer
         then rec
         else pure Nothing
@@ -866,8 +882,11 @@ askGitDir = ask >>= \r -> pure (envGitDir r)
 
 handleErrors :: (String -> IO ()) -> (Int -> IO a) -> IO a -> IO a
 handleErrors printCb exitCb action =
-  action `CE.catches` [CE.Handler catchIO, CE.Handler catchAll]
+  action `CE.catches` [CE.Handler catchExpected, CE.Handler catchIO, CE.Handler catchAll]
   where
+    catchExpected (ExpectedFailure msg) = do
+      mapM_ printCb msg
+      exitCb 1
     catchAll (CE.SomeException e) = do
       printCb ("Internal error: " ++ show (typeOf e))
       printCb ("Message: " ++ CE.displayException e)

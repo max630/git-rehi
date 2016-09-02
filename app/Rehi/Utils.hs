@@ -1,14 +1,16 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternGuards #-}
 module Rehi.Utils where
 
 import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
+import Control.Exception (catchJust,Exception,throw)
 import Control.Monad.Catch (MonadMask,finally)
 import Control.Monad.IO.Class (liftIO,MonadIO)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
-import Data.List (foldl')
+import Data.List (foldl', isPrefixOf)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import System.Exit (ExitCode(ExitSuccess))
@@ -20,6 +22,7 @@ import Rehi.IO (withBinaryFile,openBinaryFile,readCommand,proc)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
+import qualified GHC.IO.Exception as GIE
 
 equalWith :: (a -> b -> Bool) -> [a] -> [b] -> Bool
 equalWith _ [] [] = True
@@ -93,3 +96,15 @@ unlessM p f = ifM p (pure ()) f
 
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM p ft ff = p >>= \pv -> if pv then ft else ff
+
+tryWithRethrowComandFailure :: Exception e => e -> IO () -> IO ()
+tryWithRethrowComandFailure e action =
+  catchJust
+              (\case
+                (GIE.IOError { GIE.ioe_type = GIE.OtherError
+                             , GIE.ioe_location = location })
+                  | isPrefixOf "callProcess: " location || isPrefixOf "callCommand: " location
+                  -> Just e
+                _ -> Nothing)
+              action
+              throw
