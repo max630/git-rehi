@@ -300,7 +300,7 @@ edit_todo old_todo commits = do
   liftIO $ save_todo old_todo todoPath commits
   retry (do
     -- use git to launch editor to avoid dealing with msys paths in Windows
-    liftIO (Cmd.git ("config --edit --file" <> [todoPath]))
+    liftIO $ Cmd.edit_config_file todoPath
     todo_rc <- read_todo todoPath commits
     verify_marks todo_rc
     pure todo_rc)

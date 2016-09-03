@@ -71,5 +71,8 @@ git_resolve_hashes refs = do
     then pure hashes
     else error "Hash number does not match"
 
+edit_config_file :: B.ByteString -> IO ()
+edit_config_file path = git ("config --edit --file" <> [path])
+
 git :: ArgList -> IO ()
 git al = callProcess "git" (getArgList al)
