@@ -23,7 +23,7 @@ import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn,putStr,pack,hPutStrLn)
-import Data.List(foldl')
+import Data.List(foldl', isPrefixOf)
 import Data.Maybe(fromMaybe,isJust,isNothing)
 import Data.Monoid((<>))
 import Data.Typeable(typeOf)
@@ -179,6 +179,9 @@ instance Exception EditError
 
 newtype ExpectedFailure = ExpectedFailure [String] deriving Show
 instance Exception ExpectedFailure
+
+pattern CommandFailed location <- GIE.IOError { GIE.ioe_type = GIE.OtherError,
+                                                GIE.ioe_location = location }
 
 parse_cli = parse_loop False
   where
@@ -412,8 +415,11 @@ run_step rebase_step = do
         sync_head
         liftIO
           $ tryWithRethrowComandFailure
-            (ExpectedFailure ["Command " ++ show cmd ++ " failed.", "Resolve and run `git rehi --skip` or `git rehi --abort`"])
-          $ callCommand cmd
+              ["callCommand: "]
+              (ExpectedFailure
+                          [ "Command " ++ show cmd ++ " failed."
+                          , "Resolve and run `git rehi --skip` or `git rehi --abort`"])
+              (callCommand cmd)
       Comment new_comment -> do
         liftIO $ putStrLn "Updating comment"
         sync_head
@@ -473,6 +479,7 @@ merge_new commit_refMb parents_refs ours noff = do
                 pure (pInit ++ [hashString oldHead] ++ pTail)
               else pure (tail parents)
   liftIO $ tryWithRethrowComandFailure
+              ["callProcess: "]
               (ExpectedFailure ["Merge failed. Resolve and --continue or --skip, or --abort"])
               (Cmd.merge (isNothing commit_refMb) ours noff parents)
   case commit_refMb of

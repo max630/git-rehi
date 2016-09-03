@@ -97,13 +97,13 @@ unlessM p f = ifM p (pure ()) f
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM p ft ff = p >>= \pv -> if pv then ft else ff
 
-tryWithRethrowComandFailure :: Exception e => e -> IO () -> IO ()
-tryWithRethrowComandFailure e action =
+tryWithRethrowComandFailure :: Exception e => [String] -> e -> IO () -> IO ()
+tryWithRethrowComandFailure prefixes e action =
   catchJust
               (\case
                 (GIE.IOError { GIE.ioe_type = GIE.OtherError
                              , GIE.ioe_location = location })
-                  | isPrefixOf "callProcess: " location || isPrefixOf "callCommand: " location
+                  | any (`isPrefixOf` location) prefixes
                   -> Just e
                 _ -> Nothing)
               action
