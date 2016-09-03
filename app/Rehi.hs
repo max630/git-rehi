@@ -325,7 +325,11 @@ verify_marks todo = do
 
 run_continue :: (MonadReader (Env a) m, MonadIO m) => Step -> t -> m ()
 run_continue current commits = do
-  liftIO $ Cmd.verify_clean
+  liftIO $
+    tryWithRethrowComandFailure
+      ["callProcess: ", "readCreateProcess: "]
+      (ExpectedFailure ["Continue failed - unresolved problems"])
+      Cmd.verify_clean
   case current of
     Pick ah -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit $ Just ah)
     Merge ahM _ _ _ -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit ahM)
@@ -483,7 +487,17 @@ merge_new commit_refMb parents_refs ours noff = do
               (ExpectedFailure ["Merge failed. Resolve and --continue or --skip, or --abort"])
               (Cmd.merge (isNothing commit_refMb) ours noff parents)
   case commit_refMb of
-    Just commit -> liftIO $ Cmd.commit_refMsgOnly commit
+    Just commit -> liftIO $
+                      tryWithRethrowComandFailure
+                        ["callProcess: "]
+                        (ExpectedFailure
+                          ["Merge commit failed, fastforward?"
+                          , "You would probably want to do now one of the following:"
+                          , " * force non-fastforward merge"
+                          , " * merge some other parent instead of the one from history"
+                          , " * skip the step at all (is it a non-interactive rebase?)"
+                          , "Then invoke git rehi --skip"])
+                        (Cmd.commit_refMsgOnly commit)
     _ -> pure ()
 
 sync_head :: (MonadState TS m, MonadIO m) => m ()
