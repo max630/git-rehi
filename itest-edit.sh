@@ -20,6 +20,11 @@ cat >"$file" <<EOF
 x false
 EOF
 ;;
+fail-pick)
+cat >"$file" <<EOF
+pick $GIT_SEQUENCE_EDITOR_STEP_HASH
+EOF
+;;
 merge-c)
 cat >"$file" <<EOF
 merge -c 3a5191091 HEAD,608a449bb2 Test merge subject
