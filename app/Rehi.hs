@@ -521,7 +521,13 @@ pick hash = do
           modify' (\s -> s{ tsHead = Known (Hash hash)})
     _ -> do
           sync_head
-          liftIO $ Cmd.cherrypick hash
+          liftIO $
+              tryWithRethrowComandFailure
+                ["callProcess: "]
+                (ExpectedFailure ["Pick `"
+                                  ++ show hash
+                                  ++ "` failed. Resolve and --continue or --skip, or --abort"])
+                (Cmd.cherrypick hash)
 
 comment new_comment = do
   gitDir <- askGitDir

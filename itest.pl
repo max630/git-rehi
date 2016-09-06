@@ -354,7 +354,6 @@ t {
     my $gc2 = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail-pick");
     my $hash = `git rev-parse --short origin/b2`;
     $hash =~ s/[\n\r]*$//s;
-    print Dumper($hash);
     my $gc3 = env_guard->new("GIT_SEQUENCE_EDITOR_STEP_HASH", $hash);
     cmd("$testee -i origin/b3 ..origin/b2b3", "!= 0");
     is(`$testee --current`, "Current: pick $hash change2\n");
