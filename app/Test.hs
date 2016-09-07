@@ -33,31 +33,28 @@ main = runTestTT  allTests
 allTests = test [ "regex" ~:
                     [ "split keeps last " ~: regex_split "a b c" " " ~?= ["a", "b", "c"] ]
                 , "find_sequence" ~:
-                    [ "linear" ~: test_findseq [(1,[2]),(2,[3]),(3,[4])] 4 1 [] ~?= [h 3, h 2, h 1]
-                    , "diamond" ~: test_findseq [(4,[2,3]),(2,[1]),(3,[1]),(1,[0])] 0 4 [] ~?= map h [1,3,2,4]
-                    , "simple_branch" ~: test_findseq [(1,[2,3]),(2,[3,5])] 2 1 [] ~?= [h 1]
-                    , "shortest" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [] ~?= map h [2,1]
-                    , "through" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [4] ~?= map h [4,3,1]
-                    , "parallel_throughs" ~:
-                        mustError
-                          (mconcat $ map hashString $ test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [2,4])
-                          (== "No path found")
-                    , "inner merge" ~: test_findseq [(1,[2,5]),(2,[3]),(3,[4]),(4,[]),(5,[6]),(6,[3,7]),(7,[4])] 4 1 [] ~?= map h [3,6,5,2,1]
-                    , "inner merge through" ~: test_findseq [(1,[2,5]),(2,[3]),(3,[4]),(4,[]),(5,[6]),(6,[3,7]),(7,[4])] 4 1 [7] ~?= map h [7,6,5,1] ]
+                    [ "linear" ~: test_findseq [(1,[2]),(2,[3]),(3,[4])] 4 1 [] ~?= Right [h 3, h 2, h 1]
+                    , "diamond" ~: test_findseq [(4,[2,3]),(2,[1]),(3,[1]),(1,[0])] 0 4 [] ~?= Right (map h [1,3,2,4])
+                    , "simple_branch" ~: test_findseq [(1,[2,3]),(2,[3,5])] 2 1 [] ~?= Right [h 1]
+                    , "shortest" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [] ~?= Right (map h [2,1])
+                    , "through" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [4] ~?= Right (map h [4,3,1])
+                    , "parallel_throughs" ~: test_findseq [(1,[2,3]),(2,[6]),(3,[4]),(4,[6]),(6,[7,10])] 6 1 [2,4] ~?= Left "No path found"
+                    , "inner merge" ~: test_findseq [(1,[2,5]),(2,[3]),(3,[4]),(4,[]),(5,[6]),(6,[3,7]),(7,[4])] 4 1 [] ~?= Right (map h [3,6,5,2,1])
+                    , "inner merge through" ~: test_findseq [(1,[2,5]),(2,[3]),(3,[4]),(4,[]),(5,[6]),(6,[3,7]),(7,[4])] 4 1 [7] ~?= Right (map h [7,6,5,1]) ]
                 , "build_rebase_sequence" ~:
-                    [ "1" ~: brs1 ~?= [Pick (hashes !! 0)]
-                    , "2" ~: brs2 ~?= []
-                    , "3" ~: brs3 ~?= [p 1
-                                      , Mark "tmp_1"
-                                      , p 3
-                                      , Mark "tmp_2"
-                                      , Reset "@tmp_1"
-                                      , p 2
-                                      , Merge (Just (hashes !! 4)) ["HEAD", "@tmp_2"] False False]
+                    [ "1" ~: brs1 ~?= Right [Pick (hashes !! 0)]
+                    , "2" ~: brs2 ~?= Right []
+                    , "3" ~: brs3 ~?= Right [p 1
+                                            , Mark "tmp_1"
+                                            , p 3
+                                            , Mark "tmp_2"
+                                            , Reset "@tmp_1"
+                                            , p 2
+                                            , Merge (Just (hashes !! 4)) ["HEAD", "@tmp_2"] False False]
                     , "inner_merge_after_merge " ~: test_brs [(1,[2,3]),(2,[4]),(3,[4]),(4,[5,6]),(5,[7]),(6,[8])] 5 1 []
-                                                      ~?= [ Merge (Just (hashes !! 4)) ["HEAD",hashes !! 6] False False
-                                                          , Mark "tmp_1", p 3, Mark "tmp_2", Reset "@tmp_1", p 2
-                                                          , Merge (Just (hashes !! 1)) ["HEAD","@tmp_2"] False False ] ]
+                                                      ~?= Right [ Merge (Just (hashes !! 4)) ["HEAD",hashes !! 6] False False
+                                                                , Mark "tmp_1", p 3, Mark "tmp_2", Reset "@tmp_1", p 2
+                                                                , Merge (Just (hashes !! 1)) ["HEAD","@tmp_2"] False False ] ]
                 , "parse_cli_p1" ~: p1 ~?= Run "origin/b4" Nothing [] (Just "origin/base") Nothing True
                 , "parse_cli" ~: test_parse_cli
                 , "parse_todo" ~:

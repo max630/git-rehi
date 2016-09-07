@@ -255,8 +255,9 @@ init_rebase dest source_from through source_to target_ref initial_branch = do
   commits <- git_fetch_cli_commits source_from source_to
   let unknown_parents = find_unknown_parents commits
   commits <- git_fetch_commit_list commits unknown_parents
-  let todo = build_rebase_sequence commits source_from_hash source_to_hash through_hashes
-  pure (todo, commits, dest_hash)
+  case build_rebase_sequence commits source_from_hash source_to_hash through_hashes of
+    Right todo -> pure (todo, commits, dest_hash)
+    Left msg -> CE.throw $ ExpectedFailure [msg]
 
 find_unknown_parents commits =
   Set.toList $ Set.fromList [ p | c <- Map.elems (commitsByHash commits),
@@ -534,43 +535,46 @@ comment new_comment = do
   liftIO $ writeFile (gitDir <> "/rehi/commit_msg") new_comment
   liftIO $ Cmd.commit_amend_msgFile (gitDir <> "/rehi/commit_msg")
 
-build_rebase_sequence :: Commits -> Hash -> Hash -> [Hash] -> [Step]
-build_rebase_sequence commits source_from_hash source_to_hash through_hashes = from_mark ++ steps
-  where
-    sequence = find_sequence (commitsByHash commits) source_from_hash source_to_hash through_hashes
-    (marks, _, _)
-          = foldl'
-              (\(marks, mark_num, prev_hash) step_hash ->
-                let (marks', mark_num') =
-                      foldl'
-                        (\v@(marks, mark_num) parent ->
-                          case Map.lookup parent marks of
-                            Just Nothing ->
-                              (Map.insert parent (Just ("tmp_" <> pack (show mark_num))) marks
-                              , mark_num + 1)
-                            _ -> v)
-                        (marks, mark_num)
-                        (filter (/= prev_hash) $ entryParents (commitsByHash commits Map.! step_hash))
-                in (marks', mark_num', step_hash))
-              (Map.fromList $ zip ([source_from_hash] ++ sequence) (repeat Nothing)
-               , 1 :: Integer
-               , source_from_hash)
-              sequence
-    from_mark = maybe [] ((:[]) . Mark) (marks Map.! source_from_hash)
-    steps = concat $ zipWith makeStep sequence (source_from_hash : sequence)
-    makeStep this prev = reset ++ step ++ maybe [] ((:[]) . Mark) (marks Map.! this)
-      where
-        thisE = commitsByHash commits Map.! this
-        (real_prev, reset) =
-          if prev `elem` entryParents thisE
-            then (prev, [])
-            else case filter (`Map.member` marks) (entryParents thisE) of
-              (h : _) | Just m <- marks Map.! h -> (h, [Reset ("@" <> m)])
-                      | Nothing <- marks Map.! h -> error ("Unresolved mark for " <> show h)
-              [] -> error ("No known parents for found step " <> show this)
-        step = case entryParents thisE of
-          [p] -> [Pick $ entryAHash thisE]
-          ps -> make_merge_steps thisE real_prev commits marks
+build_rebase_sequence :: Commits -> Hash -> Hash -> [Hash] -> Either String [Step]
+build_rebase_sequence commits source_from_hash source_to_hash through_hashes =
+  case find_sequence (commitsByHash commits) source_from_hash source_to_hash through_hashes of
+    Right sequence ->
+      let
+        (marks, _, _)
+              = foldl'
+                  (\(marks, mark_num, prev_hash) step_hash ->
+                    let (marks', mark_num') =
+                          foldl'
+                            (\v@(marks, mark_num) parent ->
+                              case Map.lookup parent marks of
+                                Just Nothing ->
+                                  (Map.insert parent (Just ("tmp_" <> pack (show mark_num))) marks
+                                  , mark_num + 1)
+                                _ -> v)
+                            (marks, mark_num)
+                            (filter (/= prev_hash) $ entryParents (commitsByHash commits Map.! step_hash))
+                    in (marks', mark_num', step_hash))
+                  (Map.fromList $ zip ([source_from_hash] ++ sequence) (repeat Nothing)
+                   , 1 :: Integer
+                   , source_from_hash)
+                  sequence
+        from_mark = maybe [] ((:[]) . Mark) (marks Map.! source_from_hash)
+        steps = concat $ zipWith makeStep sequence (source_from_hash : sequence)
+        makeStep this prev = reset ++ step ++ maybe [] ((:[]) . Mark) (marks Map.! this)
+          where
+            thisE = commitsByHash commits Map.! this
+            (real_prev, reset) =
+              if prev `elem` entryParents thisE
+                then (prev, [])
+                else case filter (`Map.member` marks) (entryParents thisE) of
+                  (h : _) | Just m <- marks Map.! h -> (h, [Reset ("@" <> m)])
+                          | Nothing <- marks Map.! h -> error ("Unresolved mark for " <> show h)
+                  [] -> error ("No known parents for found step " <> show this)
+            step = case entryParents thisE of
+              [p] -> [Pick $ entryAHash thisE]
+              ps -> make_merge_steps thisE real_prev commits marks
+      in Right (from_mark ++ steps)
+    Left msg -> Left msg
 
 make_merge_steps thisE real_prev commits marks = singleHead `seq` [Merge (Just ahash) parents ours False]
   where
@@ -773,7 +777,7 @@ data FS = FS {
                          fssChildrenWaiters :: Map.Map Hash FsWaiter,
                          fssTerminatingCommits :: Set.Set Hash }
 
-find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> [Hash]
+find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> Either String [Hash]
 find_sequence commits from to through =
   step (FS (Map.singleton 1 (FsThread FsReady to [])) [1] 2 Map.empty Set.empty)
   where
@@ -781,9 +785,9 @@ find_sequence commits from to through =
                         ((Map.fromList $ map (,0) (from : to : Map.keys commits))
                         : map (Map.fromList . map (,1) . entryParents) (Map.elems commits))
     step = \case
-      FS { fssSchedule = [] } -> error "No path found"
+      FS { fssSchedule = [] } -> Left "No path found"
       s@(FS ts sc@(n : _) nextId childerWaiters terminatingCommits)
-        | FsDone <- fsstState (ts Map.! n) -> reverse $ fsstTodo (ts Map.! n)
+        | FsDone <- fsstState (ts Map.! n) -> Right $ reverse $ fsstTodo (ts Map.! n)
         | otherwise -> case break ((`elem` ([FsReady, FsFinalizeMergebases] :: [FsThreadState])) . fsstState . (ts Map.!)) sc of
             (_, []) -> error "No thread is READY"
             (scH, (scC@((ts Map.!) -> FsThread curState curHash curTodo) : scT))
