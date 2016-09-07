@@ -28,7 +28,8 @@ import Data.Maybe(fromMaybe,isJust,isNothing)
 import Data.Monoid((<>))
 import Data.Typeable(typeOf)
 import Control.Monad(foldM,forM_,when)
-import Control.Monad.Catch(MonadMask,MonadThrow,finally,catch,catchJust,SomeException,throwM,Exception)
+import Control.Monad.Catch(displayException,finally,catch,catchJust,catches,SomeException,throwM)
+import Control.Monad.Catch(MonadMask,MonadThrow,SomeException(SomeException),Exception,Handler(Handler))
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
@@ -43,7 +44,6 @@ import Control.Monad.Writer(tell)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure),exitWith)
 import System.IO(hClose,IOMode(WriteMode,AppendMode),hSetBinaryMode)
 
-import qualified Control.Exception as CE
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map.Strict as Map
@@ -918,19 +918,19 @@ askGitDir = ask >>= \r -> pure (envGitDir r)
 
 handleErrors :: (String -> IO ()) -> (Int -> IO a) -> IO a -> IO a
 handleErrors printCb exitCb action =
-  action `CE.catches` [CE.Handler catchExpected, CE.Handler catchIO, CE.Handler catchAll]
+  action `catches` ([Handler catchExpected, Handler catchIO, Handler catchAll] :: [Handler IO _])
   where
     catchExpected (ExpectedFailure msg) = do
       mapM_ printCb msg
       exitCb 1
-    catchAll (CE.SomeException e) = do
+    catchAll (SomeException e) = do
       printCb ("Internal error: " ++ show (typeOf e))
-      printCb ("Message: " ++ CE.displayException e)
+      printCb ("Message: " ++ displayException e)
       exitCb 1
     catchIO (e :: GIE.IOException)
       | GIE.UserError <- GIE.ioe_type e = do
       printCb ("Unexpected happened: " ++ GIE.ioe_description e)
       exitCb 1
       | otherwise = do
-      printCb ("IO error: " ++ CE.displayException e)
+      printCb ("IO error: " ++ displayException e)
       exitCb 1
