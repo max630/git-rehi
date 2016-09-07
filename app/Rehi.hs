@@ -215,7 +215,12 @@ parse_cli = parse_loop False
 
 main_run :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
 main_run dest source_from through source_to target_ref initial_branch interactive = do
-  (todo, commits, dest_hash) <- init_rebase dest source_from through source_to target_ref initial_branch
+  (todo, commits, dest_hash) <-
+    catch
+      (init_rebase dest source_from through source_to target_ref initial_branch)
+      (\(e :: ExpectedFailure) -> do
+        cleanup_save
+        throwM e)
   (todo, commits) <- if interactive
     then (do
       let todo' = add_info_to_todo todo commits

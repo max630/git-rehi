@@ -374,6 +374,11 @@ t {
     is("ours_with_ref_comment\n", `git log --pretty=format:%B -1`);
 } ours_with_ref;
 
+t {
+    cmd("$testee origin/b5 origin/b5..", "!= 0");
+    cmd("$testee origin/b2");
+} startfailclean;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
