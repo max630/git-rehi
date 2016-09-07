@@ -28,7 +28,7 @@ import Data.Maybe(fromMaybe,isJust,isNothing)
 import Data.Monoid((<>))
 import Data.Typeable(typeOf)
 import Control.Monad(foldM,forM_,when)
-import Control.Monad.Catch(MonadMask,finally,catch,SomeException,throwM,Exception)
+import Control.Monad.Catch(MonadMask,MonadThrow,finally,catch,catchJust,SomeException,throwM,Exception)
 import Control.Monad.Fix(fix)
 import Control.Monad.IO.Class(liftIO,MonadIO)
 import Control.Monad.Reader(MonadReader,ask)
@@ -91,7 +91,7 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
         lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
-        liftIO (doesFileExist currentPath) `unlessM` CE.throw (ExpectedFailure ["No rehi in progress"])
+        liftIO (doesFileExist currentPath) `unlessM` throwM (ExpectedFailure ["No rehi in progress"])
         content <- liftIO $ readBinaryFile currentPath
         liftIO $ putStr ("Current: " <> content <> (if ByteString.null content || BC.last content /= '\n' then "\n" else ""))
       Run dest source_from_arg through source_to_arg target_arg interactive -> do
@@ -228,7 +228,7 @@ main_run dest source_from through source_to target_ref initial_branch interactiv
         Just todo -> pure (todo, commits)
         Nothing -> do
           cleanup_save
-          CE.throw (ExpectedFailure ["Aborted"]))
+          throwM (ExpectedFailure ["Aborted"]))
     else pure (todo, commits)
   if any (\case { UserComment _ -> False ; _ -> True }) todo
     then (do
@@ -262,7 +262,7 @@ init_rebase dest source_from through source_to target_ref initial_branch = do
   commits <- git_fetch_commit_list commits unknown_parents
   case build_rebase_sequence commits source_from_hash source_to_hash through_hashes of
     Right todo -> pure (todo, commits, dest_hash)
-    Left msg -> CE.throw $ ExpectedFailure [msg]
+    Left msg -> throwM $ ExpectedFailure [msg]
 
 find_unknown_parents commits =
   Set.toList $ Set.fromList [ p | c <- Map.elems (commitsByHash commits),
@@ -329,7 +329,7 @@ verify_marks todo = do
     check marks (uncons -> Just ((== (ByteString.head "@")) -> True, mark)) | not (Set.member mark marks) = throwM (EditError ("Unknown mark:" <> mark))
     check marks _ = pure marks
 
-run_continue :: (MonadReader (Env a) m, MonadIO m) => Step -> t -> m ()
+run_continue :: (MonadReader (Env a) m, MonadIO m, MonadThrow m) => Step -> t -> m ()
 run_continue current commits = do
   liftIO $
     tryWithRethrowComandFailure
@@ -339,9 +339,9 @@ run_continue current commits = do
   case current of
     Pick ah -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit $ Just ah)
     Merge ahM _ _ _ -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit ahM)
-    Edit _ -> git_no_uncommitted_changes `unlessM` CE.throw (ExpectedFailure ["No unstaged changes should be after 'edit'"])
+    Edit _ -> git_no_uncommitted_changes `unlessM` throwM (ExpectedFailure ["No unstaged changes should be after 'edit'"])
     Fixup _ -> git_no_uncommitted_changes `unlessM` liftIO Cmd.commit_amend
-    Exec cmd -> CE.throw $ ExpectedFailure ["Cannot continue '" ++ show cmd ++ "'", "resolve it manually, then skip or abort"]
+    Exec cmd -> throwM $ ExpectedFailure ["Cannot continue '" ++ show cmd ++ "'", "resolve it manually, then skip or abort"]
     Comment c -> comment c
     _ -> fail ("run_continue: Unexpected " ++ show current)
 
@@ -877,7 +877,7 @@ retry func = fix $ \rec -> do
       liftIO $ putStrLn ("Error: " <> msg)
       liftIO $ putStrLn "Retry (y/N)?"
       answer <- liftIO
-        $ CE.catchJust
+        $ catchJust
             (\case
                 (GIE.IOError { GIE.ioe_type = GIE.EOF })
                   -> Just "n"
