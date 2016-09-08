@@ -94,6 +94,8 @@ cat >"$file" <<EOF
 edit 76dee8a19ec
 EOF
 ;;
+pass)
+;;
 *)
 cat >"$file" <<EOF
 pick 76dee8a19ec

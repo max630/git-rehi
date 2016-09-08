@@ -48,12 +48,33 @@ sub cmd($;$) { my ($cmd) = @_;
     }
 }
 
+my $SUBTEST_COMMIT_COUNT;
+
 sub reset_repo {
     `$testee --abort 2>&1`;
     `git checkout -f --no-track -B master origin/master1 2>&1`;
     die("reset checkout failed") if ($? != 0);
     `git clean -f -x -d 2>&1`;
     die("reset clean failed") if ($? != 0);
+    $SUBTEST_COMMIT_COUNT = 0;
+}
+
+my $TEST_NAME;
+sub tc($;$) { my ($files, $tag) = @_;
+    foreach my $filename (keys %{$files}) {
+        if (defined $files->{$filename}) {
+            write_file($filename, $files->{$filename});
+            cmd("git add -- $filename");
+        } else {
+            cmd("git rm -- $filename");
+        }
+    }
+    my $msg = "$TEST_NAME$SUBTEST_COMMIT_COUNT";
+    $SUBTEST_COMMIT_COUNT++;
+    cmd("git commit -m $msg -q");
+    if (defined $tag) {
+        cmd("git tag -f $tag");
+    }
 }
 
 {
@@ -364,6 +385,23 @@ t {
 } current_no_rebase;
 
 t {
+    tc({ "f1" => "l1\nl2\nl3\n" }, "base");
+    tc({ "f1" => "l1\nl2r1\nl3\n" });
+    tc({ "f1" => "l1\nl2r2\nl3\n" }, "src_dest");
+    cmd("git reset --hard base");
+    tc({ "f1" => "l1\nl2l1\nl3\n" });
+
+    my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
+    my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "pass");
+    cmd("$testee HEAD base..src_dest", "!= 0");
+    like(`$testee --current`, qr/pick [0-9a-f]+ current_failed_twice1\n/);
+    write_file("f1", "l1\nl2l2\nl3\n");
+    cmd("git add f1 && git commit --no-edit");
+    cmd("$testee --continue", "!= 0");
+    like(`$testee --current`, qr/pick [0-9a-f]+ current_failed_twice2\n/);
+} current_failed_twice;
+
+t {
     my $g = env_guard->new("GIT_EDITOR", "/bin/true");
     cmd("git reset --hard origin/b3");
     cmd("git merge -sours -m ours_with_ref_comment origin/b2");
@@ -386,6 +424,7 @@ if (scalar @ARGV) {
 foreach my $test (@Tests) {
     if (!scalar %argv_idx || exists $argv_idx{$test->[0]}) {
         reset_repo;
+        $TEST_NAME = $test->[0];
         if($] >= "5.012000") {
             subtest $test->[0] => $test->[1];
         } else {
