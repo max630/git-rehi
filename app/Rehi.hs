@@ -24,7 +24,7 @@ import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 import Data.ByteString(ByteString,uncons)
 import Data.ByteString.Char8(putStrLn,putStr,pack,hPutStrLn)
 import Data.List(foldl', isPrefixOf)
-import Data.Maybe(fromMaybe,isJust,isNothing)
+import Data.Maybe(fromMaybe,isJust,isNothing,fromJust)
 import Data.Monoid((<>))
 import Data.Typeable(typeOf)
 import Control.Monad(foldM,forM_,when)
@@ -665,10 +665,8 @@ cleanup_save = do
               liftIO (copyFile newBackup (gitDir <> "/rehi_todo.backup"))
     liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
-commits_get_subject (Commits refs byHash) ah = do
-  maybe "???"
-        (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
-        (Map.lookup ah refs)
+commits_get_subject :: Commits -> ByteString -> ByteString
+commits_get_subject (Commits refs byHash) ah = entrySubject (byHash Map.! (refs Map.! ah))
 
 save_todo todo path commits = do
   let

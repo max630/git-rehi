@@ -83,7 +83,7 @@ EOF
 ;;
 set-comment)
 cat >"$file" <<EOF
-pick 76dee8a19ec
+pick 76dee8a
 comment
 test-comment
 .
@@ -91,14 +91,14 @@ EOF
 ;;
 edit-noop)
 cat >"$file" <<EOF
-edit 76dee8a19ec
+edit 76dee8a
 EOF
 ;;
 pass)
 ;;
 *)
 cat >"$file" <<EOF
-pick 76dee8a19ec
+pick 76dee8a
 EOF
 ;;
 esac
