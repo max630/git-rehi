@@ -102,10 +102,10 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
           source_to = fromMaybe target_ref source_to_arg
         source_from <- case source_from_arg of
           Just s -> pure s
-          Nothing | Just _ <- regex_match dest ".*~1$" -> pure dest
+          Nothing | Just _ <- regex_match ".*~1$" dest -> pure dest
           Nothing -> git_merge_base source_to dest
         let
-          through' = case regex_match source_from "^(.*)~1$" of
+          through' = case regex_match "^(.*)~1$" source_from of
             Just (_ : m : _) -> m : through
             Nothing -> through
         main_run dest source_from through' source_to target_ref initial_branch interactive
@@ -196,12 +196,12 @@ parse_cli = parse_loop False
     parse_loop _ argv@("--current" : _ : _ ) = error ("Extra argument:" ++ show argv)
     parse_loop _ ["--current"] = Current
     parse_loop interactive [dest] = Run dest Nothing [] Nothing Nothing interactive
-    parse_loop interactive (arg0 : arg1 : arg2mb) | length arg2mb == 1 || length arg2mb == 0 && isJust (regex_match arg1 "\\.\\.") =
+    parse_loop interactive (arg0 : arg1 : arg2mb) | length arg2mb == 1 || length arg2mb == 0 && isJust (regex_match "\\.\\." arg1) =
         let
           re_ref0 = "(?:[^\\.]|(?<!\\.)\\.)*"
           re_ref1 = "(?:[^\\.]|(?<!\\.)\\.)+"
           re_sep = "(?<!\\.)\\.\\."
-          (source_from, through, source_to) = case regex_match arg1 (mconcat ["^(", re_ref0, ")", re_sep, "((?:", re_ref1, re_sep, ")*)(", re_ref0, ")$"]) of
+          (source_from, through, source_to) = case regex_match (mconcat ["^(", re_ref0, ")", re_sep, "((?:", re_ref1, re_sep, ")*)(", re_ref0, ")$"]) arg1 of
             Just [all, m1, m2, m3] -> (m1, regex_match_all m2 (mconcat ["(", re_ref1, ")", re_sep]), m3)
             _ -> error ("Invalid source spec:" ++ show arg1)
           arg2 = case arg2mb of
@@ -620,13 +620,12 @@ git_load_commits = do
     marks <- execStateT (liftIO (doesFileExist marksFile) `whenM` mapFileLinesM addMark marksFile '\n') Map.empty
     pure (commits, marks)
   where
-    addMark line = do
-      case regex_match line "^([0-9a-zA-Z_\\/]+) ([0-9a-fA-F]+)$" of
-        Just [_, mName, mValue] -> modify' (Map.insert mName (Hash mValue))
-        Nothing -> fail ("Ivalid mark line: " <> show line)
+    addMark (regex_match "^([0-9a-zA-Z_\\/]+) ([0-9a-fA-F]+)$" -> Just [_, mName, mValue])
+                 = modify' (Map.insert mName (Hash mValue))
+    addMark line = fail ("Ivalid mark line: " <> show line)
 
 git_parse_commit_line line = do
-  case regex_match_with_newlines line "^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$" of
+  case regex_match_with_newlines "^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+):([0-9a-f ]*):(.*)$" line of
     Just [_, Hash -> hash, ahash, Hash -> tree, map Hash . BC.split ' ' -> parents, body] -> do
       verify_hash hash
       mapM_ verify_hash parents
@@ -645,9 +644,8 @@ git_merge_base b1 b2 = do
   pure base
 
 verify_hash :: Monad m => Hash -> m ()
-verify_hash (Hash h) = case regex_match h "^[0-9a-f]{40}$" of
-  Just _ -> pure ()
-  Nothing -> fail ("Invalid hash: " <> show h)
+verify_hash (Hash (regex_match "^[0-9a-f]{40}$" -> Just _)) = pure ()
+verify_hash (Hash h) = fail ("Invalid hash: " <> show h)
 
 init_save target_ref initial_branch = do
   gitDir <- askGitDir
@@ -679,9 +677,8 @@ save_todo todo path commits = do
       Edit ah -> "edit " <> ah <> " " <> commits_get_subject commits ah
       Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject commits ah
       Reset tgt -> "reset " <> tgt
-      Exec cmd -> case regex_match cmd "\\n" of
-                    Just _ -> error "multiline command canot be saved"
-                    Nothing -> "exec " <> cmd
+      Exec (regex_match "\\n" -> Just _) -> error "multiline command canot be saved"
+      Exec cmd -> "exec " <> cmd
       Comment cmt -> string_from_todo_comment cmt
       Merge ref ps ours noff ->
         ("merge"
@@ -704,7 +701,7 @@ save_todo todo path commits = do
 
 string_from_todo_comment :: ByteString -> ByteString
 string_from_todo_comment cmt =
-  case regex_match cmt "[^\\n]\\.[$\\n]|[^\\n]$|[^\\n]#" of
+  case regex_match "[^\\n]\\.[$\\n]|[^\\n]$|[^\\n]#" cmt of
     Just _ -> quoted
     Nothing -> "comment\n" <> cmt <> if BC.last cmt == '\n' then "" else "\n" <> ".\n"
   where
@@ -724,39 +721,39 @@ read_todo path commits = do
     parseLine line = do
       get >>= \case
         RStCommand
-          | Just [_, cmt] <- regex_match line "^#(.*)$" -> tell [UserComment cmt]
-          | Just _ <- regex_match line "^end$" -> put RStDone
-          | Just (_ : _ : ah : _) <- regex_match line "^(f|fixup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
+          | Just [_, cmt] <- regex_match "^#(.*)$" line -> tell [UserComment cmt]
+          | Just _ <- regex_match "^end$" line -> put RStDone
+          | Just (_ : _ : ah : _) <- regex_match "^(f|fixup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" line
               -> tell [Fixup ah]
-          | Just (_ : _ : ah : _) <- regex_match line "^(p|pick) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
+          | Just (_ : _ : ah : _) <- regex_match "^(p|pick) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" line
               -> tell [Pick ah]
-          | Just (_ : _ : ah : _) <- regex_match line "^(e|edit) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$"
+          | Just (_ : _ : ah : _) <- regex_match "^(e|edit) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" line
               -> tell [Edit ah]
-          | Just (_ : ah : _) <- regex_match line "^reset (\\@?[0-9a-zA-Z_\\/]+)$"
+          | Just (_ : ah : _) <- regex_match "^reset (\\@?[0-9a-zA-Z_\\/]+)$" line
               -> tell [Reset ah]
-          | Just (_ : _ : cmd : _) <- regex_match line "^(x|exec) (.*)$"
+          | Just (_ : _ : cmd : _) <- regex_match "^(x|exec) (.*)$" line
               -> tell [Exec cmd]
-          | Just _ <- regex_match line "^comment$" -> put $ RStCommentPlain ""
-          | Just [_, b] <- regex_match line "^comment (\\{+)$"
+          | Just _ <- regex_match "^comment$" line -> put $ RStCommentPlain ""
+          | Just [_, b] <- regex_match "^comment (\\{+)$" line
               -> put $ RStCommentQuoted "" (BC.length b `BC.replicate` '}')
-          | Just [_, options, _, parents] <- regex_match line "^merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)"
+          | Just [_, options, _, parents] <- regex_match "^merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)" line
               -> do
                 merge <- fix (\rec m l -> if
                                   | ByteString.null l -> pure m
-                                  | Just [_, rest] <- regex_match l "^ --ours( .*)?$" -> rec m{ mergeOurs = True } rest
-                                  | Just [_, rest] <- regex_match l "^ --no-ff( .*)?$" -> rec m{ mergeNoff = True } rest
-                                  | Just [_, ref, rest] <- regex_match l "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" -> rec m{mergeRef = Just ref} rest
+                                  | Just [_, rest] <- regex_match "^ --ours( .*)?$" l -> rec m{ mergeOurs = True } rest
+                                  | Just [_, rest] <- regex_match "^ --no-ff( .*)?$" l -> rec m{ mergeNoff = True } rest
+                                  | Just [_, ref, rest] <- regex_match "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" l -> rec m{mergeRef = Just ref} rest
                                   | otherwise -> throwM $ EditError ("Unexpected merge options: " <> l))
                               (Merge Nothing (BC.split ',' parents) False False)
                               options
                 tell [merge]
-          | Just [_, mrk] <- regex_match line "^: (.*)$"
+          | Just [_, mrk] <- regex_match "^: (.*)$" line
               -> maybe (tell [Mark mrk])
                   (const $ throwM (EditError ("Dangerous symbols in mark name: " <> mrk)))
-                  (regex_match mrk "[^0-9a-zA-Z_]")
-          | Just _ <- regex_match line "^[ \\t]*$" -> pure ()
+                  (regex_match "[^0-9a-zA-Z_]" mrk)
+          | Just _ <- regex_match "^[ \\t]*$" line -> pure ()
         RStCommentPlain cmt0
-          | Just [_, cmt] <- regex_match line "^# (.*)$" -> tell [UserComment cmt]
+          | Just [_, cmt] <- regex_match "^# (.*)$" line -> tell [UserComment cmt]
           | line == "." -> tell [Comment cmt0] >> put RStCommand
           | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
         RStCommentQuoted cmt0 quote
@@ -855,7 +852,7 @@ find_sequence commits from to through =
 resolve_ahash :: (MonadReader TE m, MonadState TS m) => ByteString -> m ByteString
 resolve_ahash ah = do
   refs <- fmap teRefs ask
-  case regex_match ah "^@(.*)$" of
+  case regex_match "^@(.*)$" ah of
     Just [_,mrk] -> do
       marks <- fmap tsMarks get
       pure $ maybe (error ("Mark " <> show mrk<> " not found")) hashString (Map.lookup mrk marks)
@@ -909,7 +906,7 @@ git_verify_clean = do
 
 git_get_checkedout_branch = do
   head_path <- liftIO $ readPopen "git symbolic-ref -q HEAD"
-  case regex_match head_path "^refs/heads/(.*)" of
+  case regex_match "^refs/heads/(.*)" head_path of
     Just [_, p] -> pure p
     _ -> fail ("Unsupported ref checked-out: " ++ show head_path)
 
