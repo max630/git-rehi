@@ -27,8 +27,9 @@ sub t(&*) { my ($block, $name) = @_;
 }
 
 my $cmd_num = 0;
-sub cmd($;$) { my ($cmd) = @_;
+sub cmd($;$$) { my ($cmd) = @_;
     my $goal_status = do { if (scalar @_ > 1) { $_[1]; } else { 0; }; };
+    my $output_dest = do { if (scalar @_ > 2) { $_[2]; } else { undef; }; };
     my $output = `$cmd 2>&1 </dev/null`;
     my $status = $?;
 
@@ -45,6 +46,9 @@ sub cmd($;$) { my ($cmd) = @_;
     } else {
         diag("Command status does not match: $status vs $goal_status\nCommand: $cmd\nOutput:\n$output\n");
         fail("cmd$cmd_num");
+    }
+    if (defined $output_dest) {
+        ${$output_dest} = $output;
     }
 }
 
@@ -400,6 +404,21 @@ t {
     cmd("$testee --continue", "!= 0");
     like(`$testee --current`, qr/pick [0-9a-f]+ current_failed_twice2\n/);
 } current_failed_twice;
+
+t {
+    tc({ "failed_pick_prints_conflicts_filename" => "l1\nl2\nl3\n",
+         "failed_pick_prints_noconflict_filename" => "l1\nl2\n" }, "base");
+    tc({ "failed_pick_prints_conflicts_filename" => "l1\nl2r\nl3\n",
+         "failed_pick_prints_noconflict_filename" => "l1\nl2r\n" }, "src_dest");
+    cmd("git reset --hard base");
+    tc({ "failed_pick_prints_conflicts_filename" => "l1\nl2l\nl3\n" });
+
+    my $out;
+    cmd("$testee HEAD base..src_dest", "!= 0", \$out);
+    like($out, qr/\bfailed_pick_prints_conflicts_filename\b/);
+    unlike($out, qr/\bfailed_pick_prints_noconflict_filename\b/);
+} failed_pick_prints_conflicts;
+
 
 t {
     my $g = env_guard->new("GIT_EDITOR", "/bin/true");
