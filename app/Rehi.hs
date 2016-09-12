@@ -59,7 +59,7 @@ import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,c
                lookupEnv, system, initEncoding)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
-                   tryWithRethrowComandFailure)
+                   tryWithRethrowComandFailure,onCommandFailure)
 import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
 
@@ -528,11 +528,15 @@ pick hash = do
     _ -> do
           sync_head
           liftIO $
-              tryWithRethrowComandFailure
+              onCommandFailure
                 ["callProcess: "]
-                (ExpectedFailure ["Pick `"
-                                  ++ show hash
-                                  ++ "` failed. Resolve and --continue or --skip, or --abort"])
+                (do
+                  popen_lines "git" "status --porcelain -uno" '\n' >>= mapM_ (\case
+                    (regex_match "^[DAU][DAU] .*$" -> Just [l]) -> putStrLn l
+                    _ -> pure ())
+                  throwM $ ExpectedFailure ["Pick `"
+                                            ++ show hash
+                                            ++ "` failed. Resolve and --continue or --skip, or --abort"])
                 (Cmd.cherrypick hash)
 
 comment new_comment = do
