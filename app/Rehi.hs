@@ -56,7 +56,7 @@ import Rehi.ArgList(ArgList(ArgList))
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
                createDirectory,copyFile,
                removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
-               lookupEnv, system, initEncoding)
+               lookupEnv, system, initEncoding, decode)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
                    tryWithRethrowComandFailure,onCommandFailure)
@@ -531,12 +531,16 @@ pick hash = do
               onCommandFailure
                 ["callProcess: "]
                 (do
-                  popen_lines "git" "status --porcelain -uno" '\n' >>= mapM_ (\case
-                    (regex_match "^[DAU][DAU] .*$" -> Just [l]) -> putStrLn l
-                    _ -> pure ())
-                  throwM $ ExpectedFailure ["Pick `"
-                                            ++ show hash
-                                            ++ "` failed. Resolve and --continue or --skip, or --abort"])
+                  conflicting_files <-
+                    execWriterT (liftIO (popen_lines "git" "status --porcelain -uno" '\n') >>= mapM_ (\case
+                                  (regex_match "^[DAU][DAU] (.*)$" -> Just [_, f]) -> tell [f]
+                                  _ -> pure ()))
+                  conflicting_files_unicode <- mapM decode conflicting_files
+                  throwM $ ExpectedFailure ([ "Conflicting files:" ] ++
+                                            (map (" " ++) conflicting_files_unicode) ++
+                                            [ "Pick `"
+                                              ++ show hash
+                                              ++ "` failed. Resolve and --continue or --skip, or --abort" ]))
                 (Cmd.cherrypick hash)
 
 comment new_comment = do
