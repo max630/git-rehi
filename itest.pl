@@ -417,6 +417,13 @@ t {
     cmd("$testee origin/b2");
 } startfailclean;
 
+t {
+    cmd("git reset --hard origin/b2");
+    cmd("git tag -a -f -m origin_base origin_base origin/base");
+    cmd("$testee origin/b1 origin_base..");
+    cmd("git diff --quiet origin/master1");
+} annotated_tag;
+
 my %argv_idx = ();
 if (scalar @ARGV) {
     @argv_idx{@ARGV} = ();
