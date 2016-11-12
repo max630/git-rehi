@@ -66,7 +66,7 @@ import Rehi.GitTypes (Hash(Hash), hashString)
 import qualified Rehi.GitCommands as Cmd
 
 main :: IO ()
-main = handleErrors (SI.hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
+main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
   initEncoding
   env <- get_env
   flip runReaderT env $ do
@@ -177,7 +177,7 @@ newtype EditError = EditError ByteString deriving Show
 
 instance Exception EditError
 
-newtype ExpectedFailure = ExpectedFailure [String] deriving Show
+newtype ExpectedFailure = ExpectedFailure [ByteString] deriving Show
 instance Exception ExpectedFailure
 
 pattern CommandFailed location <- GIE.IOError { GIE.ioe_type = GIE.OtherError,
@@ -341,7 +341,7 @@ run_continue current commits = do
     Merge ahM _ _ _ -> git_no_uncommitted_changes `unlessM` liftIO (Cmd.commit ahM)
     Edit _ -> git_no_uncommitted_changes `unlessM` throwM (ExpectedFailure ["No unstaged changes should be after 'edit'"])
     Fixup _ -> git_no_uncommitted_changes `unlessM` liftIO Cmd.commit_amend
-    Exec cmd -> throwM $ ExpectedFailure ["Cannot continue '" ++ show cmd ++ "'", "resolve it manually, then skip or abort"]
+    Exec cmd -> throwM $ ExpectedFailure ["Cannot continue '" <> cmd <> "'", "resolve it manually, then skip or abort"]
     Comment c -> comment c
     _ -> fail ("run_continue: Unexpected " ++ show current)
 
@@ -427,7 +427,7 @@ run_step rebase_step = do
           $ tryWithRethrowComandFailure
               ["callCommand: "]
               (ExpectedFailure
-                          [ "Command " ++ show cmd ++ " failed."
+                          [ "Command " <> cmd <> " failed."
                           , "Resolve and run `git rehi --skip` or `git rehi --abort`"])
               (callCommand cmd)
       Comment new_comment -> do
@@ -537,10 +537,10 @@ pick hash = do
                                   _ -> pure ()))
                   conflicting_files_unicode <- mapM decode conflicting_files
                   throwM $ ExpectedFailure ([ "Conflicting files:" ] ++
-                                            (map (" " ++) conflicting_files_unicode) ++
+                                            (map (" " <>) conflicting_files) ++
                                             [ "Pick `"
-                                              ++ show hash
-                                              ++ "` failed. Resolve and --continue or --skip, or --abort" ]))
+                                              <> hash
+                                              <> "` failed. Resolve and --continue or --skip, or --abort" ]))
                 (Cmd.cherrypick hash)
 
 comment new_comment = do
@@ -548,7 +548,7 @@ comment new_comment = do
   liftIO $ writeFile (gitDir <> "/rehi/commit_msg") new_comment
   liftIO $ Cmd.commit_amend_msgFile (gitDir <> "/rehi/commit_msg")
 
-build_rebase_sequence :: Commits -> Hash -> Hash -> [Hash] -> Either String [Step]
+build_rebase_sequence :: Commits -> Hash -> Hash -> [Hash] -> Either ByteString [Step]
 build_rebase_sequence commits source_from_hash source_to_hash through_hashes =
   case find_sequence (commitsByHash commits) source_from_hash source_to_hash through_hashes of
     Right sequence ->
@@ -787,7 +787,7 @@ data FS = FS {
                          fssChildrenWaiters :: Map.Map Hash FsWaiter,
                          fssTerminatingCommits :: Set.Set Hash }
 
-find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> Either String [Hash]
+find_sequence :: Map.Map Hash Entry -> Hash -> Hash -> [Hash] -> Either ByteString [Hash]
 find_sequence commits from to through =
   step (FS (Map.singleton 1 (FsThread FsReady to [])) [1] 2 Map.empty Set.empty)
   where
@@ -921,12 +921,12 @@ git_get_checkedout_branch = do
 askGitDir :: MonadReader (Env a) m => m ByteString
 askGitDir = ask >>= \r -> pure (envGitDir r)
 
-handleErrors :: (String -> IO ()) -> (Int -> IO a) -> IO a -> IO a
-handleErrors printCb exitCb action =
+handleErrors :: (String -> IO ()) -> (ByteString -> IO ()) -> (Int -> IO a) -> IO a -> IO a
+handleErrors printCb printBSCb exitCb action =
   action `catches` ([Handler catchExpected, Handler catchIO, Handler catchAll] :: [Handler IO _])
   where
     catchExpected (ExpectedFailure msg) = do
-      mapM_ printCb msg
+      mapM_ printBSCb msg
       exitCb 1
     catchAll (SomeException e) = do
       printCb ("Internal error: " ++ show (typeOf e))
