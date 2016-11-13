@@ -56,7 +56,7 @@ import Rehi.ArgList(ArgList(ArgList))
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
                createDirectory,copyFile,
                removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
-               lookupEnv, system, initEncoding, decode)
+               lookupEnv, system, initEncoding)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
                    tryWithRethrowComandFailure,onCommandFailure)
@@ -535,7 +535,6 @@ pick hash = do
                     execWriterT (liftIO (popen_lines "git" "status --porcelain -uno" '\n') >>= mapM_ (\case
                                   (regex_match "^[DAU][DAU] (.*)$" -> Just [_, f]) -> tell [f]
                                   _ -> pure ()))
-                  conflicting_files_unicode <- mapM decode conflicting_files
                   throwM $ ExpectedFailure ([ "Conflicting files:" ] ++
                                             (map (" " <>) conflicting_files) ++
                                             [ "Pick `"
