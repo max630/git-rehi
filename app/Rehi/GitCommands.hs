@@ -66,7 +66,7 @@ merge doCommit ours noff parents = git command
 
 git_resolve_hashes :: [B.ByteString] -> IO [Hash]
 git_resolve_hashes refs = do
-  hashes <- fmap (map (Hash . trim)) $ popen_lines "git" ("rev-parse" <> ArgList refs) '\n'
+  hashes <- fmap (map (Hash . trim)) $ popen_lines "git" ("rev-parse" <> ArgList (map (<> "^{commit}") refs)) '\n'
   if length hashes == length refs
     then pure hashes
     else error "Hash number does not match"
