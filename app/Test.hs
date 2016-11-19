@@ -162,8 +162,8 @@ test_parse_cli =
 
 demo_errors = do
   SI.hPutStrLn SI.stderr "---- removeFile ----"
-  handleErrors (SI.hPutStrLn SI.stderr) (const $ pure ()) $ removeFile "/tmp/ergieurgerugergerg"
+  handleErrors (SI.hPutStrLn SI.stderr) (BC.hPutStrLn SI.stderr) (const $ pure ()) $ removeFile "/tmp/ergieurgerugergerg"
   SI.hPutStrLn SI.stderr "---- fail ----"
-  handleErrors (SI.hPutStrLn SI.stderr) (const $ pure ()) $ fail "test"
+  handleErrors (SI.hPutStrLn SI.stderr) (BC.hPutStrLn SI.stderr) (const $ pure ()) $ fail "test"
   SI.hPutStrLn SI.stderr "---- error ----"
-  handleErrors (SI.hPutStrLn SI.stderr) (const $ pure ()) $ error "test"
+  handleErrors (SI.hPutStrLn SI.stderr) (BC.hPutStrLn SI.stderr) (const $ pure ()) $ error "test"
