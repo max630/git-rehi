@@ -16,8 +16,8 @@ newtype Regex = Regex ByteString deriving (Show,Eq,Monoid)
 instance IsString Regex where
   fromString s = Regex (fromString s)
 
-regex_match_ex :: P.CompOption -> ByteString -> Regex -> Maybe [ByteString]
-regex_match_ex op str (Regex pattern) = unsafePerformIO match
+regex_match_ex :: P.CompOption -> Regex -> ByteString -> Maybe [ByteString]
+regex_match_ex op (Regex pattern) str = unsafePerformIO match
   where
     match = do
       re <- compile1 op pattern
