@@ -408,14 +408,14 @@ run_step rebase_step = do
         pick =<< resolve_ahash ah
       Edit ah -> do
         commits <- envRest <$> ask
-        liftIO $ putStrLn ("Apply: " <> commits_get_subject commits ah)
+        liftIO $ putStrLn =<< ("Apply: " ~<>~ commits_get_subject commits ah)
         pick =<< resolve_ahash ah
         sync_head
         liftIO $ Prelude.putStrLn "Amend the commit and run \"git rehi --continue\""
         returnC $ pure StepPause
       Fixup ah -> do
         commits <- envRest <$> ask
-        liftIO $ putStrLn ("Fixup: " <> commits_get_subject commits ah)
+        liftIO $ putStrLn =<< "Fixup: " ~<>~ commits_get_subject commits ah
         sync_head
         (liftIO . Cmd.fixup) =<< resolve_ahash ah
       Reset ah -> do
@@ -675,31 +675,32 @@ cleanup_save = do
     liftIO $ removeDirectoryRecursive (gitDir <> "/rehi"))
 
 commits_get_subject (Commits refs byHash) ah = do
-  maybe "???"
-        (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
-        (Map.lookup ah refs)
+  pure
+    (maybe "???"
+          (\h -> maybe "???" entrySubject $ Map.lookup h byHash)
+          (Map.lookup ah refs))
 
 save_todo todo path commits = do
   let
     (reverse -> tail, reverse -> main) = span (\case { UserComment _ -> True; TailPickWithComment _ _ -> True; _ -> False }) $ reverse todo
   withBinaryFile path WriteMode $ \out -> do
-    forM_ main $ hPutStrLn out . \case
-      Pick ah -> "pick " <> ah <> " " <> commits_get_subject commits ah
-      Edit ah -> "edit " <> ah <> " " <> commits_get_subject commits ah
-      Fixup ah -> "fixup " <> ah <> " " <> commits_get_subject commits ah
-      Reset tgt -> "reset " <> tgt
+    forM_ main $ hPutStrLn out =<< \case
+      Pick ah -> "pick " <> ah <> " " ~<>~ commits_get_subject commits ah
+      Edit ah -> "edit " <> ah <> " " ~<>~ commits_get_subject commits ah
+      Fixup ah -> "fixup " <> ah <> " " ~<>~ commits_get_subject commits ah
+      Reset tgt -> pure $ "reset " <> tgt
       Exec (regex_match "\\n" -> Just _) -> error "multiline command canot be saved"
-      Exec cmd -> "exec " <> cmd
-      Comment cmt -> string_from_todo_comment cmt
+      Exec cmd -> pure $ "exec " <> cmd
+      Comment cmt -> pure $ string_from_todo_comment cmt
       Merge ref ps ours noff ->
         ("merge"
           <> (if ours then " --ours" else "")
           <> (if noff then " --no-ff" else "")
           <> maybe "" (" -c " <>) ref
           <> " " <> ByteString.intercalate "," ps
-          <> maybe "" ((" " <>) . commits_get_subject commits) ref)
-      Mark mrk -> ": " <> mrk
-      UserComment cmt -> "# " <> cmt
+          ~<>~ maybe "" ((" " <>) . commits_get_subject commits) ref)
+      Mark mrk -> pure $ ": " <> mrk
+      UserComment cmt -> pure $ "# " <> cmt
     if (not $ null tail)
       then do
         hPutStrLn out "end"
