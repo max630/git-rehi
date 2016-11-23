@@ -393,7 +393,7 @@ t {
 
     my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "pass");
-    cmd("$testee HEAD base..src_dest", "!= 0");
+    cmd("$testee -i HEAD base..src_dest", "!= 0");
     like(`$testee --current`, qr/pick [0-9a-f]+ current_failed_twice1\n/);
     write_file("f1", "l1\nl2l2\nl3\n");
     cmd("git add f1 && git commit --no-edit");
