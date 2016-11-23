@@ -944,22 +944,23 @@ handleErrors printCb printBSCb exitCb action =
       printCb ("IO error: " ++ displayException e)
       exitCb 1
 
+type family MConcatBS_result op1 op2 where
+  MConcatBS_result ByteString ByteString = ByteString
+  MConcatBS_result (a ByteString) ByteString = a ByteString
+  MConcatBS_result ByteString (a ByteString) = a ByteString
+  MConcatBS_result (a ByteString) (a ByteString) = a ByteString
+
 class MConcatBS op1 op2 where
-  type MConcatBS_result op1 op2 :: *
   (~<>~) :: op1 -> op2 -> MConcatBS_result op1 op2
 
 instance MConcatBS ByteString ByteString where
-  type MConcatBS_result ByteString ByteString = ByteString
   (~<>~) = (<>)
 
 instance (Applicative a) => MConcatBS (a ByteString) ByteString where
-  type MConcatBS_result (a ByteString) ByteString = a ByteString
   op1 ~<>~ op2 = (<> op2) <$> op1
 
 instance (Applicative a) => MConcatBS ByteString (a ByteString) where
-  type MConcatBS_result ByteString (a ByteString) = a ByteString
   op1 ~<>~ op2 = (op1 <>) <$> op2
 
 instance (Applicative a) => MConcatBS (a ByteString) (a ByteString) where
-  type MConcatBS_result (a ByteString) (a ByteString) = a ByteString
   op1 ~<>~ op2 = (<>) <$> op1 <*> op2
