@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Test where
@@ -25,6 +26,12 @@ import System.IO(hClose)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
+
+#ifdef mingw32_HOST_OS
+import qualified Graphics.Win32.Misc as WM
+import qualified System.Win32.Types as WT
+import qualified System.Win32.File as WF
+#endif
 
 main = runTestTT  allTests
 
@@ -163,4 +170,25 @@ test_parse_cli =
 
 
 test_popen =
-  test [ (popen_lines "/bin/echo" "aaa" '\n' >>= (pure . (== ["aaa"]))) @? "popen_lines" ]
+  test [ (popen_lines echo_exe echo_args '\n' >>= (pure . (== ["aaa"]))) @? "popen_lines" ]
+  where
+#ifdef mingw32_HOST_OS
+    echo_exe = "cmd.exe"
+    echo_args = ArgList ["/c", "echo aaa"]
+#else
+    echo_exe = "/bin/echo"
+    echo_args = "aaa"
+#endif
+
+#ifdef mingw32_HOST_OS
+data NT_OBJECT_NAME_INFORMATION = NT_OBJECT_NAME_INFORMATION
+    { noniLength :: WT.USHORT
+    , noniMaximumLength :: WT.USHORT
+    , noniBuffer :: WT.LPWSTR
+    }
+
+print_info = do
+  hi <- WM.getStdHandle WM.sTD_INPUT_HANDLE
+  ht <- WF.getFileType hi
+  print ("Filetype",ht)
+#endif
