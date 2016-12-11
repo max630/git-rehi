@@ -13,7 +13,6 @@ import Rehi.ArgList (ArgList(ArgList), getArgList)
 import Rehi.IO (readCommand,callProcess)
 import Rehi.Utils (equalWith, index_only, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines)
-import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 import Rehi.GitTypes
 
 fixup :: B.ByteString -> IO ()
