@@ -21,6 +21,7 @@ module Rehi.IO (
     shell,
     system,
     withBinaryFile,
+    decode,
   ) where
 
 import Control.Monad (join)
