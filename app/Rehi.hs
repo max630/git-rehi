@@ -56,7 +56,7 @@ import Rehi.ArgList(ArgList(ArgList))
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
                createDirectory,copyFile,
                removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
-               lookupEnv, system, initEncoding)
+               lookupEnv, system, initProgram)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
                    tryWithRethrowComandFailure,onCommandFailure)
@@ -67,7 +67,7 @@ import qualified Rehi.GitCommands as Cmd
 
 main :: IO ()
 main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
-  initEncoding
+  initProgram
   env <- get_env
   flip runReaderT env $ do
     args <- liftIO getArgs

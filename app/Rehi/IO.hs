@@ -1,3 +1,6 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 module Rehi.IO (
     callCommand,
@@ -9,7 +12,7 @@ module Rehi.IO (
     getArgs,
     getEnv,
     getTemporaryDirectory,
-    initEncoding,
+    initProgram,
     lookupEnv,
     openBinaryFile,
     openBinaryTempFile,
@@ -26,6 +29,7 @@ module Rehi.IO (
 
 import Control.Monad (join)
 import Data.ByteString (ByteString)
+import Data.Maybe (isJust)
 import GHC.Foreign (peekCStringLen, withCStringLen)
 import GHC.IO.Encoding (setFileSystemEncoding)
 import GHC.IO.Encoding.Failure (CodingFailureMode(RoundtripFailure))
@@ -37,6 +41,13 @@ import qualified System.Environment as SE
 import qualified System.Directory as SD
 import qualified System.IO as SI
 import qualified System.Process as SP
+
+#ifdef mingw32_HOST_OS
+import Rehi.Win32bits (getFileNameInformation)
+import Rehi.Regex (regex_match)
+import qualified Graphics.Win32.Misc as WM
+import qualified System.Win32.File as WF
+#endif
 
 withBinaryFile :: ByteString -> SI.IOMode -> (SI.Handle -> IO ()) -> IO ()
 withBinaryFile p m f = join $ SI.withFile <$> decode p <*> pure m <*> pure f
@@ -111,5 +122,19 @@ encode s = withCStringLen utf8_roundtrip s B.packCStringLen
 
 utf8_roundtrip = mkUTF8 RoundtripFailure
 
-initEncoding :: IO ()
-initEncoding = setFileSystemEncoding utf8_roundtrip
+initProgram :: IO ()
+initProgram = do
+  setFileSystemEncoding utf8_roundtrip
+#ifdef mingw32_HOST_OS
+  stdoutH <- WM.getStdHandle WM.sTD_OUTPUT_HANDLE
+  stdoutT <- WF.getFileType stdoutH
+  if stdoutT == WF.fILE_TYPE_PIPE
+    then do
+      name <- encode =<< getFileNameInformation stdoutH
+      case regex_match "^\\\\Device\\\\NamedPipe\\\\msys-.*pty.*-master$" name of
+        Just _ -> SI.hSetBuffering SI.stdout SI.NoBuffering
+        Nothing -> pure ()
+    else pure ()
+#else
+  pure ()
+#endif
