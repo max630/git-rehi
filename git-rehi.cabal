@@ -28,6 +28,7 @@ executable git-rehi
                        , HUnit
                        , exceptions
                        , mtl
+                       , optparse-applicative
                        , process
                        , transformers
                        , directory
@@ -58,6 +59,7 @@ executable git-rehi-test
                        , HUnit
                        , exceptions
                        , mtl
+                       , optparse-applicative
                        , process
                        , transformers
                        , directory
