@@ -7,11 +7,11 @@ import Rehi.Regex (regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
 import Rehi.IO (getTemporaryDirectory,removeFile,openBinaryTempFile,readBinaryFile)
 
-import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT,assertFailure)
+import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT,assertFailure,Test(TestCase))
 
 import Prelude hiding (putStrLn,putStr,writeFile,readFile)
 
-import Control.Exception (ErrorCall(ErrorCall))
+import Control.Exception (ErrorCall(ErrorCall), evaluate)
 import Control.Monad.Catch(finally,catch)
 import Control.Monad.State(execState)
 import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
@@ -27,6 +27,12 @@ import qualified System.IO as SI
 
 import Control.Exception (handle,SomeException(SomeException))
 import Data.Typeable (typeOf)
+
+infix 1 !?=
+
+actual !?= expect = TestCase $ do
+  v <- actual
+  v @=? expect
 
 main = runTestTT  allTests
 
@@ -55,7 +61,7 @@ allTests = test [ "regex" ~:
                                                       ~?= Right [ Merge (Just (hashes !! 4)) ["HEAD",hashes !! 6] False False
                                                                 , Mark "tmp_1", p 3, Mark "tmp_2", Reset "@tmp_1", p 2
                                                                 , Merge (Just (hashes !! 1)) ["HEAD","@tmp_2"] False False ] ]
-                , "parse_cli_p1" ~: p1 ~?= Run "origin/b4" Nothing [] (Just "origin/base") Nothing True
+                , "parse_cli_p1" ~: p1 !?= Run "origin/b4" Nothing [] (Just "origin/base") Nothing True
                 , "parse_cli" ~: test_parse_cli
                 , "parse_todo" ~:
                     [ "1" ~: tp1 >>= (@?= [Merge (Just "f1") ["HEAD", "f2"] False False])
@@ -143,22 +149,22 @@ pl1 = execState
 
 mustError expr p_msg =
   catch
-    (seq expr (assertFailure "Must have fail"))
+    (expr >> assertFailure "Must have fail")
     (\case { ErrorCall m | p_msg m -> pure (); err -> (assertFailure (show err)) })
 
 test_parse_cli =
   [ "regular" ~:
-    [ parse_cli ["a"] ~?= Run "a" Nothing [] Nothing Nothing False
-    , parse_cli ["a","c"] ~?= Run "a" Nothing [] Nothing (Just "c") False
-    , parse_cli ["a","b..d","c"] ~?= Run "a" (Just "b") [] (Just "d") (Just "c") False
-    , parse_cli ["a","b..","c"] ~?= Run "a" (Just "b") [] Nothing (Just "c") False
-    , parse_cli ["a","..d","c"] ~?= Run "a" Nothing [] (Just "d") (Just "c") False
-    , parse_cli ["a","b..e..d","c"] ~?= Run "a" (Just "b") ["e"] (Just "d") (Just "c") False
-    , parse_cli ["a","..e..","c"] ~?= Run "a" Nothing ["e"] Nothing (Just "c") False
-    , parse_cli ["a","..e.."] ~?= Run "a" Nothing ["e"] Nothing Nothing False
-    , parse_cli ["a","b..e..f..d","c"] ~?= Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False
+    [ parse_cli ["a"] !?= Run "a" Nothing [] Nothing Nothing False
+    , parse_cli ["a","c"] !?= Run "a" Nothing [] Nothing (Just "c") False
+    , parse_cli ["a","b..d","c"] !?= Run "a" (Just "b") [] (Just "d") (Just "c") False
+    , parse_cli ["a","b..","c"] !?= Run "a" (Just "b") [] Nothing (Just "c") False
+    , parse_cli ["a","..d","c"] !?= Run "a" Nothing [] (Just "d") (Just "c") False
+    , parse_cli ["a","b..e..d","c"] !?= Run "a" (Just "b") ["e"] (Just "d") (Just "c") False
+    , parse_cli ["a","..e..","c"] !?= Run "a" Nothing ["e"] Nothing (Just "c") False
+    , parse_cli ["a","..e.."] !?= Run "a" Nothing ["e"] Nothing Nothing False
+    , parse_cli ["a","b..e..f..d","c"] !?= Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False
   , "failures" ~:
-    [ mustError (runThroughs $ parse_cli ["a", "b...d"]) (isPrefixOf "Invalid source spec:") ] ] ]
+    [ mustError (parse_cli ["a", "b...d"] >>= (evaluate . runThroughs)) (isPrefixOf "Invalid source spec:") ] ] ]
 
 demo_errors = do
   SI.hPutStrLn SI.stderr "---- removeFile ----"
