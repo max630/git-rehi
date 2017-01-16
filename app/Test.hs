@@ -18,6 +18,7 @@ import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
 import Data.ByteString.Lazy (toStrict)
 import Data.List (isPrefixOf)
 import Data.Monoid ((<>))
+import Options.Applicative (execParserMaybe, info)
 import System.IO(hClose)
 
 import qualified Data.ByteString as B
@@ -55,7 +56,7 @@ allTests = test [ "regex" ~:
                                                       ~?= Right [ Merge (Just (hashes !! 4)) ["HEAD",hashes !! 6] False False
                                                                 , Mark "tmp_1", p 3, Mark "tmp_2", Reset "@tmp_1", p 2
                                                                 , Merge (Just (hashes !! 1)) ["HEAD","@tmp_2"] False False ] ]
-                , "parse_cli_p1" ~: p1 ~?= Run "origin/b4" Nothing [] (Just "origin/base") Nothing True
+                , "parse_cli_p1" ~: p1 ~?= Just (Run "origin/b4" Nothing [] (Just "origin/base") Nothing True)
                 , "parse_cli" ~: test_parse_cli
                 , "parse_todo" ~:
                     [ "1" ~: tp1 >>= (@?= [Merge (Just "f1") ["HEAD", "f2"] False False])
@@ -96,6 +97,8 @@ test_findseq commits from to throughs =
     (Hash (hashes !! from))
     (Hash (hashes !! to))
     (map (Hash . (hashes !!)) throughs)
+
+parse_cli = execParserMaybe (info options mempty)
 
 -- pick 0
 brs1 = test_brs [(0, [1])] 1 0 []
@@ -141,24 +144,19 @@ pl1 = execState
                                 <> "Merge remote-tracking branch 'origin/b2'\n\nresolve conflict also\n"))
         noCommits
 
-mustError expr p_msg =
-  catch
-    (seq expr (assertFailure "Must have fail"))
-    (\case { ErrorCall m | p_msg m -> pure (); err -> (assertFailure (show err)) })
-
 test_parse_cli =
   [ "regular" ~:
-    [ parse_cli ["a"] ~?= Run "a" Nothing [] Nothing Nothing False
-    , parse_cli ["a","c"] ~?= Run "a" Nothing [] Nothing (Just "c") False
-    , parse_cli ["a","b..d","c"] ~?= Run "a" (Just "b") [] (Just "d") (Just "c") False
-    , parse_cli ["a","b..","c"] ~?= Run "a" (Just "b") [] Nothing (Just "c") False
-    , parse_cli ["a","..d","c"] ~?= Run "a" Nothing [] (Just "d") (Just "c") False
-    , parse_cli ["a","b..e..d","c"] ~?= Run "a" (Just "b") ["e"] (Just "d") (Just "c") False
-    , parse_cli ["a","..e..","c"] ~?= Run "a" Nothing ["e"] Nothing (Just "c") False
-    , parse_cli ["a","..e.."] ~?= Run "a" Nothing ["e"] Nothing Nothing False
-    , parse_cli ["a","b..e..f..d","c"] ~?= Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False
+    [ parse_cli ["a"] ~?= Just (Run "a" Nothing [] Nothing Nothing False)
+    , parse_cli ["a","c"] ~?= Just (Run "a" Nothing [] Nothing (Just "c") False)
+    , parse_cli ["a","b..d","c"] ~?= Just (Run "a" (Just "b") [] (Just "d") (Just "c") False)
+    , parse_cli ["a","b..","c"] ~?= Just (Run "a" (Just "b") [] Nothing (Just "c") False)
+    , parse_cli ["a","..d","c"] ~?= Just (Run "a" Nothing [] (Just "d") (Just "c") False)
+    , parse_cli ["a","b..e..d","c"] ~?= Just (Run "a" (Just "b") ["e"] (Just "d") (Just "c") False)
+    , parse_cli ["a","..e..","c"] ~?= Just (Run "a" Nothing ["e"] Nothing (Just "c") False)
+    , parse_cli ["a","..e.."] ~?= Just (Run "a" Nothing ["e"] Nothing Nothing False)
+    , parse_cli ["a","b..e..f..d","c"] ~?= Just (Run "a" (Just "b") ["e","f"] (Just "d") (Just "c") False)
   , "failures" ~:
-    [ mustError (runThroughs $ parse_cli ["a", "b...d"]) (isPrefixOf "Invalid source spec:") ] ] ]
+    [ parse_cli ["a", "b...d"] ~?= Nothing ] ] ]
 
 demo_errors = do
   SI.hPutStrLn SI.stderr "---- removeFile ----"

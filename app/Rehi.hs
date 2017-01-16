@@ -27,6 +27,7 @@ import Data.List(foldl', isPrefixOf)
 import Data.Maybe(fromMaybe,isJust,isNothing)
 import Data.Monoid((<>))
 import Data.Typeable(typeOf)
+import Control.Applicative ((<|>))
 import Control.Monad(foldM,forM_,when)
 import Control.Monad.Catch(displayException,finally,catch,catchJust,catches,SomeException,throwM)
 import Control.Monad.Catch(MonadMask,MonadThrow,SomeException(SomeException),Exception,Handler(Handler))
@@ -41,6 +42,8 @@ import Control.Monad.Trans.State(evalStateT,execStateT)
 import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
+import Options.Applicative (flag, flag', argument, optional, metavar, long, short, eitherReader,
+                            execParser, info)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure),exitWith)
 import System.IO(hClose,IOMode(WriteMode,AppendMode),hSetBinaryMode)
 
@@ -72,8 +75,7 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . E
   initProgram
   env <- get_env
   flip runReaderT env $ do
-    args <- liftIO SE.getArgs
-    let parsed = parse_cli args
+    parsed <- liftIO $ execParser $ info options mempty
     case parsed of
       Abort -> abort_rebase
       Continue -> do
@@ -185,20 +187,19 @@ instance Exception ExpectedFailure
 pattern CommandFailed location <- GIE.IOError { GIE.ioe_type = GIE.OtherError,
                                                 GIE.ioe_location = location }
 
-parse_cli = parse_loop False
+options = flag' Continue (long "continue")
+          <|> flag' Continue (long "skip")
+          <|> flag' Abort (long "abort")
+          <|> flag' Current (long "current")
+          <|> makeRun <$> argument encode (metavar "DEST")
+                      <*> optional ((,) <$> argument encode (metavar "PATH")
+                                        <*> optional (argument encode (metavar "TARGET")))
+                      <*> flag False True (short 'i' <> long "interactive")
   where
-    parse_loop _ ("-i" : argv') = parse_loop True argv'
-    parse_loop _ ("--interactive" : argv') = parse_loop True argv'
-    parse_loop _ argv@("--abort" : _ : _ ) = error ("Extra argument:" ++ show argv)
-    parse_loop _ ["--abort"] = Abort
-    parse_loop _ argv@("--continue" : _ : _ ) = error ("Extra argument:" ++ show argv)
-    parse_loop _ ["--continue"] = Continue
-    parse_loop _ argv@("--skip" : _ : _ ) = error ("Extra argument:" ++ show argv)
-    parse_loop _ ["--skip"] = Skip
-    parse_loop _ argv@("--current" : _ : _ ) = error ("Extra argument:" ++ show argv)
-    parse_loop _ ["--current"] = Current
-    parse_loop interactive [dest] = Run (encodeUtf8Roundtrip dest) Nothing [] Nothing Nothing interactive
-    parse_loop interactive ((encodeUtf8Roundtrip -> arg0) : (encodeUtf8Roundtrip -> arg1) : (map encodeUtf8Roundtrip -> arg2mb)) | length arg2mb == 1 || length arg2mb == 0 && isJust (regex_match "\\.\\." arg1) =
+    makeRun :: ByteString -> Maybe (ByteString, Maybe ByteString) -> Bool -> CliMode
+    makeRun dest Nothing = Run dest Nothing [] Nothing Nothing
+    makeRun arg0 (Just (arg1, arg2mb))
+      | isJust arg2mb || isNothing arg2mb && isJust (regex_match "\\.\\." arg1) =
         let
           re_ref0 = "(?:[^\\.]|(?<!\\.)\\.)*"
           re_ref1 = "(?:[^\\.]|(?<!\\.)\\.)+"
@@ -206,14 +207,11 @@ parse_cli = parse_loop False
           (source_from, through, source_to) = case regex_match (mconcat ["^(", re_ref0, ")", re_sep, "((?:", re_ref1, re_sep, ")*)(", re_ref0, ")$"]) arg1 of
             Just [all, m1, m2, m3] -> (m1, regex_match_all m2 (mconcat ["(", re_ref1, ")", re_sep]), m3)
             _ -> error ("Invalid source spec:" ++ show arg1)
-          arg2 = case arg2mb of
-            [] -> Nothing
-            [v] -> Just v
           maybeFromString "" = Nothing
           maybeFromString s = Just s
-        in Run arg0 (maybeFromString source_from) through (maybeFromString source_to) arg2 interactive
-    parse_loop interactive [encodeUtf8Roundtrip -> arg0, encodeUtf8Roundtrip -> arg1] = Run arg0 Nothing [] Nothing (Just arg1) interactive
-    parse_loop _ argv = error ("Invalid arguments: " ++ show argv)
+        in Run arg0 (maybeFromString source_from) through (maybeFromString source_to) arg2mb
+      | otherwise = Run arg0 Nothing [] Nothing (Just arg1)
+    encode = eitherReader (Right . encodeUtf8Roundtrip)
 
 main_run :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
 main_run dest source_from through source_to target_ref initial_branch interactive = do
