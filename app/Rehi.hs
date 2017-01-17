@@ -73,7 +73,7 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . E
   env <- get_env
   flip runReaderT env $ do
     args <- liftIO SE.getArgs
-    parsed <- parse_cli args
+    let parsed = parse_cli args
     case parsed of
       Abort -> abort_rebase
       Continue -> do
@@ -185,7 +185,7 @@ instance Exception ExpectedFailure
 pattern CommandFailed location <- GIE.IOError { GIE.ioe_type = GIE.OtherError,
                                                 GIE.ioe_location = location }
 
-parse_cli as = pure $ parse_loop False as
+parse_cli = parse_loop False
   where
     parse_loop _ ("-i" : argv') = parse_loop True argv'
     parse_loop _ ("--interactive" : argv') = parse_loop True argv'
