@@ -9,6 +9,7 @@ module Rehi.IO (
     copyFile,
     doesDirectoryExist,
     doesFileExist,
+    encodeUtf8Roundtrip,
     getArgs,
     getEnv,
     getTemporaryDirectory,
@@ -35,6 +36,7 @@ import GHC.IO.Encoding (setFileSystemEncoding)
 import GHC.IO.Encoding.Failure (CodingFailureMode(RoundtripFailure))
 import GHC.IO.Encoding.UTF8 (mkUTF8)
 import System.Exit (ExitCode)
+import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.ByteString as B
 import qualified System.Environment as SE
@@ -62,7 +64,7 @@ openBinaryTempFile dir fn = do
   dir <- decode dir
   fn <- decode fn
   (p, h) <- SI.openBinaryTempFile dir fn
-  (, h) <$> encode p
+  (, h) <$> encodeM p
 
 createDirectory p = SD.createDirectory =<< decode p
 
@@ -74,7 +76,7 @@ doesFileExist p = SD.doesFileExist =<< decode p
 doesDirectoryExist p = SD.doesDirectoryExist =<< decode p
 
 getTemporaryDirectory :: IO ByteString
-getTemporaryDirectory = SD.getTemporaryDirectory >>= encode
+getTemporaryDirectory = SD.getTemporaryDirectory >>= encodeM
 
 removeDirectoryRecursive p = SD.removeDirectoryRecursive =<< decode p
 
@@ -83,7 +85,7 @@ removeFile p = SD.removeFile =<< decode p
 readCommand :: ByteString -> IO ByteString
 readCommand cmd = do
   cmdS <- decode cmd
-  SP.readCreateProcess (SP.shell cmdS) "" >>= encode
+  SP.readCreateProcess (SP.shell cmdS) "" >>= encodeM
 
 proc :: ByteString -> [ByteString] -> IO SP.CreateProcess
 proc exe args = SP.proc <$> decode exe <*> mapM decode args
@@ -103,13 +105,13 @@ callProcess :: ByteString -> [ByteString] -> IO ()
 callProcess exe args = join $ SP.callProcess <$> decode exe <*> mapM decode args
 
 getArgs :: IO [ByteString]
-getArgs = SE.getArgs >>= mapM encode
+getArgs = SE.getArgs >>= mapM encodeM
 
 getEnv :: ByteString -> IO ByteString
-getEnv v = decode v >>= SE.getEnv >>= encode
+getEnv v = decode v >>= SE.getEnv >>= encodeM
 
 lookupEnv :: ByteString -> IO (Maybe ByteString)
-lookupEnv v = decode v >>= SE.lookupEnv >>= mapM encode
+lookupEnv v = decode v >>= SE.lookupEnv >>= mapM encodeM
 
 decode :: ByteString -> IO String
 decode bs = B.useAsCStringLen bs (peekCStringLen utf8_roundtrip)
@@ -117,8 +119,12 @@ decode bs = B.useAsCStringLen bs (peekCStringLen utf8_roundtrip)
 decodePair :: (ByteString, ByteString) -> IO (String, String)
 decodePair (s1,s2) = (,) <$> decode s1 <*> decode s2
 
-encode :: String -> IO ByteString
-encode s = withCStringLen utf8_roundtrip s B.packCStringLen
+encodeM :: String -> IO ByteString
+encodeM s = withCStringLen utf8_roundtrip s B.packCStringLen
+
+-- should be safe as roundtrip does not throw
+encodeUtf8Roundtrip :: String -> ByteString
+encodeUtf8Roundtrip s = unsafePerformIO (encodeM s)
 
 utf8_roundtrip = mkUTF8 RoundtripFailure
 
@@ -130,7 +136,7 @@ initProgram = do
   stdoutT <- WF.getFileType stdoutH
   if stdoutT == WF.fILE_TYPE_PIPE
     then do
-      name <- encode =<< getFileNameInformation stdoutH
+      name <- encodeM =<< getFileNameInformation stdoutH
       case regex_match "^\\\\Device\\\\NamedPipe\\\\msys-.*pty.*-master$" name of
         Just _ -> SI.hSetBuffering SI.stdout SI.NoBuffering
         Nothing -> pure ()
