@@ -50,13 +50,15 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified GHC.IO.Exception as GIE
 import qualified Prelude as Prelude
+import qualified System.Environment as SE
 import qualified System.IO as SI
 
 import Rehi.ArgList(ArgList(ArgList))
 import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
                createDirectory,copyFile,
                removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
-               lookupEnv, system, initProgram)
+               lookupEnv, system, initProgram,
+               encodeUtf8Roundtrip)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
                    tryWithRethrowComandFailure,onCommandFailure)
@@ -70,7 +72,7 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . E
   initProgram
   env <- get_env
   flip runReaderT env $ do
-    args <- liftIO getArgs
+    args <- liftIO SE.getArgs
     parsed <- parse_cli args
     case parsed of
       Abort -> abort_rebase
@@ -195,8 +197,8 @@ parse_cli as = pure $ parse_loop False as
     parse_loop _ ["--skip"] = Skip
     parse_loop _ argv@("--current" : _ : _ ) = error ("Extra argument:" ++ show argv)
     parse_loop _ ["--current"] = Current
-    parse_loop interactive [dest] = Run dest Nothing [] Nothing Nothing interactive
-    parse_loop interactive (arg0 : arg1 : arg2mb) | length arg2mb == 1 || length arg2mb == 0 && isJust (regex_match "\\.\\." arg1) =
+    parse_loop interactive [dest] = Run (encodeUtf8Roundtrip dest) Nothing [] Nothing Nothing interactive
+    parse_loop interactive ((encodeUtf8Roundtrip -> arg0) : (encodeUtf8Roundtrip -> arg1) : (map encodeUtf8Roundtrip -> arg2mb)) | length arg2mb == 1 || length arg2mb == 0 && isJust (regex_match "\\.\\." arg1) =
         let
           re_ref0 = "(?:[^\\.]|(?<!\\.)\\.)*"
           re_ref1 = "(?:[^\\.]|(?<!\\.)\\.)+"
@@ -210,7 +212,7 @@ parse_cli as = pure $ parse_loop False as
           maybeFromString "" = Nothing
           maybeFromString s = Just s
         in Run arg0 (maybeFromString source_from) through (maybeFromString source_to) arg2 interactive
-    parse_loop interactive [arg0, arg1] = Run arg0 Nothing [] Nothing (Just arg1) interactive
+    parse_loop interactive [encodeUtf8Roundtrip -> arg0, encodeUtf8Roundtrip -> arg1] = Run arg0 Nothing [] Nothing (Just arg1) interactive
     parse_loop _ argv = error ("Invalid arguments: " ++ show argv)
 
 main_run :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
