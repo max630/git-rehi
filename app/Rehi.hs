@@ -43,7 +43,7 @@ import Control.Monad.Trans.Cont(ContT(ContT),evalContT)
 import Control.Monad.Trans.Writer(execWriterT)
 import Control.Monad.Writer(tell)
 import Options.Applicative (flag, flag', argument, optional, metavar, long, short, eitherReader,
-                            execParser, info)
+                            execParserPure, handleParseResult, info, prefs)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure),exitWith)
 import System.IO(hClose,IOMode(WriteMode,AppendMode),hSetBinaryMode)
 
@@ -75,7 +75,8 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . E
   initProgram
   env <- get_env
   flip runReaderT env $ do
-    parsed <- liftIO $ execParser $ info options mempty
+    args <- liftIO SE.getArgs
+    parsed <- liftIO $ handleParseResult $ execParserPure (prefs mempty) (info options mempty) args
     case parsed of
       Abort -> abort_rebase
       Continue -> do
@@ -191,26 +192,28 @@ options = flag' Continue (long "continue")
           <|> flag' Continue (long "skip")
           <|> flag' Abort (long "abort")
           <|> flag' Current (long "current")
-          <|> makeRun <$> argument encode (metavar "DEST")
-                      <*> optional ((,) <$> argument encode (metavar "PATH")
+          <|> makeRun <$> flag False True (short 'i' <> long "interactive")
+                      <*> argument readDest (metavar "DEST")
+                      <*> optional ((,) <$> argument readPath (metavar "[FROM]..[THROUGH..][TO]")
                                         <*> optional (argument encode (metavar "TARGET")))
-                      <*> flag False True (short 'i' <> long "interactive")
   where
-    makeRun :: ByteString -> Maybe (ByteString, Maybe ByteString) -> Bool -> CliMode
-    makeRun dest Nothing = Run dest Nothing [] Nothing Nothing
-    makeRun arg0 (Just (arg1, arg2mb))
-      | isJust arg2mb || isNothing arg2mb && isJust (regex_match "\\.\\." arg1) =
-        let
-          re_ref0 = "(?:[^\\.]|(?<!\\.)\\.)*"
-          re_ref1 = "(?:[^\\.]|(?<!\\.)\\.)+"
-          re_sep = "(?<!\\.)\\.\\."
-          (source_from, through, source_to) = case regex_match (mconcat ["^(", re_ref0, ")", re_sep, "((?:", re_ref1, re_sep, ")*)(", re_ref0, ")$"]) arg1 of
-            Just [all, m1, m2, m3] -> (m1, regex_match_all m2 (mconcat ["(", re_ref1, ")", re_sep]), m3)
-            _ -> error ("Invalid source spec:" ++ show arg1)
-          maybeFromString "" = Nothing
-          maybeFromString s = Just s
-        in Run arg0 (maybeFromString source_from) through (maybeFromString source_to) arg2mb
-      | otherwise = Run arg0 Nothing [] Nothing (Just arg1)
+    makeRun :: Bool -> ByteString -> Maybe ((Maybe ByteString, [ByteString], Maybe ByteString), Maybe ByteString) -> CliMode
+    makeRun intr dest Nothing = Run dest Nothing [] Nothing Nothing intr
+    makeRun intr dest (Just ((source_from, source_path, source_to), target)) = Run dest source_from source_path source_to target intr
+    readPath = eitherReader readPath'
+    readPath' arg = case regex_match (mconcat ["^(", re_ref0, ")", re_sep, "((?:", re_ref1, re_sep, ")*)(", re_ref0, ")$"]) (encodeUtf8Roundtrip arg) of
+          Just [all, m1, m2, m3] -> Right (maybeFromString m1, regex_match_all m2 (mconcat ["(", re_ref1, ")", re_sep]), maybeFromString m3)
+          _ -> Left ("Bad path spec: " <> arg)
+      where
+        re_ref0 = "(?:[^\\.]|(?<!\\.)\\.)*"
+        re_ref1 = "(?:[^\\.]|(?<!\\.)\\.)+"
+        re_sep = "(?<!\\.)\\.\\."
+        maybeFromString "" = Nothing
+        maybeFromString s = Just s
+    readDest = eitherReader readDest'
+    readDest' = \case
+      '-' : s -> Left ("Unknown option: " <> s)
+      s -> Right $ encodeUtf8Roundtrip s
     encode = eitherReader (Right . encodeUtf8Roundtrip)
 
 main_run :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
