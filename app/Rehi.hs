@@ -71,49 +71,57 @@ import Rehi.GitTypes (Hash(Hash), hashString)
 import qualified Rehi.GitCommands as Cmd
 
 main :: IO ()
-main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
+main = do
   initProgram
+  args <- liftIO SE.getArgs
+  parsed <- liftIO $ handleParseResult $ execParserPure (prefs mempty) (info options mempty) args
   env <- get_env
-  flip runReaderT env $ do
-    args <- liftIO SE.getArgs
-    parsed <- liftIO $ handleParseResult $ execParserPure (prefs mempty) (info options mempty) args
-    case parsed of
-      Abort -> abort_rebase
-      Continue -> do
-        (todo, current, commits, target_ref, marks) <- restore_rebase
-        case current of
-          Just c -> do
-            run_continue c commits
-            liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
-          Nothing -> return ()
-        lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
-      Skip -> do
-        (todo, current, commits, target_ref, marks) <- restore_rebase
-        case current of
-          Just c -> do
-            liftIO $ Cmd.reset $ "HEAD"
-            liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
-        lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
-      Current -> do
-        let currentPath = envGitDir env `mappend` "/rehi/current"
-        liftIO (doesFileExist currentPath) `unlessM` throwM (ExpectedFailure ["No rehi in progress"])
-        content <- liftIO $ readBinaryFile currentPath
-        liftIO $ putStr ("Current: " <> content <> (if ByteString.null content || BC.last content /= '\n' then "\n" else ""))
-      Run dest source_from_arg through source_to_arg target_arg interactive -> do
-        git_verify_clean
-        initial_branch <- git_get_checkedout_branch
-        let
-          target_ref = fromMaybe initial_branch target_arg
-          source_to = fromMaybe target_ref source_to_arg
-        source_from <- case source_from_arg of
-          Just s -> pure s
-          Nothing | Just _ <- regex_match ".*~1$" dest -> pure dest
-          Nothing -> git_merge_base source_to dest
-        let
-          through' = case regex_match "^(.*)~1$" source_from of
-            Just (_ : m : _) -> m : through
-            Nothing -> through
-        main_run dest source_from through' source_to target_ref initial_branch interactive
+  handleErrors
+    (SI.hPutStrLn SI.stderr)
+    (hPutStrLn SI.stderr)
+    (exitWith . ExitFailure)
+    (runReaderT (mainDo parsed) env)
+
+mainDo = \case
+  Abort -> abort_rebase
+  Continue -> do
+    (todo, current, commits, target_ref, marks) <- restore_rebase
+    gitDir <- askGitDir
+    case current of
+      Just c -> do
+        run_continue c commits
+        liftIO (removeFile (gitDir <> "/rehi/current"))
+      Nothing -> return ()
+    lift $ run_rebase gitDir todo commits target_ref marks Sync
+  Skip -> do
+    (todo, current, commits, target_ref, marks) <- restore_rebase
+    gitDir <- askGitDir
+    case current of
+      Just c -> do
+        liftIO $ Cmd.reset $ "HEAD"
+        liftIO (removeFile (gitDir <> "/rehi/current"))
+    lift $ run_rebase gitDir todo commits target_ref marks Sync
+  Current -> do
+    gitDir <- askGitDir
+    let currentPath = gitDir <> "/rehi/current"
+    liftIO (doesFileExist currentPath) `unlessM` throwM (ExpectedFailure ["No rehi in progress"])
+    content <- liftIO $ readBinaryFile currentPath
+    liftIO $ putStr ("Current: " <> content <> (if ByteString.null content || BC.last content /= '\n' then "\n" else ""))
+  Run dest source_from_arg through source_to_arg target_arg interactive -> do
+    git_verify_clean
+    initial_branch <- git_get_checkedout_branch
+    let
+      target_ref = fromMaybe initial_branch target_arg
+      source_to = fromMaybe target_ref source_to_arg
+    source_from <- case source_from_arg of
+      Just s -> pure s
+      Nothing | Just _ <- regex_match ".*~1$" dest -> pure dest
+      Nothing -> git_merge_base source_to dest
+    let
+      through' = case regex_match "^(.*)~1$" source_from of
+        Just (_ : m : _) -> m : through
+        Nothing -> through
+    start_rebase dest source_from through' source_to target_ref initial_branch interactive
 
 data CliMode =
   Abort
@@ -216,8 +224,8 @@ options = flag' Continue (long "continue")
       s -> Right $ encodeUtf8Roundtrip s
     encode = eitherReader (Right . encodeUtf8Roundtrip)
 
-main_run :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
-main_run dest source_from through source_to target_ref initial_branch interactive = do
+start_rebase :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
+start_rebase dest source_from through source_to target_ref initial_branch interactive = do
   (todo, commits, dest_hash) <-
     catch
       (init_rebase dest source_from through source_to target_ref initial_branch)
