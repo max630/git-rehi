@@ -181,7 +181,7 @@ t {
 t {
     cmd("git reset --hard origin/b1");
     cmd("git branch -f tmp origin/b2");
-    cmd("$testee HEAD tmp");
+    cmd("$testee HEAD .. tmp");
     is(`git symbolic-ref HEAD`, "refs/heads/tmp\n");
     cmd("git diff --quiet origin/master1");
 } explicit_target;
@@ -192,7 +192,7 @@ t {
     my $g = env_guard->new("GIT_EDITOR", "$SOURCE_DIR/itest-edit.sh");
     my $gc = env_guard->new("GIT_SEQUENCE_EDITOR_CASE", "fail");
     my $old_master = `git show --quiet --pretty=format:%h master`;
-    cmd("$testee -i HEAD tmp", "!= 0");
+    cmd("$testee -i HEAD .. tmp", "!= 0");
     cmd("$testee --abort");
     is(`git symbolic-ref HEAD`, "refs/heads/master\n");
     is(`git show --quiet --pretty=format:%h master`, $old_master);
