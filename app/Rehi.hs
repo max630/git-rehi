@@ -74,7 +74,7 @@ main :: IO ()
 main = do
   initProgram
   args <- liftIO SE.getArgs
-  parsed <- liftIO $ handleParseResult $ execParserPure (prefs mempty) (info options mempty) args
+  parsed <- liftIO $ handleParseResult $ execParserPure (prefs mempty) (info rebase_options mempty) args
   env <- get_env
   handleErrors
     (SI.hPutStrLn SI.stderr)
@@ -196,7 +196,7 @@ instance Exception ExpectedFailure
 pattern CommandFailed location <- GIE.IOError { GIE.ioe_type = GIE.OtherError,
                                                 GIE.ioe_location = location }
 
-options = flag' Continue (long "continue")
+rebase_options = flag' Continue (long "continue")
           <|> flag' Continue (long "skip")
           <|> flag' Abort (long "abort")
           <|> flag' Current (long "current")
