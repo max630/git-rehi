@@ -18,7 +18,7 @@ import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
 import Data.ByteString.Lazy (toStrict)
 import Data.List (isPrefixOf)
 import Data.Monoid ((<>))
-import Options.Applicative (execParserMaybe, info)
+import Options.Applicative (execParserMaybe, execParserPure, info, prefs)
 import System.IO(hClose)
 
 import qualified Data.ByteString as B
@@ -98,7 +98,9 @@ test_findseq commits from to throughs =
     (Hash (hashes !! to))
     (map (Hash . (hashes !!)) throughs)
 
-parse_cli = execParserMaybe (info options mempty)
+parse_cli = execParserMaybe (info rebase_options mempty)
+
+try_parse_cli = execParserPure (prefs mempty) (info rebase_options mempty)
 
 -- pick 0
 brs1 = test_brs [(0, [1])] 1 0 []
