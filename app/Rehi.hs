@@ -27,7 +27,7 @@ import Data.List(foldl', isPrefixOf)
 import Data.Maybe(fromMaybe,isJust,isNothing)
 import Data.Monoid((<>))
 import Data.Typeable(typeOf)
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), empty)
 import Control.Monad(foldM,forM_,when)
 import Control.Monad.Catch(displayException,finally,catch,catchJust,catches,SomeException,throwM)
 import Control.Monad.Catch(MonadMask,MonadThrow,SomeException(SomeException),Exception,Handler(Handler))
@@ -74,7 +74,7 @@ main :: IO ()
 main = do
   initProgram
   args <- liftIO SE.getArgs
-  parsed <- liftIO $ handleParseResult $ execParserPure (prefs mempty) (info options mempty) args
+  parsed <- liftIO $ handleParseResult $ execParserPure (prefs mempty) (info rebase_options mempty) args
   env <- get_env
   handleErrors
     (SI.hPutStrLn SI.stderr)
@@ -196,14 +196,16 @@ instance Exception ExpectedFailure
 pattern CommandFailed location <- GIE.IOError { GIE.ioe_type = GIE.OtherError,
                                                 GIE.ioe_location = location }
 
-options = flag' Continue (long "continue")
+rebase_options = flag' Continue (long "continue")
           <|> flag' Continue (long "skip")
           <|> flag' Abort (long "abort")
           <|> flag' Current (long "current")
           <|> makeRun <$> flag False True (short 'i' <> long "interactive")
                       <*> argument readDest (metavar "DEST")
-                      <*> optional ((,) <$> argument readPath (metavar "[FROM]..[THROUGH..][TO]")
-                                        <*> optional (argument encode (metavar "TARGET")))
+                      <*> optional
+                            ( (((Nothing, [], Nothing),) <$> argument readTargetOnly (metavar "TARGET"))
+                              <|> ((,) <$> argument readPath (metavar "[FROM]..[THROUGH..][TO]")
+                                       <*> optional (argument encode (metavar "TARGET"))))
   where
     makeRun :: Bool -> ByteString -> Maybe ((Maybe ByteString, [ByteString], Maybe ByteString), Maybe ByteString) -> CliMode
     makeRun intr dest Nothing = Run dest Nothing [] Nothing Nothing intr
@@ -222,6 +224,10 @@ options = flag' Continue (long "continue")
     readDest' = \case
       '-' : s -> Left ("Unknown option: " <> s)
       s -> Right $ encodeUtf8Roundtrip s
+    readTargetOnly = eitherReader readTargetOnly'
+    readTargetOnly' arg = case regex_match "\\.\\." (encodeUtf8Roundtrip arg) of
+      Just _ -> Left "TARGET is like PATH"
+      Nothing -> Right $ Just $ encodeUtf8Roundtrip arg
     encode = eitherReader (Right . encodeUtf8Roundtrip)
 
 start_rebase :: ByteString -> ByteString -> [ByteString] -> ByteString -> ByteString -> ByteString -> Bool -> ReaderT (Env ()) IO ()
