@@ -2,7 +2,10 @@
 {-# LANGUAGE TypeFamilies #-}
 module Rehi.Win32bits where
 
+import Data.Bits
 import Data.Int
+import Data.Proxy
+import Data.Typeable
 import Data.Word
 import Foreign.Ptr(Ptr(), nullPtr)
 import Foreign.Marshal.Alloc (allocaBytesAligned, alloca)
@@ -82,6 +85,11 @@ foreign import #{WINDOWS_CCONV} "NtQueryObject"
                   -> Ptr ULONG
                   -> IO NTSTATUS
 
+toIntegralSizedM :: forall a b . (Bits a, Integral a, Show a, Bits b, Integral b, Typeable b) => a -> IO b
+toIntegralSizedM v = case toIntegralSized v of
+  Just res -> pure res
+  Nothing -> fail ("Cannot cast from " ++ show v ++ " to " ++ show (typeRep (undefined :: Proxy b)))
+
 getFileNameInformation :: WT.HANDLE -> IO String
 getFileNameInformation h =
   alloca $ \ (p_len :: Ptr ULONG) -> do
@@ -89,8 +97,9 @@ getFileNameInformation h =
       (== 0xC0000004) -- STATUS_INFO_LENGTH_MISMATCH
       $ c_NtQueryObject h hs_ObjectNameInformation nullPtr 0 p_len
     len <- peek p_len
+    len_signed <- toIntegralSizedM len
     allocaBytesAligned
-        (fromIntegral len)
+        len_signed
         (alignment (undefined :: NT_OBJECT_NAME_INFORMATION))
         $ \ p_oni -> do
       checkNtStatus
@@ -98,7 +107,8 @@ getFileNameInformation h =
         $ c_NtQueryObject h hs_ObjectNameInformation p_oni len p_len
       res <- peek p_len
       oni <- peek p_oni
-      WT.peekTStringLen (noniBuffer oni, fromIntegral $ noniLength oni `div` 2)
+      oni_length <- toIntegralSizedM (noniLength oni `div` 2)
+      WT.peekTStringLen (noniBuffer oni, oni_length)
   where
     checkNtStatus :: (NTSTATUS -> Bool) -> IO NTSTATUS -> IO ()
     checkNtStatus p f = do
