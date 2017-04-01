@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Test where
@@ -18,6 +19,7 @@ import Data.ByteString.Builder (toLazyByteString, word64HexFixed, string7)
 import Data.ByteString.Lazy (toStrict)
 import Data.List (isPrefixOf)
 import Data.Monoid ((<>))
+import System.Environment(getArgs)
 import System.IO(hClose)
 
 import qualified Data.ByteString as B
@@ -28,7 +30,27 @@ import qualified System.IO as SI
 import Control.Exception (handle,SomeException(SomeException))
 import Data.Typeable (typeOf)
 
-main = runTestTT  allTests
+#ifdef mingw32_HOST_OS
+import Rehi.Win32bits (getFileNameInformation)
+import Rehi.Regex (regex_match)
+import qualified Graphics.Win32.Misc as WM
+import qualified System.Win32.File as WF
+#endif
+
+main = do
+  args <- getArgs
+  case args of
+    ["term"] -> do
+#ifdef mingw32_HOST_OS
+      SI.putStr "ft: "
+      stdoutH <- WM.getStdHandle WM.sTD_OUTPUT_HANDLE
+      WF.getFileType stdoutH >>= print
+      SI.putStr "fn: "
+      getFileNameInformation stdoutH >>= print
+#else
+      SI.putStrLn "terminal test implemented only for Windows"
+#endif
+    _ -> runTestTT allTests >> pure ()
 
 allTests = test [ "regex" ~:
                     [ "split keeps last " ~: regex_split "a b c" " " ~?= ["a", "b", "c"] ]
