@@ -2,14 +2,14 @@
 {-# LANGUAGE TypeFamilies #-}
 module Rehi.Win32bits where
 
-import Data.Bits
-import Data.Int
-import Data.Proxy
-import Data.Typeable
-import Data.Word
-import Foreign.Ptr(Ptr(), nullPtr)
+import Data.Bits (Bits, toIntegralSized)
+import Data.Int (Int32)
+import Data.Proxy (Proxy)
+import Data.Typeable (Typeable, typeRep)
+import Data.Word (Word32)
+import Foreign.Ptr (Ptr(), nullPtr)
 import Foreign.Marshal.Alloc (allocaBytesAligned, alloca)
-import Foreign.Storable
+import Foreign.Storable (Storable(alignment, peek, peekByteOff, poke, pokeByteOff, sizeOf))
 import Numeric (showHex)
 
 import qualified System.Win32.Types as WT
