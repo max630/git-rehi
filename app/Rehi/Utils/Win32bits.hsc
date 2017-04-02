@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
-module Rehi.Win32bits where
+module Rehi.Utils.Win32bits where
 
 import Data.Bits (Bits, toIntegralSized)
 import Data.Int (Int32)

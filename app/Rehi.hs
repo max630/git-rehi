@@ -52,16 +52,16 @@ import qualified GHC.IO.Exception as GIE
 import qualified Prelude as Prelude
 import qualified System.IO as SI
 
-import Rehi.ArgList(ArgList(ArgList))
-import Rehi.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
-               createDirectory,copyFile,
-               removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
-               lookupEnv, system, initProgram)
+import Rehi.GitTypes (Hash(Hash), hashString)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
                    tryWithRethrowComandFailure,onCommandFailure)
-import Rehi.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
-import Rehi.GitTypes (Hash(Hash), hashString)
+import Rehi.Utils.ArgList(ArgList(ArgList))
+import Rehi.Utils.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTempFile,callCommand,
+               createDirectory,copyFile,
+               removeDirectoryRecursive,removeFile,doesFileExist,doesDirectoryExist, getArgs,
+               lookupEnv, system, initProgram)
+import Rehi.Utils.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 
 import qualified Rehi.GitCommands as Cmd
 

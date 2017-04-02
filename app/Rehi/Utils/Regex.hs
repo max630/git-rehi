@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Rehi.Regex where
+module Rehi.Utils.Regex where
 
 import Control.Monad.Fix(fix)
 import Data.ByteString(ByteString)

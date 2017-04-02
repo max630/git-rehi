@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-module Rehi.ArgList where
+module Rehi.Utils.ArgList where
 
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 (split)

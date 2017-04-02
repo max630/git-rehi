@@ -17,8 +17,8 @@ import System.Exit (ExitCode(ExitSuccess))
 import System.IO(Handle,hClose,IOMode(WriteMode,AppendMode,ReadMode),hSetBinaryMode)
 import System.Process(StdStream(CreatePipe),CreateProcess(),waitForProcess,createProcess,std_out)
 
-import Rehi.ArgList (ArgList(), getArgList)
-import Rehi.IO (withBinaryFile,openBinaryFile,readCommand,proc)
+import Rehi.Utils.ArgList (ArgList(), getArgList)
+import Rehi.Utils.IO (withBinaryFile,openBinaryFile,readCommand,proc)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as BC

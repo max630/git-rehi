@@ -15,12 +15,13 @@ cabal-version:       >=1.10
 executable git-rehi
   hs-source-dirs:      app
   main-is:             Rehi.hs
-  other-modules:       Rehi.Utils
-                       , Rehi.ArgList
-                       , Rehi.Regex
+  other-modules:       Rehi
                        , Rehi.GitTypes
                        , Rehi.GitCommands
-                       , Rehi.IO
+                       , Rehi.Utils
+                       , Rehi.Utils.ArgList
+                       , Rehi.Utils.Regex
+                       , Rehi.Utils.IO
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -main-is Rehi.main
   build-depends:       base
                        , bytestring
@@ -45,12 +46,12 @@ executable git-rehi-test
   hs-source-dirs:      app
   main-is:             Test.hs
   other-modules:       Rehi
-                       , Rehi.Utils
-                       , Rehi.ArgList
-                       , Rehi.Regex
                        , Rehi.GitTypes
                        , Rehi.GitCommands
-                       , Rehi.IO
+                       , Rehi.Utils
+                       , Rehi.Utils.ArgList
+                       , Rehi.Utils.Regex
+                       , Rehi.Utils.IO
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -main-is Test.main
   build-depends:       base
                        , bytestring

@@ -4,9 +4,9 @@
 module Test where
 
 import Rehi hiding (main)
-import Rehi.Regex (regex_split)
 import Rehi.GitTypes (Hash(Hash), hashString)
-import Rehi.IO (getTemporaryDirectory,removeFile,openBinaryTempFile,readBinaryFile)
+import Rehi.Utils.Regex (regex_split)
+import Rehi.Utils.IO (getTemporaryDirectory,removeFile,openBinaryTempFile,readBinaryFile)
 
 import Test.HUnit (test,(~:),(~=?),(~?=),(@=?),(@?=),(@?),runTestTT,assertFailure)
 
@@ -31,8 +31,8 @@ import Control.Exception (handle,SomeException(SomeException))
 import Data.Typeable (typeOf)
 
 #ifdef mingw32_HOST_OS
-import Rehi.Win32bits (getFileNameInformation)
-import Rehi.Regex (regex_match)
+import Rehi.Utils.Win32bits (getFileNameInformation)
+import Rehi.Utils.Regex (regex_match)
 import qualified Graphics.Win32.Misc as WM
 import qualified System.Win32.File as WF
 #endif

@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
-module Rehi.IO (
+module Rehi.Utils.IO (
     callCommand,
     callProcess,
     createDirectory,
@@ -43,8 +43,8 @@ import qualified System.IO as SI
 import qualified System.Process as SP
 
 #ifdef mingw32_HOST_OS
-import Rehi.Win32bits (getFileNameInformation)
-import Rehi.Regex (regex_match)
+import Rehi.Utils.Win32bits (getFileNameInformation)
+import Rehi.Utils.Regex (regex_match)
 import qualified Graphics.Win32.Misc as WM
 import qualified System.Win32.File as WF
 #endif

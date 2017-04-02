@@ -9,11 +9,11 @@ import Data.Monoid ((<>))
 
 import qualified Data.ByteString as B
 
-import Rehi.ArgList (ArgList(ArgList), getArgList)
-import Rehi.IO (readCommand,callProcess)
+import Rehi.GitTypes
 import Rehi.Utils (equalWith, index_only, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines)
-import Rehi.GitTypes
+import Rehi.Utils.ArgList (ArgList(ArgList), getArgList)
+import Rehi.Utils.IO (readCommand,callProcess)
 
 fixup :: B.ByteString -> IO ()
 fixup ref = do
