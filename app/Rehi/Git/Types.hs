@@ -1,4 +1,4 @@
-module Rehi.GitTypes where
+module Rehi.Git.Types where
 
 import Data.ByteString(ByteString)
 

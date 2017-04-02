@@ -16,8 +16,8 @@ executable git-rehi
   hs-source-dirs:      app
   main-is:             Rehi.hs
   other-modules:       Rehi
-                       , Rehi.GitTypes
-                       , Rehi.GitCommands
+                       , Rehi.Git.Types
+                       , Rehi.Git.Commands
                        , Rehi.Utils
                        , Rehi.Utils.ArgList
                        , Rehi.Utils.Regex
@@ -46,8 +46,8 @@ executable git-rehi-test
   hs-source-dirs:      app
   main-is:             Test.hs
   other-modules:       Rehi
-                       , Rehi.GitTypes
-                       , Rehi.GitCommands
+                       , Rehi.Git.Types
+                       , Rehi.Git.Commands
                        , Rehi.Utils
                        , Rehi.Utils.ArgList
                        , Rehi.Utils.Regex

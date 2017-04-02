@@ -2,14 +2,14 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Rehi.GitCommands where
+module Rehi.Git.Commands where
 
 import Data.Maybe (maybe)
 import Data.Monoid ((<>))
 
 import qualified Data.ByteString as B
 
-import Rehi.GitTypes
+import Rehi.Git.Types
 import Rehi.Utils (equalWith, index_only, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines)
 import Rehi.Utils.ArgList (ArgList(ArgList), getArgList)

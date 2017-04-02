@@ -52,7 +52,7 @@ import qualified GHC.IO.Exception as GIE
 import qualified Prelude as Prelude
 import qualified System.IO as SI
 
-import Rehi.GitTypes (Hash(Hash), hashString)
+import Rehi.Git.Types (Hash(Hash), hashString)
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
                    tryWithRethrowComandFailure,onCommandFailure)
@@ -63,7 +63,7 @@ import Rehi.Utils.IO(withBinaryFile,readBinaryFile,openBinaryFile,openBinaryTemp
                lookupEnv, system, initProgram)
 import Rehi.Utils.Regex (regex_match, regex_match_with_newlines, regex_match_all, regex_split)
 
-import qualified Rehi.GitCommands as Cmd
+import qualified Rehi.Git.Commands as Cmd
 
 main :: IO ()
 main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . ExitFailure) $ do
