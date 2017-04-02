@@ -53,6 +53,8 @@ import qualified Prelude as Prelude
 import qualified System.IO as SI
 
 import Rehi.Git.Types (Hash(Hash), hashString)
+import Rehi.Storage
+import Rehi.Types
 import Rehi.Utils (equalWith, index_only, readPopen, mapFileLinesM, modifySnd,
                    trim, writeFile, appendToFile, whenM, unlessM, ifM, popen_lines,
                    tryWithRethrowComandFailure,onCommandFailure)
@@ -79,7 +81,7 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . E
         case current of
           Just c -> do
             run_continue c commits
-            liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
+            dropCurrent (envGitDir env)
           Nothing -> return ()
         lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
       Skip -> do
@@ -87,7 +89,7 @@ main = handleErrors (SI.hPutStrLn SI.stderr) (hPutStrLn SI.stderr) (exitWith . E
         case current of
           Just c -> do
             liftIO $ Cmd.reset $ "HEAD"
-            liftIO (removeFile (envGitDir env `mappend` "/rehi/current"))
+            dropCurrent (envGitDir env)
         lift $ run_rebase (envGitDir env) todo commits target_ref marks Sync
       Current -> do
         let currentPath = envGitDir env `mappend` "/rehi/current"
@@ -125,33 +127,6 @@ data CliMode =
 
 data Head = Sync | Known Hash deriving Show
 
-data Commits = Commits {
-    commitsRefs :: Map.Map ByteString Hash
-  , commitsByHash :: Map.Map Hash Entry
-  } deriving Show
-
-data Entry = Entry {
-    entryAHash :: ByteString
-  , entryHash :: Hash
-  , entrySubject :: ByteString
-  , entryParents :: [Hash]
-  , entryTree :: Hash
-  , entryBody :: ByteString
-  } deriving Show
-
-data Step =
-    Pick ByteString
-  | Fixup ByteString
-  | Edit ByteString
-  | Exec ByteString
-  | Comment ByteString
-  | Merge { mergeRef :: Maybe ByteString, mergeParents :: [ByteString], mergeOurs :: Bool, mergeNoff :: Bool }
-  | Mark ByteString
-  | Reset ByteString
-  | UserComment ByteString
-  | TailPickWithComment ByteString ByteString
-  deriving (Show, Eq)
-
 data Env a = Env { envGitDir :: ByteString, envRest :: a }
 
 -- Tmp State
@@ -172,10 +147,6 @@ teByHash = commitsByHash . envRest
 pattern TE refs byHash <- Env { envRest = (Commits refs byHash) }
 
 data StepResult = StepPause | StepNext
-
-newtype EditError = EditError ByteString deriving Show
-
-instance Exception EditError
 
 newtype ExpectedFailure = ExpectedFailure [ByteString] deriving Show
 instance Exception ExpectedFailure
@@ -647,8 +618,9 @@ git_parse_commit_line line = do
     _ -> fail ("Could not parse line: " <> show line)
 
 git_merge_base b1 b2 = do
-  [base] <- liftIO $ popen_lines "git" ("merge-base -a" <> [b1, b2]) '\n'
-  pure base
+  liftIO $ popen_lines "git" ("merge-base -a" <> [b1, b2]) '\n' >>= \case
+    [base] -> pure base
+    _ -> throwM (ExpectedFailure ["Failed to take unique mergebase for " <> b1 <> " and " <> b2])
 
 verify_hash :: Monad m => Hash -> m ()
 verify_hash (Hash (regex_match "^[0-9a-f]{40}$" -> Just _)) = pure ()
@@ -714,60 +686,6 @@ string_from_todo_comment cmt =
   where
     quoted = "comment " <> BC.replicate (BC.length endMark) '{' <> "\n" <> cmt <> endMark <> "\n"
     endMark = fix (\rec p -> if p `ByteString.isInfixOf` cmt then rec (p <> "}") else p) "}}}"
-
-data ReadState = RStCommand | RStDone | RStCommentPlain ByteString | RStCommentQuoted ByteString ByteString deriving Show
-
-read_todo :: (MonadIO m, MonadMask m) => ByteString -> Commits -> m [Step]
-read_todo path commits = do
-    (s, todo) <- execRWST (mapFileLinesM parseLine path '\n') () RStCommand
-    case s of
-      RStCommand -> pure todo
-      RStDone -> pure todo
-      mode -> throwM $ EditError "Unterminated comment"
-  where
-    parseLine line = do
-      get >>= \case
-        RStCommand
-          | Just [_, cmt] <- regex_match "^#(.*)$" line -> tell [UserComment cmt]
-          | Just _ <- regex_match "^end$" line -> put RStDone
-          | Just (_ : _ : ah : _) <- regex_match "^(f|fixup) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" line
-              -> tell [Fixup ah]
-          | Just (_ : _ : ah : _) <- regex_match "^(p|pick) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" line
-              -> tell [Pick ah]
-          | Just (_ : _ : ah : _) <- regex_match "^(e|edit) (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" line
-              -> tell [Edit ah]
-          | Just (_ : ah : _) <- regex_match "^reset (\\@?[0-9a-zA-Z_\\/]+)$" line
-              -> tell [Reset ah]
-          | Just (_ : _ : cmd : _) <- regex_match "^(x|exec) (.*)$" line
-              -> tell [Exec cmd]
-          | Just _ <- regex_match "^comment$" line -> put $ RStCommentPlain ""
-          | Just [_, b] <- regex_match "^comment (\\{+)$" line
-              -> put $ RStCommentQuoted "" (BC.length b `BC.replicate` '}')
-          | Just [_, options, _, parents] <- regex_match "^merge(( --ours| --no-ff| -c \\@?[0-9a-zA-Z_\\/]+)*) ([^ ]+)" line
-              -> do
-                merge <- fix (\rec m l -> if
-                                  | ByteString.null l -> pure m
-                                  | Just [_, rest] <- regex_match "^ --ours( .*)?$" l -> rec m{ mergeOurs = True } rest
-                                  | Just [_, rest] <- regex_match "^ --no-ff( .*)?$" l -> rec m{ mergeNoff = True } rest
-                                  | Just [_, ref, rest] <- regex_match "^ -c (\\@?[0-9a-zA-Z_\\/]+)( .*)?$" l -> rec m{mergeRef = Just ref} rest
-                                  | otherwise -> throwM $ EditError ("Unexpected merge options: " <> l))
-                              (Merge Nothing (BC.split ',' parents) False False)
-                              options
-                tell [merge]
-          | Just [_, mrk] <- regex_match "^: (.*)$" line
-              -> maybe (tell [Mark mrk])
-                  (const $ throwM (EditError ("Dangerous symbols in mark name: " <> mrk)))
-                  (regex_match "[^0-9a-zA-Z_]" mrk)
-          | Just _ <- regex_match "^[ \\t]*$" line -> pure ()
-        RStCommentPlain cmt0
-          | Just [_, cmt] <- regex_match "^# (.*)$" line -> tell [UserComment cmt]
-          | line == "." -> tell [Comment cmt0] >> put RStCommand
-          | otherwise -> put $ RStCommentPlain (cmt0 <> line <> "\n")
-        RStCommentQuoted cmt0 quote
-          | quote `ByteString.isSuffixOf` line -> tell [Comment (cmt0 <> ByteString.take (ByteString.length line - ByteString.length quote) line)] >> put RStCommand
-          | otherwise -> put $ RStCommentQuoted (cmt0 <> line <> "\n") quote
-        RStDone -> tell [UserComment line]
-        mode -> throwM $ EditError ("Unexpected line in mode " <> BC.pack (show mode) <> ": " <> line)
 
 commitsEmpty = Commits Map.empty Map.empty
 

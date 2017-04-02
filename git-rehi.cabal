@@ -18,6 +18,8 @@ executable git-rehi
   other-modules:       Rehi
                        , Rehi.Git.Types
                        , Rehi.Git.Commands
+                       , Rehi.Storage
+                       , Rehi.Types
                        , Rehi.Utils
                        , Rehi.Utils.ArgList
                        , Rehi.Utils.Regex
@@ -48,6 +50,8 @@ executable git-rehi-test
   other-modules:       Rehi
                        , Rehi.Git.Types
                        , Rehi.Git.Commands
+                       , Rehi.Storage
+                       , Rehi.Types
                        , Rehi.Utils
                        , Rehi.Utils.ArgList
                        , Rehi.Utils.Regex

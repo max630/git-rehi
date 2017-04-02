@@ -5,6 +5,8 @@ module Test where
 
 import Rehi hiding (main)
 import Rehi.Git.Types (Hash(Hash), hashString)
+import Rehi.Storage (read_todo)
+import Rehi.Types
 import Rehi.Utils.Regex (regex_split)
 import Rehi.Utils.IO (getTemporaryDirectory,removeFile,openBinaryTempFile,readBinaryFile)
 
